@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class NoteEditor extends StatefulWidget {
   const NoteEditor({
@@ -38,6 +39,13 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseTextStyle = GoogleFonts.sourceSans3(
+      fontSize: 18,
+      fontWeight: FontWeight.w400,
+      height: 1.6,
+      color: Color(0xFF515151),
+    );
     return QuillEditor(
       controller: widget.controller,
       focusNode: widget.focusNode,
@@ -56,14 +64,18 @@ class _NoteEditorState extends State<NoteEditor> {
         ),
         placeholder: 'Start typing your note...',
         customStyles: DefaultStyles(
+          paragraph: DefaultTextBlockStyle(
+            baseTextStyle,
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            null,
+          ),
           placeHolder: DefaultTextBlockStyle(
-            TextStyle(
-              fontSize: UIConstants.editorFontSize,
-              color: Color(0xFF515151),
-            ),
-            HorizontalSpacing(0, 0),
-            VerticalSpacing(0, 0),
-            VerticalSpacing(0, 0),
+            baseTextStyle.copyWith(color: Colors.grey),
+            const HorizontalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
+            const VerticalSpacing(0, 0),
             null,
           ),
         ),
