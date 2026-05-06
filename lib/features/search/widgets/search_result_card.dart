@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/services/note_preview_text.dart';
 
@@ -34,6 +35,37 @@ class SearchResultCard extends StatelessWidget {
   /// Tap handler (usually navigates to NotePage)
   final VoidCallback onTap;
 
+  String _formatTimestamp(DateTime value) {
+    final month = _monthName(value.month);
+
+    final hour = value.hour == 0
+        ? 12
+        : (value.hour > 12 ? value.hour - 12 : value.hour);
+
+    final minute = value.minute.toString().padLeft(2, '0');
+    final meridiem = value.hour >= 12 ? 'PM' : 'AM';
+
+    return '$month ${value.day}, ${value.year} $hour:$minute $meridiem';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
+  }
+
   @override
   Widget build(BuildContext context) {
     /// Base style for title text
@@ -68,18 +100,34 @@ class SearchResultCard extends StatelessWidget {
         /// ---------------------------------------------------------------
         /// TITLE WITH HIGHLIGHTED MATCHES
         /// ---------------------------------------------------------------
-        title: Text.rich(
-          TextSpan(
-            children: buildHighlightedTextSpans(
-              text: note.title.isEmpty ? 'Untitled note' : note.title,
-              query: query,
-              baseStyle: titleStyle,
-              // Merge base + highlight styles
-              highlightStyle: titleStyle.merge(highlightStyle),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: buildHighlightedTextSpans(
+                  text: note.title.isEmpty ? 'Untitled note' : note.title,
+                  query: query,
+                  baseStyle: titleStyle,
+                  // Merge base + highlight styles
+                  highlightStyle: titleStyle.merge(highlightStyle),
+                ),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+            const SizedBox(height: UIConstants.paddingXS),
+
+            Text(
+              'Edited: ${_formatTimestamp(note.updatedAt)}',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: UIConstants.noteCardEditedFontSize,
+              ),
+            ),
+
+            const SizedBox(height: UIConstants.paddingSM),
+          ],
         ),
 
         /// ---------------------------------------------------------------

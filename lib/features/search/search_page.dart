@@ -218,31 +218,19 @@ class _SearchPageState extends State<SearchPage> {
       pageBuilder: (context, animation, secondaryAnimation) {
         return Align(
           alignment: Alignment.bottomCenter,
+          // Inside _openSearchFilterDialog in SearchPage.dart
           child: SafeArea(
             bottom: true,
-            // 1. The Full-Surface Drag Detector
-            child: GestureDetector(
-              onVerticalDragUpdate: (details) {
-                // 2. HIGHER THRESHOLD: We use 7 instead of 1.
-                // This prevents accidental closures if the user slightly drags
-                // their finger while trying to tap a dropdown menu.
-                if (details.primaryDelta! > 7) {
-                  Navigator.pop(context);
-                }
-              },
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600),
-                child: Material(
-                  color: Colors.transparent,
-                  // 3. Make sure the gesture detector "catches" taps everywhere,
-                  // even in the blank spaces between your UI elements.
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap:
-                        () {}, // Blocks tap-through to the background barrier
-                    child: SearchFilterBottomSheet(
-                      initialFilters: _searchController.filters,
-                    ),
+            child: ConstrainedBox(
+              // Removed outer GestureDetector swipe logic
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Material(
+                color: Colors.transparent,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {}, // Still blocks tap-through to the barrier
+                  child: SearchFilterBottomSheet(
+                    initialFilters: _searchController.filters,
                   ),
                 ),
               ),

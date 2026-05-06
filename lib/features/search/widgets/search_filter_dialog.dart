@@ -113,16 +113,26 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// -----------------------------------------------------------
-            /// DRAG HANDLE
+            /// DRAG HANDLE (Isolated Swipe Trigger)
             /// -----------------------------------------------------------
-            Center(
-              child: Container(
-                height: 4,
-                width: 40,
-                margin: const EdgeInsets.only(bottom: 24),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade400,
-                  borderRadius: BorderRadius.circular(2),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragUpdate: (details) {
+                // Sensitivity threshold: pops only if swiping down[cite: 9]
+                if (details.primaryDelta! > 7) {
+                  Navigator.pop(context);
+                }
+              },
+              child: Center(
+                child: Container(
+                  height: 4,
+                  width: 40,
+                  // Increased top margin to provide a larger invisible touch target
+                  margin: const EdgeInsets.only(top: 10, bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
             ),
