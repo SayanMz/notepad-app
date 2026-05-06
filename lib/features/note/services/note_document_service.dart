@@ -101,9 +101,6 @@ class NoteDocumentService {
     return widgets;
   }
 
-  /*
-"The app takes the Quill Delta JSON, translates those text blocks and image references into a format the PDF library understands (like plain text with styling metadata), and then paints them onto a virtual PDF canvas, handling page breaks along the way."
-*/
   static pw.Widget _buildPdfLine(
     _DeltaLine line,
     int orderedListIndex,
@@ -809,7 +806,3 @@ class _InlineRun {
   final String text;
   final Map<String, dynamic> attributes;
 }
-
-/*
-"I'll be completely transparent—I used AI to generate the heavy boilerplate for the custom span mapping because mapping JSON to Flutter TextSpans is highly repetitive. But I can walk you through the architecture of how it operates. The core logic takes the Quill Delta, parses it for the custom bullet attribute, and dynamically wraps that specific line in a custom Widget row. I don't remember the exact flutter_quill API method it calls on line 42 off the top of my head, but the logical flow is [X -> Y -> Z]."
-*/
