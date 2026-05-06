@@ -1,15 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/data/note_repository.dart';
+import 'package:notepad/features/note/services/groq_service.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:notepad/features/note/services/note_recovery_service.dart';
 import 'package:notepad/features/note/controllers/note_controller.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
@@ -17,7 +17,7 @@ import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:notepad/main.dart';
+import 'package:notepad/core/services/ui_notifier.dart';
 
 /// ---------------------------------------------------------------------------
 /// NOTE PAGE (EDITOR SCREEN)
@@ -26,10 +26,10 @@ import 'package:notepad/main.dart';
 /// ROLE IN ARCHITECTURE:
 /// - Core feature screen for creating & editing notes
 /// - Integrates:
-///     • Rich text editor (flutter_quill)
-///     • Persistence layer (NoteRepository)
-///     • Recovery system
-///     • Controller abstraction (NoteController)
+///     Ã¢â‚¬Â¢ Rich text editor (flutter_quill)
+///     Ã¢â‚¬Â¢ Persistence layer (NoteRepository)
+///     Ã¢â‚¬Â¢ Recovery system
+///     Ã¢â‚¬Â¢ Controller abstraction (NoteController)
 ///
 /// RESPONSIBILITIES:
 /// - Initialize editor state (new / existing / recovered note)
@@ -38,12 +38,12 @@ import 'package:notepad/main.dart';
 /// - Manage editor lifecycle and focus
 ///
 /// DESIGN PRINCIPLES:
-/// - UI delegates logic → NoteController
+/// - UI delegates logic Ã¢â€ â€™ NoteController
 /// - Editor state is reactive via controllers
 /// - Lifecycle-aware saving (AppLifecycleListener)
 ///
 /// INTERVIEW NOTE:
-/// This is the most complex screen — demonstrates state handling,
+/// This is the most complex screen Ã¢â‚¬â€ demonstrates state handling,
 /// editor integration, and lifecycle awareness.
 class NotePage extends StatefulWidget {
   final String title, content;
@@ -109,11 +109,32 @@ class _NotePageState extends State<NotePage>
   /// Scroll control for editor
   final ScrollController _editorScrollController = ScrollController();
 
-  /// UI-only state → toggles toolbar visibility
+  /// UI-only state Ã¢â€ â€™ toggles toolbar visibility
   bool _isEditing = false;
   bool _hasNudgedToolbar = false; //Track the Nudge
+  bool _isHandlingBackNavigation = false;
+
+  ///Dirty State Tracking
+  late String lastEditorSignature;
+  String get currentSignature =>
+      _editorSignature(titleController.text, contentController.document);
+  bool get hasChanges => lastEditorSignature != currentSignature;
 
   /// --- VOICE AI LOGIC ---
+
+  void _primeGroqService() {
+    unawaited(
+      GroqService.warmUp().catchError((error) {
+        if (!mounted) return;
+
+        final message = error is GroqServiceException
+            ? error.message
+            : 'AI service is temporarily unavailable. Please try again later.';
+
+        uiNotifier.showSnackBar(SnackBar(content: Text(message)));
+      }),
+    );
+  }
 
   void _initSpeech() async {
     try {
@@ -173,6 +194,8 @@ class _NotePageState extends State<NotePage>
       _cleanupListening(cancelRobot: true);
       return;
     }
+
+    _primeGroqService();
 
     if (await _speech.initialize()) {
       // UI State: Update once to show we are listening
@@ -240,7 +263,7 @@ class _NotePageState extends State<NotePage>
         // FATAL ERROR CASE (Keep SnackBar for system/network errors)
       } else if (feedback != null && mounted) {
         // Keep SnackBar only for errors or "No matches found"
-        showRootSnackBar(SnackBar(content: Text(feedback)));
+        uiNotifier.showSnackBar(SnackBar(content: Text(feedback)));
       }
     });
   }
@@ -256,7 +279,6 @@ class _NotePageState extends State<NotePage>
     // 1. CONTROLLER INITIALIZATION
     // -----------------------------------------------------------------------
     _noteController = NoteController(
-      recoveryService: NoteRecoveryService(),
       noteRepository: noteRepository,
       noteId: widget.noteId,
     );
@@ -273,7 +295,7 @@ class _NotePageState extends State<NotePage>
 
     /// Initialize content controller
     if (note != null) {
-      /// Existing note → decode rich content
+      /// Existing note Ã¢â€ â€™ decode rich content
       contentController = QuillController(
         document: Document.fromJson(
           NoteDocumentService.decodeRichContent(note.richContent, note.content),
@@ -324,6 +346,11 @@ class _NotePageState extends State<NotePage>
     );
 
     /// Initial snapshot for change detection
+    lastEditorSignature = currentSignature;
+  }
+
+  String _editorSignature(String title, Document document) {
+    return '${title.trim()}\n${jsonEncode(document.toDelta().toJson())}';
   }
 
   /// -------------------------------------------------------------------------
@@ -367,17 +394,34 @@ class _NotePageState extends State<NotePage>
     super.dispose();
   }
 
+  Future<void> _handleBackNavigation() async {
+    // 1. Prevent double-tapping
+    if (_isHandlingBackNavigation) return;
+    _isHandlingBackNavigation = true;
+
+    if (hasChanges) {
+      _noteController.saveAndCleanupOnClose(
+        title: titleController.text,
+        document: contentController.document,
+      );
+      // Navigator.of(context).pop(true);
+      // return;
+    }
+
+    // 3. Just leave the screen.
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return PopScope(
-      /// Save note when navigating back
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        _noteController.saveAndCleanupOnClose(
-          title: titleController.text,
-          document: contentController.document,
-        );
+        if (didPop) return;
+        _handleBackNavigation();
       },
       child: Scaffold(
         backgroundColor: isDark
@@ -406,28 +450,6 @@ class _NotePageState extends State<NotePage>
               // -------------------------------------------------------------
               // TOOLBAR (FORMATTING)
               // -------------------------------------------------------------
-              AnimatedSize(
-                duration: UIConstants.animationMedium,
-                curve: Curves.easeInOutCubic,
-                child: _isEditing
-                    ? Container(
-                        padding: const EdgeInsets.only(
-                          bottom: UIConstants.paddingSM,
-                        ),
-                        child: NoteToolbar(
-                          controller: contentController,
-                          focusNode: _editorFocusNode,
-                          shouldNudge: !_hasNudgedToolbar,
-                          onNudgeComplete: () {
-                            if (mounted) {
-                              setState(() => _hasNudgedToolbar = true);
-                            }
-                          },
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-
               const SizedBox(height: UIConstants.paddingSM),
 
               // -------------------------------------------------------------
@@ -437,6 +459,10 @@ class _NotePageState extends State<NotePage>
                 titleController: titleController,
                 onToggleEdit: _toggleEditMode,
                 isEditing: _isEditing,
+                noteController: _noteController,
+                lottieController: _lottieController,
+                isListening: _isListening,
+                toggleListening: _toggleListening,
               ),
 
               const SizedBox(height: UIConstants.paddingMD),
@@ -456,60 +482,54 @@ class _NotePageState extends State<NotePage>
                   ),
                 ),
               ),
+
+              // Replace AnimatedSize with AnimatedSwitcher
+              AnimatedSwitcher(
+                // Snappy entrance, slightly faster exit to get out of the user's way
+                duration: const Duration(milliseconds: 250),
+                reverseDuration: const Duration(milliseconds: 200),
+                // Decelerates smoothly on the way in, accelerates on the way out
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  // 1. Hardware-accelerated slide from the bottom
+                  final slideAnimation = Tween<Offset>(
+                    begin: const Offset(0.0, 0.5), // Starts 50% lower
+                    end: Offset.zero,
+                  ).animate(animation);
+
+                  // 2. Hardware-accelerated opacity fade
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: slideAnimation,
+                      child: child,
+                    ),
+                  );
+                },
+                child: _isEditing
+                    ? Container(
+                        // CRITICAL: AnimatedSwitcher requires a Key to know when widgets change
+                        key: const ValueKey('note_toolbar'),
+                        padding: const EdgeInsets.only(
+                          bottom: UIConstants.paddingSM,
+                        ),
+                        child: NoteToolbar(
+                          controller: contentController,
+                          focusNode: _editorFocusNode,
+                          shouldNudge: !_hasNudgedToolbar,
+                          onNudgeComplete: () {
+                            if (mounted) {
+                              setState(() => _hasNudgedToolbar = true);
+                            }
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(key: ValueKey('empty_toolbar')),
+              ), // AnimatedSwitcher
             ],
           ),
         ),
-        // floatingActionButton: ValueListenableBuilder<bool>(
-        //   valueListenable: _noteController.isProcessingVoice,
-        //   builder: (context, isProcessing, _) {
-        //     if (isProcessing) {
-        //       _lottieController.repeat();
-        //     } else {
-        //       _lottieController.stop();
-        //       _lottieController.reset();
-        //     }
-        //     return GestureDetector(
-        //       onTap: isProcessing ? null : _toggleListening,
-
-        //       child: Lottie.asset(
-        //         controller: _lottieController,
-        //         'assets/lotties/Ai_Robot.json',
-        //         onLoaded: (composition) {
-        //           _lottieController.duration = composition.duration;
-        //         },
-        //         height: 80,
-        //         width: 80,
-        //       ),
-        //     );
-        //   },
-        // ),
-        floatingActionButton: ValueListenableBuilder<bool>(
-          valueListenable: _noteController.isProcessingVoice,
-          builder: (context, isProcessing, _) {
-            // Animation Trigger
-            if (isProcessing) {
-              if (!_lottieController.isAnimating) _lottieController.repeat();
-            } else {
-              _lottieController.stop();
-              _lottieController.reset();
-            }
-
-            return GestureDetector(
-              // Allow tapping to stop listening, but lock during AI thinking
-              onTap: (isProcessing && !_isListening) ? null : _toggleListening,
-              child: Lottie.asset(
-                'assets/lotties/Ai_Assistant.json',
-                controller: _lottieController,
-                onLoaded: (composition) {
-                  _lottieController.duration = composition.duration;
-                },
-                height: 80,
-                width: 80,
-              ),
-            );
-          },
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
   }
@@ -568,10 +588,3 @@ class PlainPasteWrapper extends StatelessWidget {
     );
   }
 }
-
-/*
-🧠 INTERVIEW GOLD ANSWER
-
-“I centralized all persistence triggers inside the controller to ensure consistent behavior and 
-make the UI fully declarative.”
-*/

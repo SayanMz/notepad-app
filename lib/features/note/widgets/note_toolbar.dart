@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/main.dart';
+import 'package:notepad/core/services/ui_notifier.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class NoteToolbar extends StatefulWidget {
@@ -118,12 +118,22 @@ class _NoteToolbarState extends State<NoteToolbar> {
     widget.onNudgeComplete?.call();
   }
 
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 24,
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      color: isDark ? Colors.white24 : Colors.black12,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _buildRawGlassToolbar(
           [
+            // GROUP 1: Core Typography
             _buildRawToggle(Icons.format_bold, Attribute.bold),
             _buildRawToggle(Icons.format_italic, Attribute.italic),
             _buildRawToggle(Icons.format_underlined, Attribute.underline),
@@ -131,17 +141,17 @@ class _NoteToolbarState extends State<NoteToolbar> {
               Icons.format_strikethrough,
               Attribute.strikeThrough,
             ),
-            _buildCheckboxToggle(),
-          ],
-          isScrollable: true,
-          scrollController: _rowScrollController,
-        ),
-        _buildRawGlassToolbar(
-          [
+
+            _buildDivider(), // Visual Chunk Break
+            // GROUP 2: Advanced Typography
             _buildRawSizeMenu(),
             _buildRawColorMenu(),
-            _buildRawListMenu(),
             _buildRawAlignmentMenu(widget.controller),
+
+            _buildDivider(), // Visual Chunk Break
+            // GROUP 3: Blocks & Insertions
+            _buildRawListMenu(),
+            _buildCheckboxToggle(),
             IconButton(
               icon: Icon(
                 Icons.link,
@@ -153,7 +163,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
           isScrollable: true,
           scrollController: _rowScrollController,
         ),
-        const SizedBox(height: UIConstants.paddingM),
       ],
     );
   }
@@ -187,7 +196,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
 
     /// Validate URL
     if (!_isValidLink(targetUrl)) {
-      showRootSnackBar(
+      uiNotifier.showSnackBar(
         const SnackBar(
           backgroundColor: AppColors.deleteDarkIcon,
           content: Text('Please enter a valid link'),
@@ -281,6 +290,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
         UIConstants.toolbarMarginHorizontal,
         0,
       ),
+      height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(UIConstants.radiusMD),
         color: isDark
@@ -336,8 +346,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
                             ],
                             stops: [
                               0.0,
-                              0.1,
-                              0.9,
+                              0.05,
+                              0.95,
                               1.0,
                             ], // Fade starts at 85% of the width
                           ).createShader(rect);
@@ -348,10 +358,31 @@ class _NoteToolbarState extends State<NoteToolbar> {
                           controller: scrollController,
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
-                          child: Row(children: alignedChildren),
+                          child: Row(
+                            children: children.map((child) {
+                              // Don't stretch the dividers!
+                              if (child is Container &&
+                                  child.constraints?.maxWidth == 1) {
+                                return child;
+                              }
+                              // Standardize icon touch targets
+                              return SizedBox(
+                                width: 60,
+                                child: Center(child: child),
+                              );
+                            }).toList(),
+                          ),
                         ),
                       )
-                    : Row(children: alignedChildren),
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: children.map((child) {
+                          return SizedBox(
+                            width: 60,
+                            child: Center(child: child),
+                          );
+                        }).toList(),
+                      ),
               );
             },
           ),
@@ -421,24 +452,22 @@ class _NoteToolbarState extends State<NoteToolbar> {
         String headingLabel = 'H';
         if (currentSize == 32.0) {
           headingLabel = 'H1';
-        } else if (currentSize == 28.0) {
+        } else if (currentSize == 28.0)
           headingLabel = 'H2';
-        } else if (currentSize == 24.0) {
+        else if (currentSize == 24.0)
           headingLabel = 'H3';
-        } else if (currentSize == 20.0) {
+        else if (currentSize == 20.0)
           headingLabel = 'H4';
-        }
 
-        return MenuAnchor(
-          alignmentOffset: const Offset(-15, 0),
+        // 1. USE YOUR NEW WRAPPER
+        return _buildSmartMenu(
+          yOffset: -60, // Main menu pops up 60px
           builder: (context, menuController, child) => IconButton(
             icon: Icon(
               Icons.text_fields,
               color: menuController.isOpen
                   ? Colors.blueAccent
-                  : isDark
-                  ? Colors.white
-                  : colorScheme.onSurfaceVariant,
+                  : (isDark ? Colors.white : colorScheme.onSurfaceVariant),
             ),
             onPressed: () => menuController.isOpen
                 ? menuController.close()
@@ -450,19 +479,13 @@ class _NoteToolbarState extends State<NoteToolbar> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1. HEADINGS DROPDOWN (Now dropping downwards)
                   Expanded(
-                    child: MenuAnchor(
-                      // Pushes the menu straight down beneath the button
-                      alignmentOffset: const Offset(-55, 40),
+                    // 2. USE IT AGAIN
+                    child: _buildSmartMenu(
+                      yOffset: -200, // Headings list pops up higher
                       builder: (context, innerMenuController, child) {
                         return TextButton(
-                          style: TextButton.styleFrom(
-                            foregroundColor: isDark
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
-                            padding: EdgeInsets.zero,
-                          ),
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
                           onPressed: () => innerMenuController.isOpen
                               ? innerMenuController.close()
                               : innerMenuController.open(),
@@ -471,12 +494,20 @@ class _NoteToolbarState extends State<NoteToolbar> {
                             children: [
                               Text(
                                 headingLabel,
-                                style: const TextStyle(
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white
+                                      : colorScheme.onSurfaceVariant,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              // Arrow pointing down
-                              const Icon(Icons.arrow_drop_down, size: 18),
+                              Icon(
+                                Icons.arrow_drop_up,
+                                size: 18,
+                                color: isDark
+                                    ? Colors.white
+                                    : colorScheme.onSurfaceVariant,
+                              ),
                             ],
                           ),
                         );
@@ -497,26 +528,18 @@ class _NoteToolbarState extends State<NoteToolbar> {
                       ],
                     ),
                   ),
-
                   Container(
                     width: 1,
                     height: 25,
                     color: isDark ? Colors.white24 : Colors.black12,
                   ),
-
-                  // 2. FONT SIZE DROPDOWN (Now dropping downwards)
                   Expanded(
-                    child: MenuAnchor(
-                      // Pushes the menu straight down beneath the button
-                      alignmentOffset: const Offset(-55, 40),
+                    // 3. USE IT AGAIN
+                    child: _buildSmartMenu(
+                      yOffset: -300, // Font size list pops up highest
                       builder: (context, innerMenuController, child) {
                         return TextButton(
-                          style: TextButton.styleFrom(
-                            foregroundColor: isDark
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
-                            padding: EdgeInsets.zero,
-                          ),
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
                           onPressed: () => innerMenuController.isOpen
                               ? innerMenuController.close()
                               : innerMenuController.open(),
@@ -525,12 +548,20 @@ class _NoteToolbarState extends State<NoteToolbar> {
                             children: [
                               Text(
                                 '${currentSize.toInt()}',
-                                style: const TextStyle(
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white
+                                      : colorScheme.onSurfaceVariant,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              // Arrow pointing down
-                              const Icon(Icons.arrow_drop_down, size: 18),
+                              Icon(
+                                Icons.arrow_drop_up,
+                                size: 18,
+                                color: isDark
+                                    ? Colors.white
+                                    : colorScheme.onSurfaceVariant,
+                              ),
                             ],
                           ),
                         );
@@ -593,8 +624,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
   }
 
   Widget _buildRawColorMenu() {
-    return MenuAnchor(
-      alignmentOffset: const Offset(-UIConstants.toolbarColorMenuOffsetX, 0),
+    return _buildSmartMenu(
+      yOffset: -120, // Extra space for the multi-row Wrap widget
       builder: (context, menuController, child) => IconButton(
         icon: const Icon(Icons.palette, color: Colors.redAccent),
         onPressed: () => menuController.isOpen
@@ -617,7 +648,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
               _buildColorCircle(Colors.green),
               _buildColorCircle(Colors.blue),
               _buildColorCircle(Colors.purple),
-              // Rainbow trigger
               _buildColorCircle(Colors.transparent, isRainbow: true),
             ],
           ),
@@ -731,17 +761,16 @@ class _NoteToolbarState extends State<NoteToolbar> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, child) {
-        // Get the current list attribute value (e.g., 'ul' or 'ol')
         final currentList = widget.controller
             .getSelectionStyle()
             .attributes['list']
             ?.value;
-
         final bool isListActive =
             currentList == Attribute.ul.value ||
             currentList == Attribute.ol.value;
 
-        return MenuAnchor(
+        return _buildSmartMenu(
+          yOffset: -100, // Slightly higher to clear the toolbar and padding
           builder: (context, menuController, child) => IconButton(
             icon: Icon(
               Icons.format_list_bulleted,
@@ -894,7 +923,9 @@ class _NoteToolbarState extends State<NoteToolbar> {
             .attributes[Attribute.align.key]
             ?.value;
 
-        return MenuAnchor(
+        return _buildSmartMenu(
+          yOffset:
+              -150, // Higher offset to ensure the 3-item list is fully visible
           builder: (context, menuController, child) => IconButton(
             icon: const Icon(
               Icons.format_align_justify,
@@ -957,6 +988,19 @@ class _NoteToolbarState extends State<NoteToolbar> {
             : Attribute.rightAlignment,
       ),
       child: Text(label),
+    );
+  }
+
+  // A DRY wrapper that forces the menu to open upwards, out of the keyboard's way.
+  Widget _buildSmartMenu({
+    required Widget Function(BuildContext, MenuController, Widget?) builder,
+    required List<Widget> menuChildren,
+    double yOffset = -60, // Defaults to popping up just above the toolbar
+  }) {
+    return MenuAnchor(
+      alignmentOffset: Offset(-15, yOffset),
+      builder: builder,
+      menuChildren: menuChildren,
     );
   }
 }
