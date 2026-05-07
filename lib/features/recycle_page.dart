@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/main.dart';
+import 'package:notepad/core/services/ui_notifier.dart';
 import 'dart:math';
 
 class RecyclePage extends StatefulWidget {
@@ -16,6 +17,9 @@ class RecyclePage extends StatefulWidget {
 }
 
 class _RecyclePageState extends State<RecyclePage> {
+  // NEW: State to control header visibility on scroll
+  bool _showHeaders = true;
+
   /// LOGIC: Handles permanent, irreversible data deletion.
   Future<void> _confirmDeleteForever(NotesSection note) async {
     final navigator = Navigator.of(context);
@@ -46,8 +50,6 @@ class _RecyclePageState extends State<RecyclePage> {
     }
 
     // ARCHITECTURE NOTE: Reactive State.
-    // Calling deleteForever triggers notifyListeners()
-    // inside the repository, which automatically commands the ListenableBuilder to redraw.
     noteRepository.deleteForever(note.id);
 
     if (!mounted) return;
@@ -83,74 +85,122 @@ class _RecyclePageState extends State<RecyclePage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // ARCHITECTURE NOTE: Reactive UI
-    // The screen is "glued" to the repository. Any changes to data instantly reflect here.
     return ListenableBuilder(
       listenable: noteRepository,
       builder: (context, child) {
-        // Fetching the data inside the builder, makes sure it grabs the freshest state on every rebuild
         final deletedNotes = noteRepository.deletedNotes;
 
         return Scaffold(
           backgroundColor: isDark
               ? AppColors.darkScaffold
               : AppColors.lightScaffold,
-          appBar: AppBar(
-            title: Text(
-              'Recycle Bin',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            centerTitle: true,
-          ),
-          body: deletedNotes.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Lottie.asset(
-                        'assets/lotties/Ai_Robot.json',
-                        height: UIConstants.recycleEmptyLottieHeight,
-                      ),
-                      const Text(
-                        'Trash is empty',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: UIConstants.recycleEmptyTextFontSize,
-                        ),
-                      ),
-                    ],
+          body: SafeArea(
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: (notification) {
+                // Hide header when scrolling down
+                if (notification.direction == ScrollDirection.reverse) {
+                  if (_showHeaders) setState(() => _showHeaders = false);
+                }
+                // Show header when scrolling up
+                else if (notification.direction == ScrollDirection.forward) {
+                  if (!_showHeaders) setState(() => _showHeaders = true);
+                }
+                return false;
+              },
+              child: Column(
+                children: [
+                  /// ---------------------------------------------------------------
+                  /// ANIMATED APP BAR
+                  /// ---------------------------------------------------------------
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    child: _showHeaders
+                        ? AppBar(
+                            title: const Text(
+                              'Recycle Bin',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            backgroundColor: Colors.transparent,
+                            // Requested feature: Remove surface tint when scrolled
+                            surfaceTintColor: Colors.transparent,
+                            centerTitle: true,
+                            elevation: 0,
+                            primary: false, // Prevents double SafeArea padding
+                          )
+                        : const SizedBox(width: double.infinity, height: 0),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(UIConstants.recycleListPadding),
-                  itemCount: deletedNotes.length,
-                  itemBuilder: (context, index) {
-                    final note = deletedNotes[index];
 
-                    return _SwipeableRestoreItem(
-                      note: note,
-                      isDark: isDark,
-                      onShowActionSheet: _showNoteActionSheet,
-                      onRestore: (restoredNote) {
-                        final restoredTitle = restoredNote.title.isEmpty
-                            ? 'Untitled note'
-                            : restoredNote.title;
+                  /// ---------------------------------------------------------------
+                  /// RECYCLE LIST / EMPTY STATE
+                  /// ---------------------------------------------------------------
+                  Expanded(
+                    child: deletedNotes.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Lottie.asset(
+                                  'assets/lotties/Ai_Robot.json',
+                                  height: UIConstants.recycleEmptyLottieHeight,
+                                ),
+                                const Text(
+                                  'Trash is empty',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize:
+                                        UIConstants.recycleEmptyTextFontSize,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            // Applies the exact bouncy effect used in HomePage
+                            physics: const BouncingScrollPhysics(
+                              parent: AlwaysScrollableScrollPhysics(),
+                            ),
+                            padding: const EdgeInsets.all(
+                              UIConstants.recycleListPadding,
+                            ),
+                            itemCount: deletedNotes.length,
+                            itemBuilder: (context, index) {
+                              final note = deletedNotes[index];
 
-                        noteRepository.restoreNote(restoredNote.id);
-                        if (!mounted) return;
+                              return _SwipeableRestoreItem(
+                                note: note,
+                                isDark: isDark,
+                                onShowActionSheet: _showNoteActionSheet,
+                                onRestore: (restoredNote) {
+                                  final restoredTitle =
+                                      restoredNote.title.isEmpty
+                                      ? 'Untitled note'
+                                      : restoredNote.title;
 
-                        showRootSnackBar(
-                          SnackBar(
-                            content: Text('$restoredTitle is now restored.'),
-                            duration: UIConstants.saveIndicatorDuration,
-                            behavior: SnackBarBehavior.floating,
+                                  noteRepository.restoreNote(restoredNote.id);
+                                  if (!mounted) return;
+
+                                  uiNotifier.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '$restoredTitle is now restored.',
+                                      ),
+                                      duration:
+                                          UIConstants.saveIndicatorDuration,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                    autoHideAfter:
+                                        UIConstants.saveIndicatorDuration,
+                                  );
+                                },
+                              );
+                            },
                           ),
-                          autoHideAfter: UIConstants.saveIndicatorDuration,
-                        );
-                      },
-                    );
-                  },
-                ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       },
     );
@@ -196,37 +246,32 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
           final cardWidth = constraints.maxWidth;
 
           return Stack(
-            // clipBehavior: Clip.none,
             children: [
               // --- THE PERMANENT GREEN BACKGROUND ---
               Positioned(
                 top: 0.5,
                 bottom: 0.5,
-                right: 0.5, // Tucked to avoid right-side bleed
-                left: 16, // Flat gap on the left
+                right: 0.5,
+                left: 16,
                 child: Card(
                   margin: EdgeInsets.zero,
                   elevation: 0,
-                  //clipBehavior: Clip.antiAlias,
                   color: widget.isDark
-                      ? const Color(0xFF003D33) // Deep Emerald
+                      ? const Color(0xFF003D33)
                       : const Color(0xFFC8E6C9),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.horizontal(
                       right: Radius.circular(
                         UIConstants.recycleCardRadius - 1.0,
                       ),
-                      left: Radius.zero, // Razor flat left edge
+                      left: Radius.zero,
                     ),
                   ),
                   child: Container(
                     alignment: Alignment.centerRight,
-                    // The icon's resting place
                     padding: const EdgeInsets.only(
                       right: UIConstants.paddingLG,
                     ),
-
-                    // --- THE ANIMATION BUILDER ---
                     child: ValueListenableBuilder<double>(
                       valueListenable: _dragProgress,
                       builder: (context, progress, child) {
@@ -234,7 +279,6 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                         const iconWidth = UIConstants.recycleIconSize;
                         const targetPadding = UIConstants.paddingLG;
 
-                        // 1. RTL Center-Gap Slide Algorithm
                         const lockPoint = (targetPadding * 2) + iconWidth;
 
                         double xOffset = (lockPoint / 2) - (draggedPixels / 2);
@@ -249,13 +293,9 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                           1.0,
                         );
 
-                        // 2. THE WHEEL PHYSICS (Clamped Rotation)
-                        // Tracks exactly when the icon hits the 60px lockPoint, capping at 2.0.
                         final rotationProgress = (draggedPixels / lockPoint)
                             .clamp(0.0, 2.0);
 
-                        // Rotates exactly 180 degrees (-3.14 radians) and stops dead.
-                        // If you want a smaller rotation, change -3.14 to -1.57 (90 degrees).
                         final angle = rotationProgress * pi;
 
                         return Transform.translate(
@@ -269,7 +309,7 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                                 child: Icon(
                                   Icons.restore,
                                   color: widget.isDark
-                                      ? const Color(0xFF69F0AE) // Soft Mint
+                                      ? const Color(0xFF69F0AE)
                                       : const Color(0xFF2E7D32),
                                   size: UIConstants.recycleIconSize,
                                 ),
@@ -286,21 +326,16 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
               // --- THE SWIPE MASK ---
               Dismissible(
                 key: ValueKey('restore_${widget.note.id}'),
-                // Right-to-Left swipe!
                 direction: DismissDirection.endToStart,
                 background: const ColoredBox(color: Colors.transparent),
-
-                // THE SENSOR
                 onUpdate: (details) {
                   if (!mounted) return;
                   _dragProgress.value = details.progress;
                 },
-
                 onDismissed: (_) => widget.onRestore(widget.note),
                 child: Card(
                   margin: EdgeInsets.zero,
                   elevation: UIConstants.elevationLow,
-                  //clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
                       UIConstants.recycleCardRadius,

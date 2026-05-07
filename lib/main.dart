@@ -2,158 +2,138 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
+
+import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
+import 'package:notepad/core/bootstrap/app_dependencies.dart';
+import 'package:notepad/core/bootstrap/bootstrap_app.dart';
 import 'package:notepad/core/theme/app_theme.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/features/home/home_page.dart';
 
-/// ---------------------------------------------------------------------------
-/// GLOBAL APPLICATION UTILITIES
-/// ---------------------------------------------------------------------------
-
-/// Global key to access the ScaffoldMessenger from anywhere in the app.
-///
-/// WHY THIS EXISTS:
-/// - Enables showing SnackBars from non-UI layers (repositories/services)
-///   without needing a BuildContext.
-/// - Common use case: Undo actions, error messages, confirmations.
-///
-/// ARCHITECTURAL NOTE:
-/// - This introduces a controlled global dependency for UI feedback.
-/// - Acceptable for cross-cutting concerns, but should be used sparingly.
-
-final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-
-Timer? _rootSnackBarTimer;
-
-/// Shows a snackbar through the app-wide messenger and resets any pending hide timer.
-void showRootSnackBar(SnackBar snackBar, {Duration? autoHideAfter}) {
-  final messenger = rootScaffoldMessengerKey.currentState;
-  if (messenger == null) return;
-
-  _rootSnackBarTimer?.cancel();
-  messenger.clearSnackBars();
-  messenger.showSnackBar(snackBar);
-
-  if (autoHideAfter != null) {
-    _rootSnackBarTimer = Timer(autoHideAfter, () {
-      messenger.hideCurrentSnackBar();
-    });
-  }
-}
-
-/// ---------------------------------------------------------------------------
+/// ===========================================================================
 /// APPLICATION ENTRY POINT
-/// ---------------------------------------------------------------------------
+/// ===========================================================================
 
 Future<void> main() async {
-  /// Bootstraps the Flutter application.
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env"); // Loads secret key
-  await Hive.initFlutter();
+  /// Executes the application inside a guarded zone to capture uncaught
+  /// synchronous and asynchronous errors across the full runtime lifecycle.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  Hive.registerAdapter(NotesSectionAdapter());
-  Hive.registerAdapter(AppSettingsAdapter());
+      /// Handles Flutter framework errors.
+      /// Maintains default error presentation while ensuring structured logging.
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        debugPrint('Flutter error: ${details.exceptionAsString()}');
+        if (details.stack != null) {
+          debugPrintStack(stackTrace: details.stack);
+        }
+      };
 
-  await Hive.openBox<NotesSection>('notes_box');
-  await Hive.openBox<AppSettings>('settings_box');
+      /// Captures platform and engine-level errors not surfaced through
+      /// FlutterError, preventing silent failures across async boundaries.
+      PlatformDispatcher.instance.onError = (error, stack) {
+        debugPrint('Platform error: $error');
+        debugPrintStack(stackTrace: stack);
+        return true;
+      };
 
-  /// This is the first executed function and injects the root widget.
-  await Future.wait([
-    noteRepository.init(), // Handles seed notes + loading
-    appSettingsRepository.load(), // Ensures dark/light mode is ready
-  ]);
-  runApp(const MyApp());
+      debugPrint('Starting Notepad bootstrap...');
+
+      /// Constructs the dependency graph for the application.
+      ///
+      /// AppDependencies encapsulates all external services and repositories,
+      /// enabling environment-based configuration and testability.
+      final dependencies = AppDependencies.production();
+
+      /// Defines the bootstrap orchestration layer responsible for initializing
+      /// persistence and domain state prior to UI rendering.
+      final bootstrapper = AppBootstrapper(
+        noteRepository: dependencies.noteRepository,
+        appSettingsRepository: dependencies.appSettingsRepository,
+      );
+
+      /// Defers UI rendering until initialization completes.
+      ///
+      /// BootstrapApp:
+      /// - Executes the bootstrap pipeline
+      /// - Handles loading and failure states
+      /// - Injects the fully initialized widget tree
+      runApp(
+        BootstrapApp(
+          bootstrapper: bootstrapper.initialize,
+          child: MyApp(dependencies: dependencies),
+        ),
+      );
+    },
+
+    /// Fallback handler for uncaught errors escaping the guarded zone.
+    /// Ensures visibility of fatal startup or runtime failures.
+    (error, stack) {
+      debugPrint('Fatal startup error: $error');
+      debugPrintStack(stackTrace: stack);
+    },
+  );
 }
 
-/// ---------------------------------------------------------------------------
-/// ROOT APPLICATION WIDGET
-/// ---------------------------------------------------------------------------
+/// ===========================================================================
+/// ROOT APPLICATION
+/// ===========================================================================
 
-/// Root widget of the application.
+/// Root composition layer of the application.
 ///
-/// WHY StatefulWidget:
-/// - Handles asynchronous initialization (loading persisted data)
-/// - Triggers UI rebuild once data is ready
+/// Responsibilities:
+/// - Configures global UI concerns (theme, localization, input behavior)
+/// - Reacts to settings changes via ChangeNotifier
+/// - Receives and propagates application dependencies
 ///
-/// RESPONSIBILITIES:
-/// - App lifecycle initialization
-/// - Global configuration (themes, localization, routing)
+/// Design:
+/// Dependencies are injected at the root, eliminating reliance on global
+/// singletons and improving testability and modularity.
+///
+/// ListenableBuilder is used to reactively rebuild the MaterialApp subtree
+/// when theme-related settings change.
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.dependencies});
+
+  /// Aggregated application dependencies (repositories, services, notifiers).
+  final AppDependencies dependencies;
 
   @override
   Widget build(BuildContext context) {
-    /// -----------------------------------------------------------------------
-    /// REACTIVE ROOT USING LISTENABLE BUILDER
-    /// -----------------------------------------------------------------------
-    ///
-    /// WHY:
-    /// - Listens to appSettingsRepository (ChangeNotifier)
-    /// - Automatically rebuilds when user toggles dark mode
-    ///
-    /// BENEFIT:
-    /// - Instant theme switching without app restart
-    /// - Efficient rebuild (only MaterialApp subtree)
     return ListenableBuilder(
-      listenable: appSettingsRepository,
-      builder: (context, child) {
+      listenable: dependencies.appSettingsRepository,
+      builder: (_, _) {
         return MaterialApp(
-          /// App title (used by OS/task switchers)
           title: 'My Notepad',
-          supportedLocales: const [Locale('en')],
-
-          /// Theme configuration
-          ///
-          /// NOTE:
-          /// - Themes are now modularized under /theme/
-          /// - Improves maintainability and scalability
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-
-          /// Dynamically selects theme based on user preference
-          themeMode: appSettingsRepository.settings.isDarkMode
-              ? ThemeMode.dark
-              : ThemeMode.light,
-
-          /// Removes debug banner in development
           debugShowCheckedModeBanner: false,
 
-          /// Root page of the application
+          /// Theme configuration derived from persisted user preferences.
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: dependencies.appSettingsRepository.themeMode,
+
+          /// Primary navigation entry point.
           home: const HomePage(),
 
-          /// Global ScaffoldMessenger for SnackBars
-          ///
-          /// Enables:
-          /// - Undo actions
-          /// - Error notifications
-          /// - Cross-layer UI messaging
-          scaffoldMessengerKey: rootScaffoldMessengerKey,
+          /// Centralized UI feedback channel managed via injected notifier.
+          scaffoldMessengerKey: dependencies.uiNotifier.scaffoldMessengerKey,
 
-          /// -----------------------------------------------------------------
-          /// LOCALIZATION CONFIGURATION
-          /// -----------------------------------------------------------------
-          ///
-          /// REQUIRED FOR:
-          /// - flutter_quill (rich text editor)
-          /// - Proper formatting of toolbars, menus, clipboard actions
-          ///
-          /// ALSO ENABLES:
-          /// - Internationalization support (i18n)
+          /// Localization configuration required for flutter_quill and
+          /// foundational for multi-language support.
+          supportedLocales: const [Locale('en')],
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             FlutterQuillLocalizations.delegate,
           ],
+
+          /// Extends scroll behavior to support multiple input devices,
+          /// ensuring consistent interaction across mobile and desktop.
           scrollBehavior: const MaterialScrollBehavior().copyWith(
-            // Explicitly allow mouse dragging in note_toolbar
             dragDevices: {
               PointerDeviceKind.touch,
               PointerDeviceKind.mouse,
@@ -166,19 +146,25 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// -------------------------------------------------------------------------
-/// BUILD METHOD
-/// -------------------------------------------------------------------------
+/// ===========================================================================
+/// INTERVIEW NOTE
+/// ===========================================================================
 ///
-/// Defines:
-/// - Reactive theme switching
-/// - Root MaterialApp configuration
-/// - Localization setup
-
-/*
-📌 Interview Framing Tip:
-
-"This is the root orchestration layer. It handles app bootstrap, async hydration of local persistence, 
-and global reactive theming using a lightweight ChangeNotifier pattern. 
-I intentionally avoided over-engineering state management at this stage."
-*/
+/// - Dependency construction is centralized via AppDependencies, enabling
+///   environment-specific configuration and improved testability.
+/// - Bootstrap orchestration is separated into AppBootstrapper, isolating
+///   initialization concerns from UI composition.
+/// - Application rendering is gated through BootstrapApp to ensure a fully
+///   initialized state before the first frame.
+/// - Error handling is layered across Flutter, platform, and zone levels,
+///   ensuring comprehensive coverage of runtime failures.
+/// - Reactive theming is implemented using ChangeNotifier with a constrained
+///   rebuild scope for performance efficiency.
+/// - UI messaging is decoupled from global state via an injected notifier.
+///
+/// Trade-offs:
+/// - Initial render is delayed due to bootstrap gating.
+/// - Dependency graph is manually composed (no DI framework).
+///
+/// The architecture provides a strong foundation for scaling toward
+/// dependency injection frameworks and modular feature boundaries.

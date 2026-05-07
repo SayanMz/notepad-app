@@ -159,3 +159,7 @@ bool isListStyledPreviewLine(String line) {
 String stripListMarker(String line) {
   return line.replaceFirst(RegExp(r'^\s*([-•·]|\d+\.)\s+'), '');
 }
+
+/*
+To highlight text, the system applies a style attribute to a specific range in the Delta. When Flutter renders it, it maps that Delta segment to a TextSpan with a background color."
+*/

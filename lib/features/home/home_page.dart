@@ -1,14 +1,16 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/services/google_drive_service.dart';
+import 'package:notepad/features/home/services/auth_controller.dart';
+import 'package:notepad/features/home/services/google_drive_service.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/widgets/selection_toolbar.dart';
 import 'package:notepad/features/home/widgets/spinning_sync_icon.dart';
 import 'package:notepad/features/home/widgets/storage_progress_bar.dart';
 import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/features/note/services/note_recovery_service.dart';
 import 'package:notepad/features/home/services/app_router.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/note_list.dart';
@@ -68,9 +70,6 @@ class _HomePageState extends State<HomePage> {
   // bool _isFabVisible = true;
   final ValueNotifier<bool> _isFabVisible = ValueNotifier(true);
 
-  /// Handles crash recovery and draft restoration.
-  final NoteRecoveryService _recoveryService = NoteRecoveryService();
-
   /// Local snapshot used ONLY during recovery flow.
   ///
   final activeNotes = noteRepository.activeNotes;
@@ -84,75 +83,24 @@ class _HomePageState extends State<HomePage> {
   final ValueNotifier<bool> _isSavingNotifier = ValueNotifier(false);
 
   /// -------------------------------------------------------------------------
-  /// CRASH RECOVERY FLOW
-  /// -------------------------------------------------------------------------
-  ///
-  /// Displays a dialog when unsaved draft data is detected.
-  ///
-  /// UX:
-  /// - User can restore or discard changes
-  /// - Ensures data safety after unexpected app termination
-  Future<void> _handleInitialRecovery(List<String> shadowData) async {
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Recover Unsaved Changes?'),
-        content: const Text(
-          'It looks like the app closed unexpectedly. Would you like to restore your last edit?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await _recoveryService.clearShadowDraft('new_note');
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-            },
-            child: const Text('Discard'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (mounted) {
-                Navigator.pop(context);
-
-                /// Navigates to NotePage with recovered data
-                await Navigator.push(
-                  context,
-                  AppRouter.slide(
-                    NotePage(title: shadowData[0], content: shadowData[1]),
-                  ),
-                );
-              }
-
-              await _recoveryService.clearShadowDraft('new_note');
-            },
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// -------------------------------------------------------------------------
   /// LIFECYCLE: INIT
   /// -------------------------------------------------------------------------
   ///
   /// Checks for crash recovery data at startup.
+  ///
+  AuthController authController = AuthController();
+
   @override
   void initState() {
     super.initState();
+    authController.initialize().then((_) {
+      if (mounted) setState(() {});
+    });
+    _controller = HomeController();
     _scrollController = ScrollController();
-    _controller = HomeController(_recoveryService);
     if (user != null) {
       _updateStorageStats();
     }
-
-    _recoveryService.checkAndRecoverCrashData(activeNotes).then((shadowData) {
-      if (shadowData != null && mounted) {
-        /// Removes temporary placeholder note before restoring
-        if (activeNotes.isNotEmpty) activeNotes.removeLast();
-        _handleInitialRecovery(shadowData);
-      }
-    });
 
     _scrollController.addListener(() {
       if (_scrollController.position.userScrollDirection ==
@@ -273,6 +221,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     user = googleDriveService.currentUser;
+    final topPadding = MediaQuery.of(context).padding.top;
 
     return PopScope(
       /// Prevents exit through system back navigation during selection mode for 1st time
@@ -291,12 +240,6 @@ class _HomePageState extends State<HomePage> {
             : AppColors.lightScaffold,
 
         /// AppBar is isolated widget (better performance)
-        appBar: HomeAppBar(
-          isDark: isDark,
-          isSavingNotifier: _isSavingNotifier,
-          fadeRoute: AppRouter.fade,
-        ),
-
         endDrawer: Container(
           margin: EdgeInsets.only(top: 90),
           child: Align(
@@ -304,251 +247,491 @@ class _HomePageState extends State<HomePage> {
             child: SizedBox(
               height: MediaQuery.of(context).size.height * 0.50,
               width: MediaQuery.of(context).size.width * 0.50, // Standard width
-              child: Drawer(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(UIConstants.paddingLG),
-                      color: !isDark
-                          ? Theme.of(context).colorScheme.primaryContainer
-                          : AppColors.darkScaffold,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Align(
-                            alignment: Alignment.center,
-                            //User profile picture
-                            child: Column(
-                              children: [
-                                CircleAvatar(
-                                  radius: 30,
-                                  backgroundColor: Colors.brown,
-                                  backgroundImage:
-                                      (user?.photoUrl != null &&
-                                          user!.photoUrl!.isNotEmpty)
-                                      ? NetworkImage(user!.photoUrl!)
-                                      : null,
-                                  child:
-                                      (user?.photoUrl == null ||
-                                          user!.photoUrl!.isEmpty)
-                                      ? Text(
-                                          user?.displayName?[0].toUpperCase() ??
-                                              'User',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 24,
-                                          ),
-                                        )
-                                      : null,
+              child: ListenableBuilder(
+                listenable: authController,
+                builder: (BuildContext context, Widget? child) {
+                  final bool isAuth = authController.isAuthenticated;
+                  final stats = authController.storageStats;
+                  final firstName =
+                      authController.displayName?.split(' ').first ?? 'User';
+                  final normalizedUserName =
+                      "Hello, ${firstName.toUpperCase()}";
+                  return Drawer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(UIConstants.paddingLG),
+                          color: !isDark
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : AppColors.darkScaffold,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Align(
+                                alignment: Alignment.center,
+                                //User profile picture
+                                child: Column(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: Colors.white,
+                                      backgroundImage:
+                                          isAuth &&
+                                              authController.avatarUrl != null
+                                          ? NetworkImage(
+                                              authController.avatarUrl!,
+                                            )
+                                          : null,
+                                      child:
+                                          !isAuth ||
+                                              authController.avatarUrl == null
+                                          ? const Icon(
+                                              Icons.person,
+                                              size: 45,
+                                              color: Colors.grey,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(
+                                      height: UIConstants.paddingSM,
+                                    ),
+                                    //User name
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        isAuth
+                                            ? normalizedUserName
+                                            : 'Cloud Sync',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: UIConstants.paddingXS,
+                                    ),
+                                    //Storage space in text
+
+                                    //Storage space in %
+                                    ///Hide this if the user hasn't logged in yet.
+                                    // Inside the Drawer Column, replace the storage space section:
+                                    ValueListenableBuilder<bool>(
+                                      valueListenable: _isSavingNotifier,
+                                      builder: (context, isSaving, _) {
+                                        return Column(
+                                          children: [
+                                            Text(
+                                              isSaving
+                                                  ? 'Syncing with cloud...'
+                                                  : (isAuth
+                                                        ? stats['text']
+                                                        : 'Sign in to securely backup your notes'),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            if (isAuth)
+                                              SizedBox(
+                                                width: 170,
+                                                height: 30,
+                                                child: isSaving
+                                                    ? const SpinningSyncIcon() // Show spinner during active work[cite: 15]
+                                                    : StorageProgressBar(
+                                                        progress:
+                                                            stats['percent'],
+                                                        color: Colors
+                                                            .lightBlueAccent,
+                                                      ),
+                                              ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(
+                                      height: UIConstants.paddingXS,
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: UIConstants.paddingSM),
-                                //User name
-                                FittedBox(
-                                  child: Text(
-                                    (user == null)
-                                        ? 'Sign in'
-                                        : user?.displayName?.toUpperCase() ??
-                                              'User',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(fontWeight: FontWeight.bold),
+                              ), // Prep for Firebase
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: UIConstants.paddingSM),
+                        ListTile(
+                          leading: Icon(isAuth ? Icons.backup : Icons.login),
+                          title: Text(
+                            isAuth
+                                ? 'Backup to Cloud'
+                                : "Sign in with Google Drive",
+                          ),
+                          onTap: () async {
+                            if (!isAuth) return authController.login();
+
+                            // 1. CAPTURE CONTEXT VARIABLES BEFORE ASYNC GAP
+                            final messenger = ScaffoldMessenger.of(context);
+                            final isDark =
+                                Theme.of(context).brightness == Brightness.dark;
+
+                            try {
+                              _isSavingNotifier.value = true;
+                              await _controller.runManualBackup();
+
+                              // 2. USE CAPTURED MESSENGER
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Backup successful!',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.green.shade100
+                                          : Colors.black87,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  backgroundColor: isDark
+                                      ? Colors.green.withValues(alpha: 0.2)
+                                      : Colors.green.shade100,
+                                  behavior: SnackBarBehavior.floating,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: isDark
+                                        ? BorderSide(
+                                            color: Colors.green.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                          )
+                                        : BorderSide.none,
                                   ),
                                 ),
-                                const SizedBox(height: UIConstants.paddingXS),
-                                //Storage space in text
-                                Text(
-                                  (user == null)
-                                      ? 'Sync and protect your data'
-                                      : _storageText,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-
-                                //Storage space in %
-                                ///Hide this if the user hasn't logged in yet.
-                                ValueListenableBuilder(
-                                  valueListenable: _isSavingNotifier,
-                                  builder: (context, isSaving, child) {
-                                    return Container(
-                                      width: 170,
-                                      height: 30,
-                                      margin: EdgeInsets.only(top: 10),
-                                      child: !isSaving
-                                          ? StorageProgressBar(
-                                              progress: 0.45,
-                                              //_storageProgress, // Fills 45% of the bar
-                                              color: Colors
-                                                  .lightBlueAccent, // You can customize the color here
-                                            )
-                                          : const SpinningSyncIcon(),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: UIConstants.paddingXS),
-                              ],
-                            ),
-                          ), // Prep for Firebase
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: UIConstants.paddingSM),
-                    ListTile(
-                      leading: const Icon(Icons.backup),
-                      title: const Text('Backup to Cloud'),
-                      onTap: () async {
-                        // Navigator.pop(context); // Close drawer
-                        _isSavingNotifier.value = true; // Show top progress bar
-
-                        try {
-                          final success = await googleDriveService.signIn();
-                          if (success) {
-                            setState(() {});
-                            final backupString = await noteRepository
-                                .exportNotesToBackupString();
-                            await googleDriveService.uploadBackup(backupString);
-                            // ScaffoldMessenger.of(context).showSnackBar(
-                            //   const SnackBar(
-                            //     content: Text('Backup successful!'),
-                            //   ),
-                            // );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Sign-in cancelled or failed.'),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          debugPrint("CLOUD ERROR: $e");
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        } finally {
-                          _isSavingNotifier.value = false;
-                          _updateStorageStats();
-                        }
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.download),
-                      title: const Text('Restore from Cloud'),
-                      onTap: () async {
-                        // Navigator.pop(context);
-                        _isSavingNotifier.value = true;
-
-                        try {
-                          final success = await googleDriveService.signIn();
-                          if (success) {
-                            final jsonContent = await googleDriveService
-                                .downloadBackup();
-                            if (jsonContent != null) {
-                              await noteRepository.importNotesFromBackupString(
-                                jsonContent,
                               );
+                            } catch (e) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Backup failed: $e',
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.red.shade100
+                                          : Colors.black87,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  backgroundColor: isDark
+                                      ? Colors.red.withValues(alpha: 0.2)
+                                      : Colors.red.shade100,
+                                  behavior: SnackBarBehavior.floating,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: isDark
+                                        ? BorderSide(
+                                            color: Colors.red.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                          )
+                                        : BorderSide.none,
+                                  ),
+                                ),
+                              );
+                            } finally {
+                              _isSavingNotifier.value = false;
+                            }
+                          },
+                        ),
+                        if (isAuth)
+                          ListTile(
+                            leading: const Icon(Icons.download),
+                            title: const Text('Restore from Cloud'),
+                            onTap: () async {
+                              if (!isAuth) return authController.login();
 
-                              // ADD THIS SNACKBAR:
-                              if (context.mounted) {
-                                // ScaffoldMessenger.of(context).showSnackBar(
-                                //   const SnackBar(
-                                //     content: Text(
-                                //       'Restore successful! Notes updated.',
-                                //     ),
-                                //   ),
-                                // );
-                              }
-                            } else {
-                              // Handle case where no backup exists
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                              // 1. CAPTURE CONTEXT VARIABLES BEFORE ASYNC GAP
+                              final messenger = ScaffoldMessenger.of(context);
+                              final isDark =
+                                  Theme.of(context).brightness ==
+                                  Brightness.dark;
+
+                              try {
+                                _isSavingNotifier.value = true;
+                                await _controller.runManualRestore();
+
+                                // 2. USE CAPTURED MESSENGER
+                                messenger.showSnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      'No backup found in the cloud.',
+                                      'Restore successful! Notes updated.',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.green.shade100
+                                            : Colors.black87,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    backgroundColor: isDark
+                                        ? Colors.green.withValues(alpha: 0.2)
+                                        : Colors.green.shade100,
+                                    behavior: SnackBarBehavior.floating,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: isDark
+                                          ? BorderSide(
+                                              color: Colors.green.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                            )
+                                          : BorderSide.none,
                                     ),
                                   ),
                                 );
+                              } catch (e) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Restore failed: $e',
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.red.shade100
+                                            : Colors.black87,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    backgroundColor: isDark
+                                        ? Colors.red.withValues(alpha: 0.2)
+                                        : Colors.red.shade100,
+                                    behavior: SnackBarBehavior.floating,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: isDark
+                                          ? BorderSide(
+                                              color: Colors.red.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                            )
+                                          : BorderSide.none,
+                                    ),
+                                  ),
+                                );
+                              } finally {
+                                _isSavingNotifier.value = false;
                               }
-                            }
-                          }
-                        } catch (e) {
-                          debugPrint("RESTORE ERROR: $e");
-                        } finally {
-                          _isSavingNotifier.value = false;
-                        }
-                      },
+                            },
+                          ),
+
+                        const Spacer(),
+                        if (isAuth)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: Center(
+                              child: ElevatedButton(
+                                onPressed: () => authController.logout(),
+                                child: const Text(
+                                  'Sign Out',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ),
         ),
 
         /// Main content delegated to NoteList
-        body: NoteList(
-          scrollController: _scrollController,
-          isSelectionMode: isSelectionMode,
-          isSavingNotifier: _isSavingNotifier,
-          onOpenNote: (noteId) => _controller.openNote(context, noteId: noteId),
-          onTogglePin: (noteId) => _controller.togglePin(noteId),
-          onShare: _shareSelectedNotesAsHTML,
-          onDeleteSelected: _confirmBulkDelete,
-          onSelectionToggle: () {
-            setState(() {
-              isSelectionMode = !isSelectionMode;
-            });
-          },
+        /// Main content now wrapped in a Stack to allow floating UI
+        body: Stack(
+          children: [
+            // --- 1. THE SCROLLING LAYER (Background) ---
+            CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              slivers: [
+                HomeAppBar(
+                  isDark: isDark,
+                  isSavingNotifier: _isSavingNotifier,
+                  fadeRoute: AppRouter.fade,
+                ),
+                NoteList(
+                  isSelectionMode: isSelectionMode,
+                  isSavingNotifier: _isSavingNotifier,
+                  onOpenNote: (noteId) =>
+                      _controller.openNote(context, noteId: noteId),
+                  onTogglePin: (noteId) => _controller.togglePin(noteId),
+                  onShare: _shareSelectedNotesAsHTML,
+                  onDeleteSelected: _confirmBulkDelete,
+                  onSelectionToggle: () {
+                    setState(() {
+                      isSelectionMode = !isSelectionMode;
+                    });
+                  },
+                ),
+                // IMPORTANT: This invisible spacer ensures the very last note
+                // can be scrolled high enough to be seen above the floating toolbar!
+                SliverToBoxAdapter(
+                  child: SizedBox(height: isSelectionMode ? 140.0 : 100.0),
+                ),
+              ],
+            ),
+
+            // --- 2. THE FLOATING HUD LAYER (Foreground) ---
+            // --- 2. THE FLOATING HUD LAYER (Foreground) ---
+            Align(
+              alignment: Alignment.bottomCenter,
+              // 1. IgnorePointer prevents the invisible toolbar from blocking taps
+              child: IgnorePointer(
+                ignoring: !isSelectionMode,
+                // 2. AnimatedSlide controls the vertical popup motion
+                child: AnimatedSlide(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeOutCubic, // A snappy, premium deceleration
+                  // Offset(0, 1.5) means push it 150% of its own height downwards
+                  offset: isSelectionMode ? Offset.zero : const Offset(0, 1.5),
+                  // 3. AnimatedOpacity fades it in as it slides up
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: isSelectionMode ? 1.0 : 0.0,
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: 16.0,
+                          right: 16.0,
+                          bottom: 24.0,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(100),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 24,
+                                spreadRadius: 0,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(100),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.4)
+                                      : Colors.white.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(100),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.15)
+                                        : Colors.white.withValues(alpha: 0.8),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: ListenableBuilder(
+                                  listenable: noteRepository,
+                                  builder: (context, _) {
+                                    return SelectionToolbar(
+                                      isDark: isDark,
+                                      allSelected: noteRepository
+                                          .areAllActiveNotesSelected,
+                                      onSelectAll: (val) => noteRepository
+                                          .setSelectAllForAllActiveNotes(val),
+                                      onShare: _shareSelectedNotesAsHTML,
+                                      onDelete: _confirmBulkDelete,
+                                      onColorChanged: (color) => noteRepository
+                                          .updateColorForSelectedNotes(color),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
 
         /// FAB hidden during selection mode
-        floatingActionButton: isSelectionMode
-            ? null
-            : ValueListenableBuilder<bool>(
-                valueListenable: _isFabVisible,
-                builder: (context, isVisible, child) {
-                  return AnimatedScale(
-                    scale: isVisible ? 1.0 : 0.0,
-                    duration: UIConstants.animationFast,
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: UIConstants.paddingXS,
-                      ),
-                      child: OpenContainer(
-                        transitionType: ContainerTransitionType.fade,
-                        transitionDuration: UIConstants.animationExtraSlow,
-                        openColor: Theme.of(context).scaffoldBackgroundColor,
-                        closedColor: Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer,
-                        closedElevation: UIConstants.elevationHigh,
-                        closedShape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(UIConstants.radiusLG),
-                          ),
-                        ),
-                        // This builds the FAB in its "closed" state
-                        closedBuilder: (context, openContainer) =>
-                            FloatingActionButton.extended(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              onPressed: openContainer,
-                              icon: const Icon(Icons.add),
-                              label: const Text(
-                                'New Note',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                        // This builds the page the FAB "grows" into
-                        openBuilder: (context, _) => const NotePage(),
-                      ),
+        /// FAB logic upgraded to match the sliding toolbar choreography
+        floatingActionButton: ValueListenableBuilder<bool>(
+          valueListenable: _isFabVisible,
+          builder: (context, isVisible, child) {
+            // The FAB should only show if we are NOT in selection mode
+            // AND the user hasn't scrolled it away.
+            final shouldShowFab = !isSelectionMode && isVisible;
+
+            // 1. Match the Toolbar's exact slide physics
+            return AnimatedSlide(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
+              offset: shouldShowFab
+                  ? Offset.zero
+                  : const Offset(0, 1.5), // Slide down
+              // 2. Match the Toolbar's fade physics
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: shouldShowFab ? 1.0 : 0.0,
+                // 3. Prevent ghost taps while hidden
+                child: IgnorePointer(
+                  ignoring: !shouldShowFab,
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: UIConstants.paddingXS,
                     ),
-                  );
-                },
+                    child: OpenContainer(
+                      transitionType: ContainerTransitionType.fade,
+                      transitionDuration: UIConstants.animationExtraSlow,
+                      openColor: Theme.of(context).scaffoldBackgroundColor,
+                      closedColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
+                      closedElevation: UIConstants.elevationHigh,
+                      closedShape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(UIConstants.radiusLG),
+                        ),
+                      ),
+                      closedBuilder: (context, openContainer) =>
+                          FloatingActionButton.extended(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            onPressed: openContainer,
+                            icon: const Icon(Icons.add),
+                            label: const Text(
+                              'New Note',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      openBuilder: (context, _) => const NotePage(),
+                    ),
+                  ),
+                ),
               ),
+            );
+          },
+        ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      ),
-    );
+      ), // End of Scaffold
+    ); // End of PopScope
   }
 }
 

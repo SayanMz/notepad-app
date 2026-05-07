@@ -1,17 +1,15 @@
-import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/services/note_preview_text.dart';
+import 'package:uuid/uuid.dart';
 
 part 'app_data.g.dart';
 
+final _uuid = Uuid();
+
 /// Generates a unique ID for each note.
-String generateNoteId() {
-  final timestamp = DateTime.now().microsecondsSinceEpoch;
-  final random = Random().nextInt(2 ^ 32);
-  return 'note_${timestamp}_$random';
-}
+String generateNoteId() => 'note_${_uuid.v4()}';
 
 /// Holds the full note state: text, metadata, and UI flags.
 @HiveType(typeId: 0)
@@ -133,8 +131,34 @@ class AppSettings {
   @HiveField(0)
   final bool isDarkMode;
 
+  @HiveField(1)
+  final String? userName; // Cache the name[cite: 6]
+
+  @HiveField(2)
+  final String? userEmail; // Cache the email[cite: 6]
+
+  @HiveField(3)
+  final String? userAvatarUrl; // Cache the profile pic URL[cite: 6]
+
+  @HiveField(4)
+  final List<int> recentColorValues;
+
   /// Creates settings with a light-theme default.
-  const AppSettings({this.isDarkMode = false});
+  const AppSettings({
+    this.isDarkMode = false,
+    this.userName,
+    this.userEmail,
+    this.userAvatarUrl,
+    this.recentColorValues = const [
+      0xFFFFF59D, // Pastel Yellow
+      0xFFFFCC80, // Soft Peach
+      0xFFEF9A9A, // Light Coral Red
+      0xFFCE93D8, // Muted Lilac
+      0xFF90CAF9, // Light Sky Blue
+      0xFFA5D6A7, // Mint Green
+      0xFFE0E0E0, // Neutral Light Gray
+    ],
+  });
 
   /// Serializes settings for local persistence.
   //Map<String, dynamic> toJson() => {'isDarkMode': isDarkMode};
@@ -144,7 +168,20 @@ class AppSettings {
   //     AppSettings(isDarkMode: json['isDarkMode'] ?? false);
 
   /// Returns a new settings object with only the requested values changed.
-  AppSettings copyWith({bool? isDarkMode}) {
-    return AppSettings(isDarkMode: isDarkMode ?? this.isDarkMode);
+  AppSettings copyWith({
+    bool? isDarkMode,
+    String? userName,
+    String? userEmail,
+    String? userAvatarUrl,
+    List<int>? recentColorValues,
+    bool clearUser = false, // Helper to wipe data on logout
+  }) {
+    return AppSettings(
+      isDarkMode: isDarkMode ?? this.isDarkMode,
+      userName: clearUser ? null : (userName ?? this.userName),
+      userEmail: clearUser ? null : (userEmail ?? this.userEmail),
+      userAvatarUrl: clearUser ? null : (userAvatarUrl ?? this.userAvatarUrl),
+      recentColorValues: recentColorValues ?? this.recentColorValues,
+    );
   }
 }

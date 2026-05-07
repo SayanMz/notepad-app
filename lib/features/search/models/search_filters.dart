@@ -51,7 +51,7 @@ class SearchFilters {
   final String? endMinute;
 
   /// Indicates whether any filter field is set
-  /// Encapsulation of Complexity
+  ///
   /// Used to:
   /// - Determine if filtering should be applied
   /// - Control UI states (empty vs filtered search)

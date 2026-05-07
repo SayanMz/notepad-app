@@ -39,12 +39,12 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Removed unused isDark variable
     final baseTextStyle = GoogleFonts.sourceSans3(
       fontSize: 18,
       fontWeight: FontWeight.w400,
       height: 1.6,
-      color: Color(0xFF515151),
+      color: const Color(0xFF515151),
     );
     return QuillEditor(
       controller: widget.controller,
@@ -59,7 +59,7 @@ class _NoteEditorState extends State<NoteEditor> {
         },
         linkActionPickerDelegate: _handleLinkActionPicker,
         expands: true,
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: UIConstants.editorHorizontalPadding,
         ),
         placeholder: 'Start typing your note...',

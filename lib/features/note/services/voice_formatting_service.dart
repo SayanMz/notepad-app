@@ -11,10 +11,21 @@ class VoiceFormattingService {
     final pt = controller.document.toPlainText();
 
     for (var inst in instructions) {
-      final String k = inst['key']?.toString() ?? '';
+      String k = inst['key']?.toString().toLowerCase() ?? '';
       String target = inst['target']?.toString().trim() ?? '';
       dynamic v = inst['value'];
       String occ = inst['occurrence']?.toString().toLowerCase().trim() ?? 'all';
+
+      if (k.contains('number') || k.contains('order') || k == 'ol') {
+        k = 'list';
+        v = 'ordered';
+      } else if (k.contains('check')) {
+        k = 'list';
+        v = 'unchecked';
+      } else if (k.contains('bullet') || k == 'ul') {
+        k = 'list';
+        v = 'bullet';
+      }
 
       if (k.isEmpty) continue;
       if (target.isEmpty && k != 'unformat_all') continue;
@@ -52,6 +63,7 @@ class VoiceFormattingService {
       final selection = controller.selection;
       bool hasSelection = selection.isValid && !selection.isCollapsed;
 
+      // [INTACT: Safety lock strictly isolates "it", "this", "that" from triggering global formats]
       // [INTACT: Safety lock strictly isolates "it", "this", "that" from triggering global formats]
       bool isGlobal =
           (target.toLowerCase() == 'all' ||
@@ -191,10 +203,7 @@ class VoiceFormattingService {
         int s = range['start']!;
         int l = range['len']!;
 
-        if (k == 'list' &&
-            !isGlobal &&
-            !target.contains(':') &&
-            !isSelectionTarget) {
+        if (k == 'list' && !isGlobal && !target.contains(':')) {
           int lineEnd = pt.indexOf('\n', s);
           if (lineEnd == -1) lineEnd = pt.length;
           String lineText = pt.substring(s, lineEnd).trim();
@@ -203,45 +212,53 @@ class VoiceFormattingService {
               lineText.toLowerCase().contains('list') ||
               lineText.toLowerCase().contains('items');
 
+          // unconditionally skip the line the word was found on, applying to the row of items below
           int startPos = isHeader ? (lineEnd + 1).clamp(0, pt.length) : s;
-          int endPos = pt.indexOf('\n\n', startPos);
+          int endPos = isSelectionTarget
+              ? (s + l).clamp(0, pt.length)
+              : pt.indexOf('\n\n', startPos);
           if (endPos == -1) endPos = pt.length;
 
-          // [FIX: Bulletproof sanitization so flutter_quill NEVER receives an invalid list type]
-          String safeListVal = 'bullet';
+          dynamic val = 'bullet';
           if (v != null) {
             String vStr = v.toString().toLowerCase();
-            if (vStr.contains('check'))
-              safeListVal = 'unchecked';
-            else if (vStr.contains('order') || vStr.contains('number'))
-              safeListVal = 'ordered';
+            if (vStr.contains('check')) {
+              val = 'unchecked';
+            } else if (vStr.contains('order') ||
+                vStr.contains('number') ||
+                vStr.contains('num') ||
+                vStr == '1') {
+              val = 'ordered';
+            }
           }
 
           if (startPos < endPos && startPos < pt.length) {
             controller.formatText(
               startPos,
               endPos - startPos,
-              Attribute.fromKeyValue(k, safeListVal),
+              Attribute.fromKeyValue(k, val),
             );
           } else {
-            controller.formatText(s, l, Attribute.fromKeyValue(k, safeListVal));
+            controller.formatText(s, l, Attribute.fromKeyValue(k, val));
           }
         } else if (['align', 'list'].contains(k)) {
+          // --- Paragraph Block Modifier ---
           dynamic val = v;
           if (k == 'list') {
             String vStr = (v ?? '').toString().toLowerCase();
-            if (vStr.contains('check'))
+            if (vStr.contains('check')) {
               val = 'unchecked';
-            else if (vStr.contains('order') || vStr.contains('number'))
+            } else if (vStr.contains('order') || vStr.contains('number')) {
               val = 'ordered';
-            else
+            } else {
               val = 'bullet';
+            }
           }
 
           int blockLen = l;
-          if (l > 1 &&
-              s + l <= pt.length &&
-              pt.substring(s, s + l).endsWith('\n\n')) {
+          if (blockLen > 0 &&
+              s + blockLen <= pt.length &&
+              pt.substring(s, s + blockLen).endsWith('\n')) {
             blockLen -= 1;
           }
           controller.formatText(s, blockLen, Attribute.fromKeyValue(k, val));
@@ -273,8 +290,9 @@ class VoiceFormattingService {
             );
           } else if (k == 'link') {
             String finalUrl = v.toString().trim();
-            if (!finalUrl.toLowerCase().startsWith('http'))
+            if (!finalUrl.toLowerCase().startsWith('http')) {
               finalUrl = 'https://$finalUrl';
+            }
             controller.formatText(
               s,
               l,
@@ -287,8 +305,9 @@ class VoiceFormattingService {
             );
             controller.formatText(s, l, Attribute.underline);
           } else {
-            if (k == 'size')
+            if (k == 'size') {
               v = (double.tryParse(v.toString()) ?? 16.0).clamp(8.0, 100.0);
+            }
             controller.formatText(s, l, Attribute.fromKeyValue(k, v));
           }
         }

@@ -5,9 +5,7 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/main.dart';
-
-import 'selection_toolbar.dart';
+import 'package:notepad/core/services/ui_notifier.dart';
 
 /// ---------------------------------------------------------------------------
 /// NOTE LIST
@@ -33,7 +31,6 @@ class NoteList extends StatelessWidget {
     required this.onShare,
     required this.onDeleteSelected,
     required this.onSelectionToggle,
-    required this.scrollController,
   });
 
   final bool isSelectionMode;
@@ -46,7 +43,6 @@ class NoteList extends StatelessWidget {
   final VoidCallback onDeleteSelected;
 
   final VoidCallback onSelectionToggle;
-  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -56,47 +52,28 @@ class NoteList extends StatelessWidget {
       listenable: noteRepository,
       builder: (_, _) {
         final activeNotes = noteRepository.activeNotes;
-        final allSelected = noteRepository.areAllActiveNotesSelected;
 
         return activeNotes.isEmpty
             ? _buildEmptyState()
-            : Column(
-                children: [
-                  if (isSelectionMode)
-                    SelectionToolbar(
+            : SliverPadding(
+                padding: const EdgeInsets.all(UIConstants.listPadding),
+                sliver: SliverList.builder(
+                  itemCount: activeNotes.length,
+                  itemBuilder: (context, index) {
+                    final note = activeNotes[index];
+
+                    return _SwipeableNoteItem(
+                      note: note,
                       isDark: isDark,
-                      allSelected: allSelected,
-                      onSelectAll: (value) {
-                        noteRepository.setSelectAllForAllActiveNotes(value);
-                      },
-                      onShare: onShare,
-                      onDelete: onDeleteSelected,
-                      onColorChanged: (color) =>
-                          noteRepository.updateColorForSelectedNotes(color),
-                    ),
-
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      itemCount: activeNotes.length,
-                      padding: const EdgeInsets.all(UIConstants.listPadding),
-                      itemBuilder: (context, index) {
-                        final note = activeNotes[index];
-
-                        return _SwipeableNoteItem(
-                          note: note,
-                          isDark: isDark,
-                          isSelectionMode: isSelectionMode,
-                          isSavingNotifier: isSavingNotifier,
-                          onOpenNote: onOpenNote,
-                          onSelectionToggle: onSelectionToggle,
-                          onTogglePin: onTogglePin,
-                          onDeleted: _showUndoSnackbar,
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                      isSelectionMode: isSelectionMode,
+                      isSavingNotifier: isSavingNotifier,
+                      onOpenNote: onOpenNote,
+                      onSelectionToggle: onSelectionToggle,
+                      onTogglePin: onTogglePin,
+                      onDeleted: _showUndoSnackbar,
+                    );
+                  },
+                ),
               );
       },
     );
@@ -105,31 +82,39 @@ class NoteList extends StatelessWidget {
   /// -------------------------------------------------------------------------
   /// EMPTY STATE: UI when no notes exist.
   /// -------------------------------------------------------------------------
+  /// -------------------------------------------------------------------------
+  /// EMPTY STATE: The Elastic Physics Fix
+  /// -------------------------------------------------------------------------
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Lottie.asset(
-            'assets/lotties/Ai_Robot.json',
-            height: UIConstants.noteCardPreviewHeight,
-            repeat: false,
-            frameRate: FrameRate.max,
-          ),
-          const Text(
-            'No notes yet',
-            style: TextStyle(
-              fontSize: UIConstants.noteCardPreviewTitleFontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+    // 2. SliverFillRemaining calculates the exact leftover screen space.
+    // hasScrollBody: false tells Flutter to treat it elastically during overscroll!
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Lottie.asset(
+              'assets/lotties/Ai_Robot.json',
+              height: UIConstants.noteCardPreviewHeight,
+              repeat: false,
+              frameRate: FrameRate.max,
             ),
-          ),
-          const SizedBox(height: UIConstants.paddingSM),
-          const Text(
-            'Your thoughts belong here.',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+            const Text(
+              'No notes yet',
+              style: TextStyle(
+                fontSize: UIConstants.noteCardPreviewTitleFontSize,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: UIConstants.paddingSM),
+            const Text(
+              'Your thoughts belong here.',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -138,7 +123,7 @@ class NoteList extends StatelessWidget {
   /// UNDO SNACKBAR: For single swipe delete.
   /// -------------------------------------------------------------------------
   void _showUndoSnackbar(NotesSection note) {
-    showRootSnackBar(
+    uiNotifier.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         content: Text(
@@ -189,10 +174,11 @@ class _NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final screenWidth = MediaQuery.of(context).size.width;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     /// Responsive preview density:
-    /// - Smaller screens → fewer lines
-    /// - Larger screens → more content preview
+    /// - Smaller screens Ã¢â€ â€™ fewer lines
+    /// - Larger screens Ã¢â€ â€™ more content preview
     final maxPreviewLines = screenWidth > 1200
         ? UIConstants
               .noteCardPreviewLargeDesktopLines // Desktop/Large Tablet
@@ -245,7 +231,9 @@ class _NoteCard extends StatelessWidget {
                   margin: const EdgeInsets.only(right: UIConstants.paddingMD),
                   width: 4,
                   decoration: BoxDecoration(
-                    color: note.cardColor,
+                    color: !isDark
+                        ? note.cardColor
+                        : note.cardColor.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(2),
                     boxShadow: [
                       BoxShadow(
@@ -352,7 +340,7 @@ class _PreviewLine extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     // Aggressive Regex: Detects bullets, dashes, asterisks, or numbers at start
-    final listRegex = RegExp(r'^[\s]*([•\-\*\u2022]|\d+\.)[\s]*(.*)');
+    final listRegex = RegExp(r'^[\s]*([Ã¢â‚¬Â¢\-\*\u2022]|\d+\.)[\s]*(.*)');
     final match = listRegex.firstMatch(line);
 
     // TRICK: If the Regex fails, we check a second "fallback"
@@ -360,7 +348,7 @@ class _PreviewLine extends StatelessWidget {
     final bool isListLine =
         match != null ||
         line.trimLeft().startsWith('- ') ||
-        line.trimLeft().startsWith('• ');
+        line.trimLeft().startsWith('Ã¢â‚¬Â¢ ');
 
     String displayText;
     if (match != null) {
@@ -572,7 +560,7 @@ class _SwipeableNoteItemState extends State<_SwipeableNoteItem> {
                 },
 
                 onDismissed: (_) {
-                  noteRepository.moveToRecycleBin(widget.note.id);
+                  noteRepository.moveToRecycleBinSingle(widget.note.id);
                   widget.onDeleted(widget.note);
                 },
                 child: _NoteCard(
@@ -693,7 +681,7 @@ class _AnimatedTrashIcon extends StatelessWidget {
 /// Formats DateTime into user-readable string.
 ///
 /// OUTPUT FORMAT:
-/// Example → "Jan 12, 2026 • 3:45 PM"
+/// Example Ã¢â€ â€™ "Jan 12, 2026 Ã¢â‚¬Â¢ 3:45 PM"
 ///
 /// DESIGN:
 /// - Lightweight formatter (no intl dependency)
@@ -708,13 +696,13 @@ String _formatTimestamp(DateTime value) {
   final minute = value.minute.toString().padLeft(2, '0');
   final meridiem = value.hour >= 12 ? 'PM' : 'AM';
 
-  return '$month ${value.day}, ${value.year} • $hour:$minute $meridiem';
+  return '$month ${value.day}, ${value.year} $hour:$minute $meridiem';
 }
 
-/// Maps month index → abbreviated name.
+/// Maps month index Ã¢â€ â€™ abbreviated name.
 ///
 /// NOTE:
-/// - Assumes valid 1–12 input
+/// - Assumes valid 1Ã¢â‚¬â€œ12 input
 /// - No bounds checking (caller responsibility)
 String _monthName(int month) {
   const months = [

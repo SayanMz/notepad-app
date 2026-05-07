@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/services/ui_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/main.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';

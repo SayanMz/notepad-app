@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/features/home/services/google_drive_service.dart';
 import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/main.dart';
+import 'package:notepad/core/services/ui_notifier.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:notepad/features/note/services/note_recovery_service.dart';
 import 'package:notepad/features/home/services/app_router.dart';
 import 'package:notepad/features/note/note_page.dart';
 
@@ -24,15 +24,10 @@ import 'package:notepad/features/note/note_page.dart';
 /// DESIGN PRINCIPLES:
 /// - Thin controller (not bloated with UI logic)
 /// - Repository remains the single source of truth
-/// - UI delegates actions → controller executes
+/// - UI delegates actions ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ controller executes
 ///
 
 class HomeController {
-  /// Handles crash recovery and draft restoration
-  final NoteRecoveryService recoveryService;
-
-  HomeController(this.recoveryService);
-
   // -------------------------------------------------------------------------
   // STATE HELPERS (DERIVED STATE)
   // -------------------------------------------------------------------------
@@ -67,7 +62,7 @@ class HomeController {
   /// - Clears existing SnackBars for clean UX
   /// - Navigates using centralized AppRouter
   Future<void> openNote(BuildContext context, {String? noteId}) async {
-    rootScaffoldMessengerKey.currentState?.clearSnackBars();
+    uiNotifier.clearSnackBars();
 
     await Navigator.push(context, AppRouter.slide(NotePage(noteId: noteId)));
   }
@@ -122,7 +117,7 @@ class HomeController {
     noteRepository.moveSelectedNotesToRecycleBin(selectedNotes);
 
     /// Undo Snackbar
-    showRootSnackBar(
+    uiNotifier.showSnackBar(
       SnackBar(
         key: UniqueKey(),
         duration: UIConstants.saveIndicatorDuration,
@@ -132,7 +127,7 @@ class HomeController {
         action: SnackBarAction(
           label: 'Restore',
           onPressed: () async {
-            rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+            uiNotifier.hideCurrentSnackBar();
 
             for (final id in movedNoteIds) {
               noteRepository.restoreNote(id);
@@ -154,7 +149,57 @@ class HomeController {
       noteRepository.clearSelection();
     }
   }
-}
 
-/// INTERVIEW NOTE:
-/// This reflects a “Controller pattern” similar to MVVM/MVC-lite in Flutter
+  /// Initiates a standard, sequential backup[cite: 1, 10]
+  ///
+  /// This method awaits the result to ensure your UI's loading spinner[cite: 10]
+  /// stays active for the entire duration of the actual network work[cite: 11].
+  Future<void> runManualBackup() async {
+    try {
+      // 1. Fetch current data from your local system[cite: 11]
+      final jsonString = await noteRepository.exportNotesToBackupString();
+
+      // 2. Pass it to the service for upload[cite: 1]
+      // The service handles the JSON-to-byte conversion and Drive I/O[cite: 11].
+      await googleDriveService.uploadBackup(jsonString);
+
+      debugPrint("Manual backup completed successfully.");
+    } catch (e) {
+      debugPrint("Error during manual backup: $e");
+      // [cite: Stage 9 Optimization]: In a robust design, you would pass this error[cite: 10]
+      // to the UI to show a 'Backup Failed' snackbar, rather than just printing.
+      rethrow; // Pass error up so onTap can handle UI cleanup if needed[cite: 10]
+    }
+  }
+
+  /// Initiates a sequential restore, replacing local data
+  ///
+  /// This method awaits the download and import process sequentially[cite: 1, 10].
+  /// It ensures that `false` isn't triggered on your spinner[cite: 10] until the
+  /// data is fully merged into your app's memory[cite: 10, 11].
+  Future<void> runManualRestore() async {
+    try {
+      // 1. PASSIVE WAIT (Download): Wait for the data to arrive[cite: 1, 10]
+      // We expect either the full JSON backup string or null (if no backup exists)[cite: 1].
+      final backupJson = await googleDriveService.downloadBackup();
+
+      if (backupJson == null || backupJson.isEmpty) {
+        debugPrint("No valid backup found on Google Drive.");
+        // You should handle this in the UI, perhaps with a 'No Backup Found' dialog.
+        return;
+      }
+
+      // 2. ACTIVE WORK (Import): We now have the data, proceed with merge[cite: 11, 12]
+      // This is the active computation phase. noteRepository will decode,
+      // clear local memory, and merge the new data[cite: 11].
+      await noteRepository.importNotesFromBackupString(backupJson);
+
+      // 3. COMPLETE: The sequential flow is finished[cite: 10, 12]
+      debugPrint("Manual restore and data merge completed successfully.");
+    } catch (e) {
+      debugPrint("Error during manual restore: $e");
+      // Handle error communication to UI here or rethrow[cite: 10].
+      rethrow;
+    }
+  }
+}

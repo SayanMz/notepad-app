@@ -23,9 +23,9 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
       richContent: fields[3] as String,
       createdAt: fields[4] as DateTime?,
       updatedAt: fields[5] as DateTime?,
-      isDeleted: fields[6] as bool? ?? false,
-      isPinned: fields[7] as bool? ?? false,
-      cardColorValue: fields[8] as int? ?? 0xFFFFFFFF,
+      isDeleted: fields[6] as bool,
+      isPinned: fields[7] as bool,
+      cardColorValue: fields[8] as int,
     );
   }
 
@@ -75,16 +75,28 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return AppSettings(
-      isDarkMode: fields[0] as bool? ?? false,
+      isDarkMode: fields[0] as bool,
+      userName: fields[1] as String?,
+      userEmail: fields[2] as String?,
+      userAvatarUrl: fields[3] as String?,
+      recentColorValues: (fields[4] as List).cast<int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(1)
+      ..writeByte(5)
       ..writeByte(0)
-      ..write(obj.isDarkMode);
+      ..write(obj.isDarkMode)
+      ..writeByte(1)
+      ..write(obj.userName)
+      ..writeByte(2)
+      ..write(obj.userEmail)
+      ..writeByte(3)
+      ..write(obj.userAvatarUrl)
+      ..writeByte(4)
+      ..write(obj.recentColorValues);
   }
 
   @override

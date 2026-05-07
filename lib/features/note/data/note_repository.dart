@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/features/search/models/search_state.dart';
 
 /// ------------------------------------------------------------
 /// NOTE REPOSITORY
@@ -208,87 +209,190 @@ class NoteRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Searches notes by keyword in title/content.
-  /// Ignores deleted notes.
-  /// Searches notes by keyword in title/content AND optional date/time filters.
-  /// Ignores deleted notes.
-  /// Searches notes by keyword AND/OR a specific date-time range.
-  /// Searches notes by keyword AND/OR a specific date-time range.
-  List<NotesSection> search({
-    required String query,
-    required bool
-    isRangeSearch, // <-- NEW: Tells the backend which mode we are in
-    // Start/Single constraints
-    String? startDay,
-    String? startMonth,
-    String? startYear,
-    String? startHour,
-    String? startMinute,
+  void _sortPinnedFirst() {
+    _notes.sort((a, b) {
+      if (a.isPinned == b.isPinned) return 0;
+      return a.isPinned ? -1 : 1;
+    });
+  }
 
-    // End constraints
-    String? endDay,
-    String? endMonth,
-    String? endYear,
-    String? endHour,
-    String? endMinute,
-  }) {
-    final normalizedQuery = query.toLowerCase();
+  /// Toggles pin state for a note and reorders pinned items first.
+  void togglePin(String noteId) {
+    final note = findById(noteId);
+    if (note == null) return;
 
-    // Bail out if absolutely nothing is being searched/filtered
-    if (normalizedQuery.isEmpty &&
-        startDay == null &&
-        startMonth == null &&
-        startYear == null &&
-        startHour == null &&
-        startMinute == null &&
-        endDay == null &&
-        endMonth == null &&
-        endYear == null &&
-        endHour == null &&
-        endMinute == null) {
+    note.isPinned = !note.isPinned;
+    _sortPinnedFirst();
+    _box.put(note.id, note);
+    notifyListeners();
+  }
+
+  /// Toggles selection for a single note.
+  void toggleSelected(String noteId) {
+    final note = findById(noteId);
+    if (note == null || note.isDeleted) return;
+
+    note.isSelected = !note.isSelected;
+    _box.put(note.id, note);
+    notifyListeners();
+  }
+
+  /// Selects or clears all active notes.
+  void setSelectAllForAllActiveNotes(bool selected) {
+    for (final note in activeNotes) {
+      note.isSelected = selected;
+      _box.put(note.id, note);
+    }
+    notifyListeners();
+  }
+
+  /// Applies a new color to every selected note.
+  void updateColorForSelectedNotes(Color color) {
+    var changed = false;
+    for (final note in selectedNotes) {
+      note.cardColor = color;
+      _box.put(note.id, note);
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  void updateColorPreview(Color color) {
+    for (final note in selectedNotes) {
+      note.cardColor = color; // Update object in memory
+    }
+    notifyListeners();
+  }
+
+  void restoreColors(Map<String, Color> originalColors) {
+    originalColors.forEach((id, color) {
+      final note = findById(id);
+      if (note != null) note.cardColor = color;
+    });
+    notifyListeners(); // Refresh UI to show original colors[cite: 14]
+  }
+
+  void saveSelectedColors() {
+    for (final note in selectedNotes) {
+      _box.put(note.id, note); // Write final state to disk once[cite: 14]
+    }
+  }
+
+  /// Clears selection from all notes.
+  void clearSelection() {
+    var changed = false;
+    for (final note in _notes) {
+      if (!note.isSelected) continue;
+      note.isSelected = false;
+      _box.put(note.id, note);
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  /// Moves selected notes to the recycle bin.
+  void moveSelectedNotesToRecycleBin(List<NotesSection> notes) {
+    for (final note in notes) {
+      final existing = findById(note.id);
+      if (existing == null) continue;
+      existing.isDeleted = true;
+      existing.isSelected = false;
+      _box.put(existing.id, existing);
+    }
+    notifyListeners();
+  }
+
+  /// Restores a note from the recycle bin.
+  void restoreNote(String noteId) {
+    final note = findById(noteId);
+    if (note == null) return;
+
+    note.isDeleted = false;
+    note.isSelected = false;
+    _box.put(note.id, note);
+    _sortPinnedFirst();
+    notifyListeners();
+  }
+
+  ///It filters notes using keyword matching and optional date or range filters,
+  ///builds dynamic date boundaries, and returns immutable results for safety.
+  List<NotesSection> search(SearchState searchState) {
+    /// Normalized query (trimmed + lowercase)
+    final normalizedQuery = searchState.normalizedQuery;
+
+    /// Extract filter configuration
+    final filters = searchState.filters;
+
+    /// Early exit:
+    /// No query AND no filters → no meaningful search
+    if (normalizedQuery.isEmpty && !searchState.hasFilters) {
       return const [];
     }
 
     return List<NotesSection>.unmodifiable(
-      _notes.where((note) {
-        if (note.isDeleted) return false;
-
-        // --- 1. TEXT FILTER ---
+      activeNotes.where((note) {
+        /// ---------------------------------------------------------------
+        /// TEXT MATCHING (TITLE + CONTENT)
+        /// ---------------------------------------------------------------
+        ///
+        /// Case-insensitive substring search
+        /// Rejects note early if no match found
         if (normalizedQuery.isNotEmpty) {
           final title = note.title.toLowerCase();
           final content = note.content.toLowerCase();
+
           if (!title.contains(normalizedQuery) &&
               !content.contains(normalizedQuery)) {
             return false;
           }
         }
 
-        // --- 2. DATE FILTER ---
+        /// Reference timestamp used for filtering
         final date = note.updatedAt;
 
-        if (!isRangeSearch) {
-          // ==========================================
-          // MODE A: EXACT MATCH (Single Date/Time)
-          // ==========================================
-          // If the user selects '2026', ONLY return 2026.
-          if (startYear != null && date.year.toString() != startYear)
+        /// ---------------------------------------------------------------
+        /// SINGLE DATE/TIME FILTER MODE
+        /// ---------------------------------------------------------------
+        ///
+        /// Applies exact matching on individual components
+        /// (year, month, day, hour, minute)
+        if (!filters.isRangeSearch) {
+          /// Year filter
+          if (filters.startYear != null &&
+              date.year.toString() != filters.startYear) {
             return false;
-          if (startMonth != null &&
-              date.month.toString().padLeft(2, '0') != startMonth)
+          }
+
+          /// Month filter (zero-padded)
+          if (filters.startMonth != null &&
+              date.month.toString().padLeft(2, '0') != filters.startMonth) {
             return false;
-          if (startDay != null &&
-              date.day.toString().padLeft(2, '0') != startDay)
+          }
+
+          /// Day filter (zero-padded)
+          if (filters.startDay != null &&
+              date.day.toString().padLeft(2, '0') != filters.startDay) {
             return false;
-          if (startHour != null &&
-              date.hour.toString().padLeft(2, '0') != startHour)
+          }
+
+          /// Hour filter (zero-padded)
+          if (filters.startHour != null &&
+              date.hour.toString().padLeft(2, '0') != filters.startHour) {
             return false;
-          if (startMinute != null &&
-              date.minute.toString().padLeft(2, '0') != startMinute)
+          }
+
+          /// Minute filter (zero-padded)
+          if (filters.startMinute != null &&
+              date.minute.toString().padLeft(2, '0') != filters.startMinute) {
             return false;
+          }
         } else {
-          // ==========================================
-          // MODE B: RANGE MATCH (Between Date A and B)
-          // ==========================================
+          /// -------------------------------------------------------------
+          /// RANGE FILTER MODE
+          /// -------------------------------------------------------------
+          ///
+          /// Builds start/end DateTime boundaries dynamically
+          /// based on partial user input
           DateTime? createBoundary({
             String? y,
             String? m,
@@ -297,43 +401,65 @@ class NoteRepository extends ChangeNotifier {
             String? min,
             required bool isEndOfRange,
           }) {
-            if (y == null && m == null && d == null && h == null && min == null)
+            /// If no components provided → no boundary
+            if (y == null &&
+                m == null &&
+                d == null &&
+                h == null &&
+                min == null) {
               return null;
+            }
 
             final now = DateTime.now();
-            int year = int.tryParse(y ?? '') ?? now.year;
-            int month = int.tryParse(m ?? '') ?? (isEndOfRange ? 12 : 1);
-            int day =
+
+            /// Fallback logic:
+            /// - Start boundary → earliest possible values
+            /// - End boundary → latest possible values
+            final year = int.tryParse(y ?? '') ?? now.year;
+            final month = int.tryParse(m ?? '') ?? (isEndOfRange ? 12 : 1);
+
+            /// Dart trick for Leap-year:
+            /// DateTime(year, month + 1, 0) → last day of prev month
+            final day =
                 int.tryParse(d ?? '') ??
                 (isEndOfRange ? DateTime(year, month + 1, 0).day : 1);
-            int hour = int.tryParse(h ?? '') ?? (isEndOfRange ? 23 : 0);
-            int minute = int.tryParse(min ?? '') ?? (isEndOfRange ? 59 : 0);
+
+            final hour = int.tryParse(h ?? '') ?? (isEndOfRange ? 23 : 0);
+            final minute = int.tryParse(min ?? '') ?? (isEndOfRange ? 59 : 0);
 
             return DateTime(year, month, day, hour, minute);
           }
 
+          /// Construct range boundaries
           final startDate = createBoundary(
-            y: startYear,
-            m: startMonth,
-            d: startDay,
-            h: startHour,
-            min: startMinute,
+            y: filters.startYear,
+            m: filters.startMonth,
+            d: filters.startDay,
+            h: filters.startHour,
+            min: filters.startMinute,
             isEndOfRange: false,
           );
+
           final endDate = createBoundary(
-            y: endYear,
-            m: endMonth,
-            d: endDay,
-            h: endHour,
-            min: endMinute,
+            y: filters.endYear,
+            m: filters.endMonth,
+            d: filters.endDay,
+            h: filters.endHour,
+            min: filters.endMinute,
             isEndOfRange: true,
           );
 
+          /// -------------------------------------------------------------
+          /// RANGE VALIDATION
+          /// -------------------------------------------------------------
+          ///
+          /// Short-circuit evaluation:
+          /// - Reject early if outside boundaries
           if (startDate != null && date.isBefore(startDate)) return false;
           if (endDate != null && date.isAfter(endDate)) return false;
         }
 
-        // If it survived the checks, include it!
+        /// If all conditions pass → include note
         return true;
       }),
     );
@@ -361,7 +487,6 @@ class NoteRepository extends ChangeNotifier {
 
     final now = DateTime.now();
 
-    // Update existing
     if (existingNote != null) {
       existingNote
         ..title = rawTitle
@@ -374,184 +499,59 @@ class NoteRepository extends ChangeNotifier {
       return existingNote;
     }
 
-    // Creates a new note
     final newNote = NotesSection(
       title: rawTitle,
       content: content,
-      //normalizedContent,
       richContent: richContent,
       createdAt: now,
       updatedAt: now,
     );
 
-    // Maintain pinned ordering
     final pinnedCount = _notes.where((n) => n.isPinned).length;
     _notes.insert(pinnedCount, newNote);
     _noteMap[newNote.id] = newNote;
     _box.put(newNote.id, newNote);
-
     notifyListeners();
     return newNote;
   }
 
-  // ------------------------------------------------------------
-  // UI STATE MANAGEMENT
-  // ------------------------------------------------------------
-
-  /// Toggles pinned state and reorders list.
-  void togglePin(String noteId) {
-    final note = findById(noteId);
-    if (note == null) return;
-
-    note.isPinned = !note.isPinned;
-    _box.put(note.id, note);
-
-    _sortPinnedFirst();
-    notifyListeners();
-  }
-
-  /// Explicitly sets selection state.
-  /// Used for deterministic actions (e.g., bulk select).
-  void setSelected(String noteId, bool isSelected) {
-    final note = findById(noteId);
-    if (note == null) return; // #Defensive Programming approach is used here
-
-    note.isSelected = isSelected;
-    notifyListeners();
-  }
-
-  /// Toggles selection state.
-  /// Used for user interactions.
-  void toggleSelected(String noteId) {
-    final note = findById(noteId);
-    if (note == null) return;
-
-    note.isSelected = !note.isSelected;
-    notifyListeners();
-  }
-
-  /// Select/Deselect all active notes.
-  void setSelectAllForAllActiveNotes(bool isSelected) {
-    for (final note in _notes) {
-      if (!note.isDeleted) {
-        note.isSelected = isSelected;
+  /// Soft delete: moves notes to recycle bin.
+  void moveToRecycleBin(List<String> noteIds) {
+    for (final noteId in noteIds) {
+      final note = findById(noteId);
+      if (note != null) {
+        note.isDeleted = true;
+        note.isSelected = false;
+        _box.put(note.id, note);
       }
     }
     notifyListeners();
   }
 
-  /// Clears all selections.
-  void clearSelection() {
-    for (final note in _notes) {
+  /// Soft delete: moves one note to recycle bin.
+  void moveToRecycleBinSingle(String noteId) {
+    final note = findById(noteId);
+    if (note != null) {
+      note.isDeleted = true;
       note.isSelected = false;
-    }
-    notifyListeners();
-  }
-
-  // ------------------------------------------------------------
-  // DELETION LOGIC
-  // ------------------------------------------------------------
-
-  /// Soft delete: moves bulk notes to recycle bin.(selection mode)
-  void moveSelectedNotesToRecycleBin(List<NotesSection> notes) {
-    for (final note in notes) {
-      note
-        ..isDeleted = true
-        ..isSelected = false;
       _box.put(note.id, note);
+      notifyListeners();
     }
-
-    notifyListeners();
-  }
-
-  ///Soft delete: moves one note to recycle bin.(Dismissible)
-  void moveToRecycleBin(String noteId) {
-    final note = findById(noteId);
-    if (note == null) return;
-
-    note
-      ..isDeleted = true
-      ..isSelected = false; // Unselect it just in case
-
-    _box.put(note.id, note);
-    notifyListeners();
-  }
-
-  /// Restores a note from recycle bin.
-  bool restoreNote(String noteId) {
-    final note = findById(noteId);
-    if (note == null) return false;
-
-    note
-      ..isDeleted = false
-      ..isSelected = false;
-    _box.put(note.id, note);
-
-    notifyListeners();
-    return true;
   }
 
   /// Permanently deletes a note.
   bool deleteForever(String noteId) {
     debugPrint("Listener fired from note_repository deleteForever");
-    final previousLength = _notes.length;
-    //Layer 1 (UI List)
-    _notes.removeWhere((note) => note.id == noteId);
-    //Layer 2 (The Index):
+    final note = findById(noteId);
+    if (note == null) return false;
+
+    _notes.removeWhere((n) => n.id == noteId);
     _noteMap.remove(noteId);
-    //Layer 3 (The Storage):
     _box.delete(noteId);
     notifyListeners();
-
-    return _notes.length != previousLength;
+    return true;
   }
-
-  // ------------------------------------------------------------
-  // SORTING LOGIC
-  // ------------------------------------------------------------
-
-  /// Ensures pinned notes appear first.
-  /// Maintains UI ordering invariant.
-  void _sortPinnedFirst() {
-    final pinnedNotes = _notes.where((note) => note.isPinned).toList();
-    final unpinnedNotes = _notes.where((note) => !note.isPinned).toList();
-
-    _notes
-      ..clear()
-      ..addAll(pinnedNotes)
-      ..addAll(unpinnedNotes);
-  }
-
-  void updateColorForSelectedNotes(Color color) {
-    // 1. Identify selected notes
-    final selected = _notes.where((n) => n.isSelected).toList();
-
-    if (selected.isEmpty) return;
-
-    // 2. Perform bulk update
-    for (var note in selected) {
-      note.cardColorValue = color.value; // Update the persistent int value
-      _box.put(note.id, note);
-    }
-    notifyListeners();
-  }
-
-  // 3. Persist to Hive (Layer 3)
 }
 
-/// Global singleton access.
-/// NOTE: Replace with dependency injection for scalability.
+/// Shared singleton for the feature layer.
 final NoteRepository noteRepository = NoteRepository();
-
-/*
-Repository Design: 
-
-“I used a repository pattern to manage notes in memory and synchronize with persistent storage. 
-It supports CRUD operations, search, selection, and soft deletion. 
-I also implemented optimizations like avoiding unnecessary updates and ensuring pinned notes are always prioritized. 
-For scalability, I’m aware that I should separate UI state, introduce indexing for faster lookup, 
-and use dependency injection instead of a singleton.”
-
-Separation of Concerns: The Map handles data access, the List handles UI presentation, 
-and the Box handles physical storage.
-*/
