@@ -4,8 +4,8 @@ import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/core/services/ui_notifier.dart';
+import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 
 /// ---------------------------------------------------------------------------
 /// NOTE LIST
@@ -97,7 +97,7 @@ class NoteList extends StatelessWidget {
             Lottie.asset(
               'assets/lotties/Ai_Robot.json',
               height: UIConstants.noteCardPreviewHeight,
-              repeat: false,
+              repeat: true,
               frameRate: FrameRate.max,
             ),
             const Text(
@@ -132,7 +132,7 @@ class NoteList extends StatelessWidget {
         action: SnackBarAction(
           label: 'Restore',
           onPressed: () async {
-            noteRepository.restoreNote(note.id);
+            noteRepository.toggleDeletedStatus(note.id, false);
           },
         ),
       ),
@@ -302,18 +302,15 @@ class _NoteCard extends StatelessWidget {
                 ),
 
                 // 4. RIGHT SIDE: The Pin
-                AnimatedScale(
-                  scale: note.isPinned ? UIConstants.pinnedScale : 1.0,
-                  duration: UIConstants.animationFast,
-                  child: IconButton(
+                if (note.isPinned)
+                  IconButton(
                     icon: Icon(
-                      note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                      Icons.push_pin,
                       size: UIConstants.iconSM,
                       color: colorScheme.primary.withValues(alpha: 0.6),
                     ),
-                    onPressed: onPin,
+                    onPressed: isSelectionMode ? null : onPin,
                   ),
-                ),
               ],
             ),
           ),
@@ -560,7 +557,7 @@ class _SwipeableNoteItemState extends State<_SwipeableNoteItem> {
                 },
 
                 onDismissed: (_) {
-                  noteRepository.moveToRecycleBinSingle(widget.note.id);
+                  noteRepository.toggleDeletedStatus(widget.note.id, true);
                   widget.onDeleted(widget.note);
                 },
                 child: _NoteCard(
@@ -696,7 +693,7 @@ String _formatTimestamp(DateTime value) {
   final minute = value.minute.toString().padLeft(2, '0');
   final meridiem = value.hour >= 12 ? 'PM' : 'AM';
 
-  return '$month ${value.day}, ${value.year} $hour:$minute $meridiem';
+  return '$month ${value.day}, $hour:$minute $meridiem';
 }
 
 /// Maps month index Ã¢â€ â€™ abbreviated name.

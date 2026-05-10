@@ -7,7 +7,7 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/core/data/note_repository.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
@@ -114,12 +114,12 @@ class _RecyclePageState extends State<RecyclePage> {
           child: Lottie.asset(
             'assets/lotties/Ai_Robot.json',
             renderCache: RenderCache.drawingCommands,
-            height: screenSize.height * 0.4,
-            width: screenSize.width * 0.4,
+            height: screenSize.height * 0.5,
+            width: screenSize.width * 0.5,
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(

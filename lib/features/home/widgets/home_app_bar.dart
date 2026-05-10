@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/services/ui_notifier.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/recycle_page.dart';
 import 'package:notepad/features/search/search_page.dart';
@@ -12,11 +12,15 @@ class HomeAppBar extends StatelessWidget {
     required this.isDark,
     required this.isSavingNotifier,
     required this.fadeRoute,
+    required this.slideRoute,
+    required this.onOpenDrawer,
   });
 
   final bool isDark;
   final ValueNotifier<bool> isSavingNotifier;
   final Route Function(Widget) fadeRoute;
+  final Route Function(Widget) slideRoute;
+  final VoidCallback onOpenDrawer;
 
   @override
   Widget build(BuildContext context) {
@@ -28,37 +32,26 @@ class HomeAppBar extends StatelessWidget {
       pinned: false,
       snap: false,
       stretch: true,
-
-      // CRITICAL: Turns off default back buttons so we have 100% control
       automaticallyImplyLeading: false,
       actions: const [SizedBox.shrink()],
-
       scrolledUnderElevation: 1.5,
       shadowColor: Colors.transparent,
       surfaceTintColor: const Color(0xFFB8E6DD),
       backgroundColor: isDark
           ? AppColors.darkScaffold
           : Theme.of(context).scaffoldBackgroundColor,
-
-      /// EVERYTHING is now inside the flexible space!
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
           final topPadding = MediaQuery.of(context).padding.top;
           final standardHeight = kToolbarHeight + topPadding;
-
           final isOverscrolled = constraints.maxHeight > standardHeight + 15;
 
           return FlexibleSpaceBar(
             background: Stack(
               children: [
-                /// ==========================================
-                /// IMAGE A: THE STANDARD APP BAR (Fades OUT)
-                /// ==========================================
                 AnimatedOpacity(
                   opacity: isOverscrolled ? 0.0 : 1.0,
                   duration: const Duration(milliseconds: 150),
-                  // IgnorePointer prevents you from accidentally tapping
-                  // the invisible icons when stretched!
                   child: IgnorePointer(
                     ignoring: isOverscrolled,
                     child: SafeArea(
@@ -66,7 +59,6 @@ class HomeAppBar extends StatelessWidget {
                         height: kToolbarHeight,
                         child: Row(
                           children: [
-                            // 1. Theme Toggle (Old Leading)
                             IconButton(
                               onPressed: () async {
                                 final currentIsDark =
@@ -82,8 +74,6 @@ class HomeAppBar extends StatelessWidget {
                                 color: isDark ? Colors.white : Colors.black,
                               ),
                             ),
-
-                            // 2. Standard Title
                             const SizedBox(width: 8),
                             Text(
                               'Notepad',
@@ -93,9 +83,7 @@ class HomeAppBar extends StatelessWidget {
                                 color: isDark ? Colors.white : Colors.black,
                               ),
                             ),
-
-                            const Spacer(), // Pushes everything else to the right!
-                            // 3. Search Action
+                            const Spacer(),
                             IconButton(
                               icon: Icon(
                                 Icons.search,
@@ -112,8 +100,6 @@ class HomeAppBar extends StatelessWidget {
                                 );
                               },
                             ),
-
-                            // 4. Recycle Bin Action
                             IconButton(
                               icon: Icon(
                                 Icons.restore_from_trash,
@@ -126,12 +112,10 @@ class HomeAppBar extends StatelessWidget {
                                 uiNotifier.clearSnackBars();
                                 await Navigator.push(
                                   context,
-                                  fadeRoute(const RecyclePage()),
+                                  slideRoute(const RecyclePage()),
                                 );
                               },
                             ),
-
-                            // 5. Drawer Action
                             Builder(
                               builder: (context) {
                                 return IconButton(
@@ -139,9 +123,7 @@ class HomeAppBar extends StatelessWidget {
                                   color: isDark
                                       ? Colors.white
                                       : colorScheme.onSurfaceVariant,
-                                  onPressed: () {
-                                    Scaffold.of(context).openEndDrawer();
-                                  },
+                                  onPressed: onOpenDrawer,
                                 );
                               },
                             ),
@@ -151,19 +133,13 @@ class HomeAppBar extends StatelessWidget {
                     ),
                   ),
                 ),
-
-                /// ==========================================
-                /// IMAGE B: MASSIVE OVERSCROLL LOGO (Fades IN)
-                /// ==========================================
                 AnimatedOpacity(
                   opacity: isOverscrolled ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 250),
                   child: SafeArea(
                     child: Container(
                       alignment: Alignment.bottomCenter,
-                      padding: const EdgeInsets.only(
-                        bottom: 56.0,
-                      ), //56 looks like branded
+                      padding: const EdgeInsets.only(bottom: 56.0),
                       child: Text(
                         'Notepad',
                         style: TextStyle(

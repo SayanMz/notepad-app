@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 
 class SelectionToolbar extends StatefulWidget {
   const SelectionToolbar({
@@ -12,15 +12,21 @@ class SelectionToolbar extends StatefulWidget {
     required this.isDark,
     required this.allSelected,
     required this.onSelectAll,
+    required this.selectedCount,
+    required this.onPin,
+    required this.shouldPin,
     required this.onShare,
     required this.onDelete,
     required this.onColorChanged,
   });
 
   final bool isDark;
+  final bool shouldPin;
   final bool allSelected;
+  final int selectedCount;
   final ValueChanged<bool> onSelectAll;
   final VoidCallback onShare;
+  final VoidCallback onPin;
   final VoidCallback onDelete;
   final Function(Color) onColorChanged;
 
@@ -29,7 +35,7 @@ class SelectionToolbar extends StatefulWidget {
 }
 
 class _SelectionToolbarState extends State<SelectionToolbar>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   ColorScheme get colorScheme => Theme.of(context).colorScheme;
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
 
@@ -37,9 +43,14 @@ class _SelectionToolbarState extends State<SelectionToolbar>
 
   late AnimationController _rotationController;
 
+  final ValueNotifier<Offset> dialogOffsetNotifier = ValueNotifier<Offset>(
+    Offset.zero,
+  );
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final savedvalues = appSettingsRepository.settings.recentColorValues;
 
     recentColors = savedvalues.map((val) => Color(val)).toList();
@@ -52,8 +63,37 @@ class _SelectionToolbarState extends State<SelectionToolbar>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    dialogOffsetNotifier.dispose();
     _rotationController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    // Small delay to ensure MediaQuery has updated
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _ensureDialogIsVisible();
+    });
+  }
+
+  void _ensureDialogIsVisible() {
+    // We need to access the latest screen size
+    final screenSize = MediaQuery.of(context).size;
+
+    // These should match the math used in your onPanUpdate
+    final double dWidth = (screenSize.width * 0.85).clamp(280.0, 360.0);
+    const double dHeight = 350;
+
+    final double maxX = (screenSize.width - dWidth) / 2;
+    final double maxY = (screenSize.height - dHeight) / 2;
+
+    // Clamp the existing offset to the new screen boundaries
+    final double clampedX = dialogOffsetNotifier.value.dx.clamp(-maxX, maxX);
+    final double clampedY = dialogOffsetNotifier.value.dy.clamp(-maxY, maxY);
+
+    dialogOffsetNotifier.value = Offset(clampedX, clampedY);
   }
 
   @override
@@ -93,8 +133,26 @@ class _SelectionToolbarState extends State<SelectionToolbar>
               color: iconColor,
             ),
           ),
+          SizedBox(width: 10),
+          Text(
+            '${widget.selectedCount}', // Use the passed count here
+            style: TextStyle(fontWeight: FontWeight.bold, color: iconColor),
+          ),
           const Spacer(),
           _buildColorCircle(),
+          IconButton(
+            // Use outlined icons for a lighter visual footprint[cite: 12]
+            icon: Icon(
+              widget.shouldPin
+                  ? Icons.push_pin_rounded
+                  : Icons.push_pin_outlined,
+
+              size: 22,
+              color: iconColor,
+            ),
+            onPressed: widget.onPin,
+            splashRadius: 20,
+          ),
           IconButton(
             // Use outlined icons for a lighter visual footprint[cite: 12]
             icon: Icon(Icons.share_outlined, size: 22, color: iconColor),
@@ -159,13 +217,11 @@ class _SelectionToolbarState extends State<SelectionToolbar>
     _rotationController.stop(); //[cite: 12]
     Color temporaryColor = recentColors.isEmpty
         ? Colors.red
-        : recentColors[0]; //[cite: 12]
-    final ValueNotifier<Offset> dialogOffsetNotifier = ValueNotifier<Offset>(
-      Offset.zero,
-    ); //[cite: 12]
+        : recentColors[0]; //[cite: 12] //[cite: 12]
     final Map<String, Color> originalColors = {
       for (var note in noteRepository.selectedNotes) note.id: note.cardColor,
-    }; //[cite: 12]
+    };
+    final colorScheme = Theme.of(context).colorScheme;
 
     final screenSize = MediaQuery.of(context).size; //[cite: 12]
     final maxColors = screenSize.width > 600 ? 8 : 6; //[cite: 12]
@@ -202,19 +258,22 @@ class _SelectionToolbarState extends State<SelectionToolbar>
             },
             child: GestureDetector(
               onPanUpdate: (details) {
-                const double dWidth = 320;
-                const double dHeight = 450;
+                final screenSize = MediaQuery.of(context).size;
+                final double dWidth = (screenSize.width * 0.85).clamp(
+                  280.0,
+                  360.0,
+                );
+                const double dHeight = 350;
+
                 double newX = dialogOffsetNotifier.value.dx + details.delta.dx;
                 double newY = dialogOffsetNotifier.value.dy + details.delta.dy;
+
+                final double maxX = (screenSize.width - dWidth) / 2;
+                final double maxY = (screenSize.height - dHeight) / 2;
+
                 dialogOffsetNotifier.value = Offset(
-                  newX.clamp(
-                    -(screenSize.width - dWidth) / 2,
-                    (screenSize.width - dWidth) / 2,
-                  ),
-                  newY.clamp(
-                    -(screenSize.height - dHeight) / 2,
-                    (screenSize.height - dHeight) / 2,
-                  ),
+                  newX.clamp(-maxX, maxX),
+                  newY.clamp(-maxY, maxY),
                 );
               }, //[cite: 12]
               child: Align(
@@ -251,8 +310,21 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // --- THE DRAG HANDLE ---
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                              // 1. CLEAN HEADER
                               Text(
-                                'Select Color',
+                                'Color',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -261,10 +333,11 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                                       ? Colors.white
                                       : const Color(0xFF111111),
                                 ),
-                              ), //[cite: 12]
+                              ),
+
                               const SizedBox(height: 16),
 
-                              // COMPRESSED COLOR PICKER: Better proportions
+                              // 2. SQUASHED COLOR PICKER (Widescreen feel)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: ColorPicker(
@@ -272,34 +345,89 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                                   onColorChanged: (color) {
                                     setDialogState(
                                       () => temporaryColor = color,
-                                    ); //[cite: 12]
-                                    noteRepository.updateColorPreview(
-                                      color,
-                                    ); //[cite: 12]
+                                    );
+                                    noteRepository.updateColorPreview(color);
                                   },
                                   pickerAreaHeightPercent:
-                                      0.4, // Compressed from 0.7[cite: 12]
-                                  enableAlpha: false, //[cite: 12]
-                                  displayThumbColor: true, //[cite: 12]
-                                  labelTypes: const [], //[cite: 12]
-                                  portraitOnly: true, //[cite: 12]
+                                      0.25, // Compact height
+                                  enableAlpha: false,
+                                  displayThumbColor: true,
+                                  labelTypes: const [],
+                                  portraitOnly: true,
                                   colorPickerWidth: availableWidth - 40,
                                 ),
                               ),
 
-                              const SizedBox(height: 20),
-                              Text(
-                                "Recent",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? Colors.white54
-                                      : Colors.black45,
-                                ),
-                              ), //[cite: 12]
+                              //const SizedBox(height: 16),
+
+                              // 3. THE "SMART ROW" (Title + Actions on one line)
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Recent",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.black45,
+                                    ),
+                                  ),
+
+                                  // Inline Text Buttons with Compact Visual Density
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextButton(
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity
+                                              .compact, // Squeezes default margins
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          foregroundColor: isDark
+                                              ? Colors.white60
+                                              : Colors.black54,
+                                        ),
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text(
+                                          'Cancel',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        style: TextButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          foregroundColor: const Color(
+                                            0xFF2C9C8D,
+                                          ), // Your brand green
+                                        ),
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text(
+                                          'Apply',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+
                               const SizedBox(height: 12),
 
+                              // 4. RECENT COLORS WRAP
                               Wrap(
                                 spacing: 12,
                                 runSpacing: 12,
@@ -309,19 +437,12 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                                         onTap: () {
                                           setDialogState(
                                             () => temporaryColor = color,
-                                          ); //[cite: 12]
-                                          widget.onColorChanged(
-                                            color,
-                                          ); //[cite: 12]
+                                          );
+                                          widget.onColorChanged(color);
                                         },
                                         onDoubleTap: () {
-                                          widget.onColorChanged(
-                                            color,
-                                          ); //[cite: 12]
-                                          Navigator.pop(
-                                            context,
-                                            true,
-                                          ); //[cite: 12]
+                                          widget.onColorChanged(color);
+                                          Navigator.pop(context, true);
                                         },
                                         child: Container(
                                           width: 36,
@@ -349,64 +470,6 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                                       ),
                                     )
                                     .toList(),
-                              ), //[cite: 12]
-
-                              const SizedBox(height: 28),
-
-                              // GROUPED ACTIONS: Standard right-alignment
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  TextButton(
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: isDark
-                                          ? Colors.white60
-                                          : Colors.black54,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: () => Navigator.pop(
-                                      context,
-                                      false,
-                                    ), //[cite: 12]
-                                    child: const Text(
-                                      'Cancel',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF2C9C8D),
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: () => Navigator.pop(
-                                      context,
-                                      true,
-                                    ), //[cite: 12]
-                                    child: const Text(
-                                      'Apply',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
                           ),
