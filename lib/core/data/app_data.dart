@@ -1,7 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:notepad/core/services/note_preview_text.dart';
+import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:uuid/uuid.dart';
 
 part 'app_data.g.dart';
@@ -35,6 +34,8 @@ class NotesSection {
 
   @HiveField(1)
   String title;
+
+  String get displayTitle => title.trim().isEmpty ? 'Untitled Note' : title;
 
   @HiveField(2)
   String content;
@@ -80,7 +81,7 @@ class NotesSection {
 
   // Helper getter/setter to work with Color objects in UI, but it doesn't handle the "Save" or "Notify"
   Color get cardColor => Color(cardColorValue);
-  set cardColor(Color color) => cardColorValue = color.value;
+  set cardColor(Color color) => cardColorValue = color.toARGB32();
 
   /// UI-only selection state used by bulk actions.
   bool isSelected;
@@ -121,7 +122,12 @@ DateTime? _parseDateTime(Object? value) {
   if (value is! String || value.isEmpty) {
     return null;
   }
-  return DateTime.tryParse(value);
+
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) {
+    debugPrint('Invalid date value in stored note data: $value');
+  }
+  return parsed;
 }
 
 /// Stores app-level preferences such as theme mode.

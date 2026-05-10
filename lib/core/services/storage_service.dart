@@ -9,12 +9,25 @@ import 'package:notepad/core/data/app_data.dart';
 class StorageService {
   static const String _notesBoxName = 'notes_box';
   static const String _settingsBoxName = 'settings_box';
+  static const String _settingsKey = 'current_settings';
 
   /// Centralized box lookup so the rest of the app never repeats box keys.
   static Box<NotesSection> get _notesBox =>
       Hive.box<NotesSection>(_notesBoxName);
   static Box<AppSettings> get _settingsBox =>
       Hive.box<AppSettings>(_settingsBoxName);
+
+  static void _ensureNotesBoxReady() {
+    if (!Hive.isBoxOpen(_notesBoxName)) {
+      throw StateError('Notes box is not open yet.');
+    }
+  }
+
+  static void _ensureSettingsBoxReady() {
+    if (!Hive.isBoxOpen(_settingsBoxName)) {
+      throw StateError('Settings box is not open yet.');
+    }
+  }
 
   /// Helper used with `compute()` to serialize notes off the UI thread.
   static String _serializeNotesTask(List<NotesSection> notes) {
@@ -29,11 +42,13 @@ class StorageService {
 
   /// Returns all notes currently stored in Hive.
   static List<NotesSection> loadAllNotes() {
+    _ensureNotesBoxReady();
     return _notesBox.values.toList();
   }
 
   /// Persists one note by ID.
   static Future<void> saveNote(NotesSection note) async {
+    _ensureNotesBoxReady();
     await _notesBox.put(note.id, note);
   }
 
@@ -51,16 +66,19 @@ class StorageService {
 
   /// Deletes one note from Hive.
   static Future<void> deleteNote(String id) async {
+    _ensureNotesBoxReady();
     await _notesBox.delete(id);
   }
 
   /// Loads the saved settings snapshot, or returns defaults when empty.
   static AppSettings loadSettings() {
-    return _settingsBox.get('current_settings') ?? const AppSettings();
+    _ensureSettingsBoxReady();
+    return _settingsBox.get(_settingsKey) ?? const AppSettings();
   }
 
   /// Persists the current settings snapshot.
   static Future<void> saveSettings(AppSettings settings) async {
-    await _settingsBox.put('current_settings', settings);
+    _ensureSettingsBoxReady();
+    await _settingsBox.put(_settingsKey, settings);
   }
 }

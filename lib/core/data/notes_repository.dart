@@ -225,13 +225,43 @@ class NoteRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> togglePin(String noteId) async {
+  Future<void> togglePinStatus(String noteId) async {
     final note = findById(noteId);
-    if (note == null) return;
+    if (note == null) {
+      debugPrint("The note: $noteId cannot be found toPin.");
+      return;
+    }
 
     note.isPinned = !note.isPinned;
+    note.updatedAt = DateTime.now();
     _sortPinnedFirst();
-    await _box.put(note.id, note);
+    try {
+      await _box.put(note.id, note);
+    } catch (e) {
+      // Optional: Revert memory state if DB write fails
+      debugPrint("Failed to persist pin status: $e");
+    }
+  }
+
+  Future<void> togglePinBulk(bool goalState) async {
+    final notes = selectedNotes;
+    if (notes.isEmpty) return;
+
+    final now = DateTime.now();
+    final Map<dynamic, NotesSection> entries = {};
+
+    for (final note in notes) {
+      note.isPinned = goalState;
+      note.updatedAt = now;
+      entries[note.id] = note;
+    }
+    _sortPinnedFirst();
+
+    try {
+      await _box.putAll(entries);
+    } catch (e) {
+      debugPrint("Bulk pin save failed: $e");
+    }
   }
 
   void toggleSelected(String noteId) {
@@ -245,7 +275,6 @@ class NoteRepository extends ChangeNotifier {
   void setSelectAllForAllActiveNotes(bool selected) {
     for (final note in activeNotes) {
       note.isSelected = selected;
-      _box.put(note.id, note);
     }
     notifyListeners();
   }
@@ -254,7 +283,6 @@ class NoteRepository extends ChangeNotifier {
     var changed = false;
     for (final note in selectedNotes) {
       note.cardColor = color;
-      _box.put(note.id, note);
       changed = true;
     }
     if (changed) notifyListeners();

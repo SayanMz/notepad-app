@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 
 /// ---------------------------------------------------------------------------
 /// APP BOOTSTRAPPER (INTERVIEW NOTE)

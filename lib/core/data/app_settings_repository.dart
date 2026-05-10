@@ -47,18 +47,15 @@ class AppSettingsRepository extends ChangeNotifier {
       _settings.isDarkMode ? ThemeMode.dark : ThemeMode.light;
 
   Future<void> addRecentColor(Color color, int maxColors) async {
-    // 1. Get current list from the immutable settings object
-    List<int> updatedValues = List.from(_settings.recentColorValues);
+    final updatedValues = List<int>.from(_settings.recentColorValues);
 
-    // 2. Apply your FIFO logic
-    updatedValues.remove(color.value); // Remove if exists to prevent duplicates
-    updatedValues.insert(0, color.value); // Add to front
+    updatedValues.remove(color.toARGB32());
+    updatedValues.insert(0, color.toARGB32());
 
     if (updatedValues.length > maxColors) {
-      updatedValues.removeLast(); // Clamp the list
+      updatedValues.removeLast();
     }
 
-    // 3. Update the whole settings object and persist
     await update(_settings.copyWith(recentColorValues: updatedValues));
   }
 
@@ -66,11 +63,13 @@ class AppSettingsRepository extends ChangeNotifier {
   Future<void> load() async {
     try {
       _settings = StorageService.loadSettings();
+      notifyListeners();
     } catch (e) {
       // If the data is corrupted or old, reset to defaults automatically
       debugPrint('Settings load failed, resetting to defaults: $e');
       _settings = const AppSettings();
       await persist();
+      notifyListeners();
     }
   }
 
