@@ -184,16 +184,71 @@ class NoteRepository extends ChangeNotifier {
   }
 
   Future<void> importNotesFromBackupString(String jsonString) async {
-    final List<dynamic> decoded = jsonDecode(jsonString);
+    final decoded = jsonDecode(jsonString);
+    if (decoded is! List) {
+      throw const FormatException('Invalid backup format: expected a list.');
+    }
     final importedNotes = decoded
-        .map((item) => NotesSection.fromJson(item))
+        .map((item) {
+          try {
+            if (item is! Map<String, dynamic>) {
+              return null;
+            }
+
+            return NotesSection.fromJson(item);
+          } catch (e) {
+            debugPrint('Skipping corrupted note during import: $e');
+            return null;
+          }
+        })
+        .whereType<NotesSection>()
         .toList();
 
-    await _box.clear();
-    await _box.addAll(importedNotes);
-    _notes.clear();
-    _notes.addAll(importedNotes);
-    notifyListeners();
+    if (importedNotes.isEmpty) {
+      throw const FormatException('Backup contains no valid notes.');
+    }
+
+    for (var cloudNote in importedNotes) {
+      final localNote = _noteMap[cloudNote.id];
+
+      // 1. COLLISION CHECK: Archive local note if it's fresher than the backup
+      if (localNote != null &&
+          localNote.updatedAt.isAfter(cloudNote.updatedAt)) {
+        // SAFETY ARCHIVE: Move local version to Recycle Bin with a new ID
+        final archivedNote = NotesSection(
+          id: '${localNote.id}_local_conflict_${DateTime.now().millisecondsSinceEpoch}',
+          title: localNote.title,
+          content: localNote.content,
+          richContent: localNote.richContent,
+          createdAt: localNote.createdAt,
+          updatedAt: localNote.updatedAt,
+          isDeleted: true,
+        );
+
+        await _box.put(archivedNote.id, archivedNote);
+        _noteMap[archivedNote.id] = archivedNote;
+        _deletedNotes.add(archivedNote);
+
+        debugPrint('Safety: Archived local content for ${localNote.title}');
+      }
+
+      // 2. AUTHORITATIVE CLOUD SYNC: Overwrite original ID with cloud data
+      await _box.put(cloudNote.id, cloudNote);
+      _noteMap[cloudNote.id] = cloudNote;
+
+      // 3. UI SYNC: Clear old references and route to correct list
+      _notes.removeWhere((n) => n.id == cloudNote.id);
+      _deletedNotes.removeWhere((n) => n.id == cloudNote.id);
+
+      if (cloudNote.isDeleted) {
+        _deletedNotes.add(cloudNote);
+      } else {
+        _notes.add(cloudNote);
+      }
+    }
+
+    // Final sort for your LG monitor view
+    _sortPinnedFirst();
   }
 
   bool get areAllActiveNotesSelected {
@@ -403,6 +458,7 @@ class NoteRepository extends ChangeNotifier {
         ..richContent = richContent
         ..updatedAt = now;
 
+      _noteMap[existingNote.id] = existingNote;
       await _box.put(existingNote.id, existingNote);
       notifyListeners();
       return existingNote;

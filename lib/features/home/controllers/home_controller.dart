@@ -1,32 +1,77 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/home/services/auth_controller.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
 import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:notepad/features/home/services/app_router.dart';
-import 'package:notepad/features/note/note_page.dart';
+import 'package:flutter/rendering.dart';
 
-class HomeController {
+class HomeController extends ChangeNotifier {
   List<NotesSection> get activeNotes => noteRepository.activeNotes;
   List<NotesSection> get selectedNotes => noteRepository.selectedNotes;
 
   bool get isSelectionMode => selectedNotes.isNotEmpty;
-  bool get allSelected => noteRepository.areAllActiveNotesSelected;
+  bool get isAllSelected => noteRepository.areAllActiveNotesSelected;
   // If at least one selected note is NOT pinned, we show the 'Pin' action
   bool get showPinAction => selectedNotes.any((n) => !n.isPinned);
 
-  Future<void> openNote(BuildContext context, {String? noteId}) async {
+  final AuthController authController = AuthController();
+
+  HomeController() {
+    authController.initialize();
+  }
+
+  // 1. Loading & Sync Status Notifiers
+  final ValueNotifier<bool> isSavingNotifier = ValueNotifier(false);
+  final ValueNotifier<String> syncStatusNotifier = ValueNotifier(
+    'Ready to sync',
+  );
+  final ValueNotifier<Color?> statusColorNotifier = ValueNotifier(null);
+
+  // 2. FAB & Navigation State
+  final ValueNotifier<bool> isFabExtended = ValueNotifier(true);
+  final ValueNotifier<double> fabAlignX = ValueNotifier(0.0);
+
+  double _accumulatedDelta = 0.0;
+
+  void toggleSelectAll(bool? value) {
+    final bool newValue = value ?? false;
+    noteRepository.setSelectAllForAllActiveNotes(value ?? false);
+    if (newValue) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  void updateSelectedColors(Color color) {
+    // 1. Perform the action
+    noteRepository.updateColorForSelectedNotes(color);
+
+    // 2. Provide physical feedback for the color change
+    HapticFeedback.selectionClick();
+  }
+
+  // Pass a navigation callback instead of BuildContext
+  Future<void> openNote({
+    String? noteId,
+    required Future<void> Function(String?) onNavigate,
+  }) async {
     uiNotifier.clearSnackBars();
-    await Navigator.push(context, AppRouter.slide(NotePage(noteId: noteId)));
+    await onNavigate(noteId);
   }
 
   Future<void> togglePin(String noteId) async {
     await noteRepository.togglePinStatus(noteId);
   }
 
-  Future<void> shareSelectedNotes(BuildContext context) async {
+  // Pass an error-handling callback instead of checking context.mounted
+  Future<void> shareSelectedNotes({
+    required void Function(String) onError,
+  }) async {
     final selectedNotes = noteRepository.selectedNotes;
     if (selectedNotes.isEmpty) return;
 
@@ -36,8 +81,8 @@ class HomeController {
         text: 'Sharing ${selectedNotes.length} Notes',
       );
     } catch (e) {
-      if (!context.mounted) return;
-      showErrorSnackBar('Could not share selected notes: $e');
+      // The controller doesn't care HOW the error is shown, it just passes it back
+      onError(e.toString());
     }
   }
 
@@ -72,11 +117,17 @@ class HomeController {
     );
   }
 
-  // void toggleSelectionMode(bool enabled) {
-  //   if (!enabled) {
-  //     noteRepository.clearSelection();
-  //   }
-  // }
+  void updateSyncStatus(String message, {Color? color, bool temporary = true}) {
+    syncStatusNotifier.value = message;
+    statusColorNotifier.value = color;
+
+    if (temporary) {
+      Future.delayed(const Duration(seconds: 3), () {
+        syncStatusNotifier.value = 'Ready to sync';
+        statusColorNotifier.value = null;
+      });
+    }
+  }
 
   Future<void> runManualBackup() async {
     try {
@@ -102,6 +153,90 @@ class HomeController {
     } catch (e) {
       debugPrint('Error during manual restore: $e');
       rethrow;
+    }
+  }
+
+  // inside HomeController class
+
+  void updateFabState({required bool extend}) {
+    if (isFabExtended.value == extend) return;
+    isFabExtended.value = extend;
+    fabAlignX.value = extend ? 0.0 : 0.95;
+  }
+
+  // 1. SCROLL LOGIC
+  bool handleFabScroll(
+    Notification notification,
+    Size screenSize,
+    bool isSelectionMode,
+  ) {
+    if (isSelectionMode) return false;
+
+    if (notification is ScrollNotification && notification.metrics.outOfRange) {
+      _accumulatedDelta = 0.0;
+      return false;
+    }
+
+    if (notification is ScrollUpdateNotification) {
+      final double delta = notification.scrollDelta ?? 0.0;
+      final double threshold = screenSize.height * 0.10;
+      final double offset = notification.metrics.pixels;
+
+      if (offset <= 10) {
+        _accumulatedDelta = 0.0;
+        updateFabState(extend: true); // Your existing fab state logic
+        return true;
+      }
+
+      if ((delta > 0 && _accumulatedDelta < 0) ||
+          (delta < 0 && _accumulatedDelta > 0)) {
+        _accumulatedDelta = delta;
+      } else {
+        _accumulatedDelta += delta;
+      }
+
+      if (_accumulatedDelta > threshold) {
+        updateFabState(extend: false);
+        _accumulatedDelta = 0.0;
+      } else if (_accumulatedDelta < -threshold) {
+        updateFabState(extend: true);
+        _accumulatedDelta = 0.0;
+      }
+    }
+
+    if (notification is UserScrollNotification &&
+        notification.direction == ScrollDirection.idle) {
+      _accumulatedDelta = 0.0;
+    }
+    return true;
+  }
+
+  // 2. BULK DELETE EXECUTION
+  void executeBulkDelete() {
+    final selected = noteRepository.selectedNotes;
+    if (selected.isEmpty) return;
+
+    deleteSelected(selected);
+    HapticFeedback.heavyImpact(); // Premium feel for deletion
+    noteRepository.clearSelection();
+  }
+
+  // 3. CLOUD ACTION WRAPPER
+  Future<void> runCloudOperation({
+    required Future<void> Function() action,
+    required ValueNotifier<bool> loadingNotifier,
+    required Function(String, Color?) onStatusUpdate,
+  }) async {
+    try {
+      loadingNotifier.value = true;
+      await action();
+      await authController.fetchFreshStorageStats();
+      onStatusUpdate('All saved', Colors.green);
+    } catch (e) {
+      onStatusUpdate('Sync failed', Colors.redAccent);
+      rethrow;
+    } finally {
+      loadingNotifier.value = false;
     }
   }
 }
