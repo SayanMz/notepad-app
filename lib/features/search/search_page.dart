@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
 import 'package:notepad/features/note/note_page.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/widgets/search_filter_dialog.dart';
 import 'package:notepad/features/search/widgets/search_results_panel.dart';
+import 'package:notepad/features/search/widgets/smooth_slide_fade.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -18,16 +18,13 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   late final search_ctrl.SearchController _searchController =
-      search_ctrl.SearchController(repository: noteRepository);
-
+      search_ctrl.SearchController();
   final FocusNode _searchFocusNode = FocusNode();
 
   bool get isDark => Theme.of(context).brightness == Brightness.dark;
 
-  // State to control visibility of AppBar and Chips
-  bool _showHeaders = true;
-
-  final bool _isOpeningSheet = false;
+  // Change in _SearchPageState
+  final ValueNotifier<bool> _showHeaders = ValueNotifier(true);
 
   @override
   void initState() {
@@ -43,6 +40,7 @@ class _SearchPageState extends State<SearchPage> {
   void dispose() {
     _searchFocusNode.dispose();
     _searchController.dispose();
+    _showHeaders.dispose();
     super.dispose();
   }
 
@@ -52,80 +50,66 @@ class _SearchPageState extends State<SearchPage> {
       body: SafeArea(
         child: NotificationListener<UserScrollNotification>(
           onNotification: (notification) {
-            // Hide headers when scrolling down
             if (notification.direction == ScrollDirection.reverse) {
-              if (_showHeaders) setState(() => _showHeaders = false);
-            }
-            // Show headers when scrolling up
-            else if (notification.direction == ScrollDirection.forward) {
-              if (!_showHeaders) setState(() => _showHeaders = true);
+              _showHeaders.value = false;
+            } else if (notification.direction == ScrollDirection.forward) {
+              _showHeaders.value = true;
             }
             return false;
           },
           child: Column(
             children: [
-              /// ---------------------------------------------------------------
-              /// ANIMATED APP BAR (TextField + Filter exactly as requested)
-              /// ---------------------------------------------------------------
-              AnimatedSize(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                alignment: Alignment.topCenter,
-                child: _showHeaders
-                    ? SizedBox(
-                        width: double.infinity,
-                        child: AppBar(
-                          surfaceTintColor: Colors.transparent,
-                          // TextField securely placed in title
-                          title: Padding(
-                            padding: const EdgeInsets.only(right: 12.0),
-                            child: _buildSearchTextField(),
-                          ),
-                          titleSpacing: 0,
-                          // Filter button placed securely in actions
-                          actions: [
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: _searchFilter(),
-                            ),
-                          ],
-                          primary:
-                              false, // Prevents double spacing under SafeArea
-                          elevation: 0,
-                          backgroundColor: Colors.transparent,
+              ValueListenableBuilder<bool>(
+                valueListenable: _showHeaders,
+                builder: (context, show, _) {
+                  return SmoothSlideFade(
+                    isVisible: show,
+                    child: SizedBox(
+                      key: const ValueKey(
+                        'search_header',
+                      ), // Key is vital for Switcher
+                      width: double.infinity,
+                      child: AppBar(
+                        surfaceTintColor: Colors.transparent,
+                        backgroundColor: Colors.transparent,
+                        elevation: 0,
+                        titleSpacing: 0,
+                        title: Padding(
+                          padding: const EdgeInsets.only(right: 12.0),
+                          child: _buildSearchTextField(),
                         ),
-                      )
-                    : const SizedBox(width: double.infinity, height: 0),
+                        actions: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: _searchFilter(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-
-              /// ---------------------------------------------------------------
-              /// SEARCH RESULTS PANEL
-              /// ---------------------------------------------------------------
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
                   child: SearchResultsPanel(
                     controller: _searchController,
                     showChips: _showHeaders,
-                    // FIX: Force headers back open when clear filter is pressed
                     onClearFilter: () {
-                      if (!_showHeaders) {
-                        setState(() => _showHeaders = true);
-                      }
+                      _showHeaders.value = true;
                     },
                     onNoteTap: (note) async {
-                      await Navigator.push(
+                      final didChange = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
                           builder: (context) => NotePage(noteId: note.id),
                         ),
                       );
-                      if (mounted) {
+                      if (mounted && didChange == true) {
                         _searchController.refresh();
-                        // FIX: Safety check in case they deleted the last note
                         if (_searchController.results.isEmpty &&
-                            !_showHeaders) {
-                          setState(() => _showHeaders = true);
+                            !_showHeaders.value) {
+                          _showHeaders.value = true;
                         }
                       }
                     },
@@ -163,8 +147,6 @@ class _SearchPageState extends State<SearchPage> {
                     onPressed: () {
                       _searchController.clearQuery();
                       _searchFocusNode.requestFocus();
-                      // Also reveal headers if text is cleared manually
-                      if (!_showHeaders) setState(() => _showHeaders = true);
                     },
                   );
           },
@@ -202,67 +184,44 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // 2. Updated function with the "Guard" pattern
   Future<void> _openSearchFilterDialog() async {
     final result = await showGeneralDialog<SearchFilters>(
       context: context,
-      barrierDismissible: true, // Tapping background closes it
+      barrierDismissible: true,
       barrierLabel: 'Dismiss Filter',
-      barrierColor: Colors.black.withValues(
-        alpha: 0.5,
-      ), // Impenetrable native barrier
-      transitionDuration: const Duration(
-        milliseconds: 400,
-      ), // Your custom speed
-      // 1. Where the widget sits on the screen
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return Align(
-          alignment: Alignment.bottomCenter,
-          // Inside _openSearchFilterDialog in SearchPage.dart
-          child: SafeArea(
-            bottom: true,
-            child: ConstrainedBox(
-              // Removed outer GestureDetector swipe logic
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Material(
-                color: Colors.transparent,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {}, // Still blocks tap-through to the barrier
-                  child: SearchFilterBottomSheet(
-                    initialFilters: _searchController.filters,
-                  ),
-                ),
-              ),
-            ),
+        return _buildResponsiveDialogWrapper(
+          child: SearchFilterBottomSheet(
+            initialFilters: _searchController.filters,
           ),
         );
       },
-
-      // 2. The custom Slide Animation
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
-          position:
-              Tween<Offset>(
-                begin: const Offset(0, 1), // Starts off-screen at the bottom
-                end: Offset.zero, // Rests in its normal position
-              ).animate(
-                CurvedAnimation(
-                  parent: animation,
-                  curve: Curves
-                      .easeOutQuart, // A premium, smooth deceleration curve
-                ),
+          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutQuart),
               ),
           child: child,
         );
       },
     );
 
-    // This code only runs AFTER the dialog is fully closed
     if (result == null) return;
     _searchController.applyFilters(result);
+  }
 
-    // Reveal headers if hidden
-    if (!_showHeaders) setState(() => _showHeaders = true);
+  Widget _buildResponsiveDialogWrapper({required Widget child}) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Material(color: Colors.transparent, child: child),
+        ),
+      ),
+    );
   }
 }

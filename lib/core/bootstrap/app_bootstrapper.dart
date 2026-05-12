@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
@@ -163,6 +164,12 @@ class AppBootstrapper {
   /// - Register adapters (idempotent)
   /// - Open required boxes in parallel
   static Future<void> _defaultInitializePersistence() async {
+    await dotenv.load(fileName: '.env');
+
+    if (!dotenv.env.containsKey('GOOGLE_CLIENT_ID')) {
+      throw Exception('Missing GOOGLE_CLIENT_ID in .env');
+    }
+
     await Hive.initFlutter();
 
     /// Adapter registration guarded to prevent duplicates

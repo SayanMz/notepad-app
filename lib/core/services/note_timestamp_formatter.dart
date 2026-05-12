@@ -1,30 +1,48 @@
-String formatNoteTimestamp(DateTime value) {
-  final month = _monthName(value.month);
+extension NoteDateFormatter on DateTime {
+  /// Formats the timestamp into a readable string with granular control.
+  /// Usage: note.updatedAt.format() -> "May 12, 2026 • 8:45 AM"
+  String format({
+    bool showDate = true,
+    bool showYear = true,
+    bool showTime = true,
+  }) {
+    final month = _monthName(this.month);
 
-  final hour = value.hour == 0
-      ? 12
-      : (value.hour > 12 ? value.hour - 12 : value.hour);
+    // Construct the Date portion
+    final dateStr = '$month $day${showYear ? ', $year' : ''}';
 
-  final minute = value.minute.toString().padLeft(2, '0');
-  final meridiem = value.hour >= 12 ? 'PM' : 'AM';
+    if (!showTime) return dateStr;
 
-  return '$month ${value.day}, ${value.year} • $hour:$minute $meridiem';
-}
+    // Construct the Time portion
+    final hour = this.hour == 0
+        ? 12
+        : (this.hour > 12 ? this.hour - 12 : this.hour);
+    final minute = this.minute.toString().padLeft(2, '0');
+    final meridiem = this.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour:$minute $meridiem';
 
-String _monthName(int month) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return months[month - 1];
+    if (!showDate) return timeStr;
+
+    // Combine both with the bullet separator
+    return '$dateStr • $timeStr';
+  }
+
+  // Private helper for month names
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[month - 1];
+  }
 }

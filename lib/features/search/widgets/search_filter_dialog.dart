@@ -1,30 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:notepad/core/theme/app_colors.dart';
+import 'package:flutter/services.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 
-/// ---------------------------------------------------------------------------
-/// SEARCH FILTER BOTTOM SHEET
-/// ---------------------------------------------------------------------------
-///
-/// UI component for configuring search filters (date & time).
-///
-/// Responsibilities:
-/// - Capture user-selected date/time inputs
-/// - Support both single-date and range-based filtering
-/// - Return updated filter state to caller
-///
-/// Architectural Role:
-/// - Pure UI layer (no business logic)
-/// - Delegates filtering behavior to controller via returned state
-///
-/// Design:
-/// - Local mutable state (_state) used for interactive updates
-/// - Uses immutable SearchFilters model with copyWith
-/// - Handles dynamic UI expansion via AnimatedSize
 class SearchFilterBottomSheet extends StatefulWidget {
   const SearchFilterBottomSheet({required this.initialFilters, super.key});
 
-  /// Initial filter state provided by caller
   final SearchFilters initialFilters;
 
   @override
@@ -33,545 +13,410 @@ class SearchFilterBottomSheet extends StatefulWidget {
 }
 
 class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
-  /// Theme helper for styling decisions
-  bool get isDark => Theme.of(context).brightness == Brightness.dark;
+  late SearchFilters _filterState;
+  bool get isDarkMode => Theme.of(context).brightness == Brightness.dark;
 
-  /// Local working copy of filter state
-  late SearchFilters _state;
-
-  /// Precomputed dropdown values (date/time components)
-  final List<String> _days = List.generate(
+  // Precomputed values for dropdown menus
+  static final List<String> _dayItems = List.generate(
     31,
-    (i) => (i + 1).toString().padLeft(2, '0'),
+    (index) => (index + 1).toString().padLeft(2, '0'),
   );
-
-  final List<String> _months = List.generate(
+  static final List<String> _monthItems = List.generate(
     12,
-    (i) => (i + 1).toString().padLeft(2, '0'),
+    (index) => (index + 1).toString().padLeft(2, '0'),
   );
-
-  final List<String> _years = List.generate(
+  static final List<String> _yearItems = List.generate(
     10,
-    (i) => (DateTime.now().year - i).toString(),
+    (index) => (DateTime.now().year - index).toString(),
   );
-
-  final List<String> _hours = List.generate(
+  static final List<String> _hourItems = List.generate(
     24,
-    (i) => i.toString().padLeft(2, '0'),
+    (index) => index.toString().padLeft(2, '0'),
   );
-
-  final List<String> _minutes = List.generate(
+  static final List<String> _minuteItems = List.generate(
     60,
-    (i) => i.toString().padLeft(2, '0'),
+    (index) => index.toString().padLeft(2, '0'),
   );
 
   @override
   void initState() {
     super.initState();
-
-    /// Initialize local state from provided filters
-    _state = widget.initialFilters;
+    _filterState = widget.initialFilters;
   }
 
-  /// Clears all filters and resets to default (non-range mode)
-  void _clearFilters() {
-    setState(() {
-      _state = const SearchFilters(isRangeSearch: false);
-    });
+  // Model-to-UI conversion logic
+  int? _parseSelection(String? selectedString) =>
+      selectedString == null ? null : int.tryParse(selectedString);
+
+  String? _getFormattedValue(int? modelValue, List<String> availableItems) {
+    if (modelValue == null || availableItems.isEmpty) return null; //
+
+    // Year doesn't need padding; everything else (day, month, time) is 2 digits
+    final padding = (availableItems == _yearItems) ? 4 : 2;
+    final paddedValue = modelValue.toString().padLeft(padding, '0');
+
+    return availableItems.contains(paddedValue) ? paddedValue : null;
   }
 
-  /// Submits selected filters and closes bottom sheet
-  void _submit() => Navigator.pop(context, _state);
+  void _submitFilters() {
+    Navigator.pop(context, _filterState);
+  }
 
   @override
   Widget build(BuildContext context) {
-    /// Handles keyboard/system UI overlap
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.darkScaffold
-            : Theme.of(context).scaffoldBackgroundColor,
-
-        /// Rounded top corners for bottom sheet
+        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-
-      /// Padding includes dynamic bottom inset (keyboard safe)
       padding: EdgeInsets.only(
-        left: 20.0,
-        right: 20.0,
-        top: 12.0,
-        bottom: 24.0 + bottomInset,
+        left: 20,
+        right: 20,
+        top: 12,
+        bottom: 24 + keyboardInset,
       ),
-
-      /// Prevents overflow when content expands (AnimatedSize)
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// -----------------------------------------------------------
-            /// DRAG HANDLE (Isolated Swipe Trigger)
-            /// -----------------------------------------------------------
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onVerticalDragUpdate: (details) {
-                // Sensitivity threshold: pops only if swiping down[cite: 9]
-                if (details.primaryDelta! > 7) {
-                  Navigator.pop(context);
-                }
-              },
-              child: Center(
-                child: Container(
-                  height: 4,
-                  width: 40,
-                  // Increased top margin to provide a larger invisible touch target
-                  margin: const EdgeInsets.only(top: 10, bottom: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+            _buildDragHandle(),
+            _buildSectionTitle(
+              _filterState.isRangeSearch ? 'START DATE' : 'DATE',
             ),
-
-            /// -----------------------------------------------------------
-            /// START DATE (OR SINGLE DATE)
-            /// -----------------------------------------------------------
-            Text(
-              _state.isRangeSearch ? 'START DATE' : 'DATE',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-
             const SizedBox(height: 8),
-
-            /// Date selection (Day / Month / Year)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDropdownMenu(
-                    hint: 'DD',
-                    value: _state.startDay,
-                    items: _days,
-
-                    /// Updates day value
-                    onChanged: (val) =>
-                        setState(() => _state = _state.copyWith(startDay: val)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildDropdownMenu(
-                    hint: 'MM',
-                    value: _state.startMonth,
-                    items: _months,
-
-                    /// Updates month value
-                    onChanged: (val) => setState(
-                      () => _state = _state.copyWith(startMonth: val),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: _buildDropdownMenu(
-                    hint: 'YYYY',
-                    value: _state.startYear,
-                    items: _years,
-
-                    /// Updates year value
-                    onChanged: (val) => setState(
-                      () => _state = _state.copyWith(startYear: val),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
+            _buildDateRow(isStartRange: true),
             const SizedBox(height: 20),
-
-            /// -----------------------------------------------------------
-            /// START TIME + RANGE TOGGLE
-            /// -----------------------------------------------------------
-            Text(
-              _state.isRangeSearch ? 'START TIME' : 'TIME',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
+            _buildSectionTitle(
+              _filterState.isRangeSearch ? 'START TIME' : 'TIME',
             ),
-
             const SizedBox(height: 8),
-
-            Row(
-              children: [
-                /// Hour selection
-                Expanded(
-                  flex: 2,
-                  child: _buildDropdownMenu(
-                    hint: 'HH',
-                    value: _state.startHour,
-                    items: _hours,
-                    onChanged: (val) => setState(
-                      () => _state = _state.copyWith(startHour: val),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                /// Minute selection
-                Expanded(
-                  flex: 2,
-                  child: _buildDropdownMenu(
-                    hint: 'MM',
-                    value: _state.startMinute,
-                    items: _minutes,
-                    onChanged: (val) => setState(
-                      () => _state = _state.copyWith(startMinute: val),
-                    ),
-                  ),
-                ),
-
-                const Spacer(flex: 1),
-
-                /// Toggle range search mode
-                Expanded(
-                  flex: 4,
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      /// Styling adapts to theme
-                      style: ElevatedButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        backgroundColor: isDark
-                            ? Theme.of(context).colorScheme.primary
-                            : const Color(0xFFF1F5F9),
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                      ),
-
-                      /// Toggle range mode
-                      onPressed: () {
-                        setState(() {
-                          _state = _state.copyWith(
-                            isRangeSearch: !_state.isRangeSearch,
-                          );
-                        });
-                      },
-
-                      icon: Icon(
-                        _state.isRangeSearch ? Icons.close : Icons.date_range,
-                        size: 18,
-                        color: isDark ? Colors.black : const Color(0xFF475569),
-                      ),
-
-                      label: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Search range',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? Colors.black
-                                : const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            /// -----------------------------------------------------------
-            /// END RANGE (VISIBLE ONLY IN RANGE MODE)
-            /// -----------------------------------------------------------
+            _buildTimeAndToggleRow(),
             AnimatedSize(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOutCubic,
-              alignment: Alignment.topCenter,
-
-              child: !_state.isRangeSearch
+              child: !_filterState.isRangeSearch
                   ? const SizedBox.shrink()
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        /// Divider between sections
-                        const Divider(height: 1, color: Colors.grey),
-
-                        const SizedBox(height: 20),
-
-                        /// End date label
-                        const Text(
-                          'END DATE',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        /// End date selection
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildDropdownMenu(
-                                hint: 'DD',
-                                value: _state.endDay,
-                                items: _days,
-                                onChanged: (val) => setState(
-                                  () => _state = _state.copyWith(endDay: val),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildDropdownMenu(
-                                hint: 'MM',
-                                value: _state.endMonth,
-                                items: _months,
-                                onChanged: (val) => setState(
-                                  () => _state = _state.copyWith(endMonth: val),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 2,
-                              child: _buildDropdownMenu(
-                                hint: 'YYYY',
-                                value: _state.endYear,
-                                items: _years,
-                                onChanged: (val) => setState(
-                                  () => _state = _state.copyWith(endYear: val),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// End time label
-                        const Text(
-                          'END TIME',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        /// End time selection
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: _buildDropdownMenu(
-                                hint: 'HH',
-                                value: _state.endHour,
-                                items: _hours,
-                                onChanged: (val) => setState(
-                                  () => _state = _state.copyWith(endHour: val),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 2,
-                              child: _buildDropdownMenu(
-                                hint: 'MM',
-                                value: _state.endMinute,
-                                items: _minutes,
-                                onChanged: (val) => setState(
-                                  () =>
-                                      _state = _state.copyWith(endMinute: val),
-                                ),
-                              ),
-                            ),
-                            const Spacer(flex: 5),
-                          ],
-                        ),
-
-                        const SizedBox(height: 24),
-                      ],
-                    ),
+                  : _buildEndRangeArea(),
             ),
-
-            /// -----------------------------------------------------------
-            /// ACTION BUTTONS (CLEAR / APPLY)
-            /// -----------------------------------------------------------
-            Row(
-              children: [
-                /// Clear filters button
-                Expanded(
-                  flex: 1,
-                  child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: isDark
-                            ? Theme.of(context).colorScheme.primary
-                            : const Color(0xFFF1F5F9),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        side: BorderSide(
-                          color: isDark
-                              ? Theme.of(context).colorScheme.primary
-                              : const Color(0xFF475569),
-                        ),
-                      ),
-                      onPressed: () {
-                        /// Reset and submit
-                        _clearFilters();
-                        _submit();
-                      },
-                      child: Text(
-                        'Clear',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: isDark
-                              ? Colors.black
-                              : const Color(0xFF475569),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                /// Apply filters button
-                Expanded(
-                  flex: 2,
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        backgroundColor: isDark
-                            ? Theme.of(context).colorScheme.primary
-                            : const Color(0xFF334155),
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onPrimary,
-                      ),
-
-                      /// Submit selected filters
-                      onPressed: _submit,
-
-                      child: Text(
-                        'Get Search Results',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: isDark
-                              ? Colors.black
-                              : const Color(0xFFFFFFFF),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            const SizedBox(height: 24),
+            _buildFooterButtons(),
           ],
         ),
       ),
     );
   }
 
-  /// -------------------------------------------------------------------------
-  /// REUSABLE DROPDOWN BUILDER
-  /// -------------------------------------------------------------------------
-  ///
-  /// Ensures consistent styling and behavior across all date/time fields
-  Widget _buildDropdownMenu({
-    required String hint,
-    required String? value,
+  Widget _buildEndRangeArea() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 40, color: Colors.grey),
+        _buildSectionTitle('END DATE'),
+        const SizedBox(height: 8),
+        _buildDateRow(isStartRange: false),
+        const SizedBox(height: 20),
+        _buildSectionTitle('END TIME'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _buildDropdown(
+                hintText: 'HH',
+                selectedValue: _getFormattedValue(
+                  _filterState.end.hour,
+                  _hourItems,
+                ),
+                items: _hourItems,
+                onChanged: (value) =>
+                    _updateSelection(isStart: false, hour: value),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: _buildDropdown(
+                hintText: 'MM',
+                selectedValue: _getFormattedValue(
+                  _filterState.end.minute,
+                  _minuteItems,
+                ),
+                items: _minuteItems,
+                onChanged: (value) =>
+                    _updateSelection(isStart: false, minute: value),
+              ),
+            ),
+            const Spacer(flex: 5),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooterButtons() {
+    final squircleShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+    );
+    return Row(
+      children: [
+        Expanded(
+          flex: 1,
+          child: SizedBox(
+            height: 48,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                shape: squircleShape,
+                backgroundColor: isDarkMode
+                    ? Colors.grey[900]
+                    : const Color(0xFFF1F5F9),
+                side: BorderSide(
+                  color: isDarkMode
+                      ? Colors.grey[700]!
+                      : const Color(0xFF475569),
+                ),
+              ),
+              onPressed: () {
+                setState(
+                  () =>
+                      _filterState = const SearchFilters(isRangeSearch: false),
+                );
+                _submitFilters();
+              },
+              child: Text(
+                'Clear',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : const Color(0xFF475569),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                shape: squircleShape,
+                backgroundColor: isDarkMode
+                    ? Theme.of(context).colorScheme.primary
+                    : const Color(0xFF334155),
+              ),
+              onPressed: () {
+                _submitFilters();
+                HapticFeedback.lightImpact();
+              },
+              child: Text(
+                'Get Search Results',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.black : Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeAndToggleRow() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: _buildDropdown(
+            hintText: 'HH',
+            selectedValue: _getFormattedValue(
+              _filterState.start.hour,
+              _hourItems,
+            ),
+            items: _hourItems,
+            onChanged: (value) => _updateSelection(isStart: true, hour: value),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: _buildDropdown(
+            hintText: 'MM',
+            selectedValue: _getFormattedValue(
+              _filterState.start.minute,
+              _minuteItems,
+            ),
+            items: _minuteItems,
+            onChanged: (value) =>
+                _updateSelection(isStart: true, minute: value),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 4,
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                backgroundColor: isDarkMode
+                    ? Theme.of(context).colorScheme.primary
+                    : const Color(0xFFF1F5F9),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+              ),
+              onPressed: () => setState(
+                () => _filterState = _filterState.copyWith(
+                  isRangeSearch: !_filterState.isRangeSearch,
+                ),
+              ),
+              icon: Icon(
+                _filterState.isRangeSearch ? Icons.close : Icons.date_range,
+                size: 18,
+                color: isDarkMode ? Colors.black : const Color(0xFF475569),
+              ),
+              label: Text(
+                'Search range',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.black : const Color(0xFF475569),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Refined update logic with named parameters to match calls
+  void _updateSelection({
+    required bool isStart,
+    String? day,
+    String? month,
+    String? year,
+    String? hour,
+    String? minute,
+  }) {
+    setState(() {
+      final targetSelection = isStart ? _filterState.start : _filterState.end;
+      final updatedSelection = targetSelection.copyWith(
+        day: day != null ? _parseSelection(day) : targetSelection.day,
+        month: month != null ? _parseSelection(month) : targetSelection.month,
+        year: year != null ? _parseSelection(year) : targetSelection.year,
+        hour: hour != null ? _parseSelection(hour) : targetSelection.hour,
+        minute: minute != null
+            ? _parseSelection(minute)
+            : targetSelection.minute,
+      );
+      _filterState = isStart
+          ? _filterState.copyWith(start: updatedSelection)
+          : _filterState.copyWith(end: updatedSelection);
+    });
+  }
+
+  Widget _buildDateRow({required bool isStartRange}) {
+    final currentSelection = isStartRange
+        ? _filterState.start
+        : _filterState.end;
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDropdown(
+            hintText: 'DD',
+            selectedValue: _getFormattedValue(currentSelection.day, _dayItems),
+            items: _dayItems,
+            onChanged: (value) =>
+                _updateSelection(isStart: isStartRange, day: value),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildDropdown(
+            hintText: 'MM',
+            selectedValue: _getFormattedValue(
+              currentSelection.month,
+              _monthItems,
+            ),
+            items: _monthItems,
+            onChanged: (value) =>
+                _updateSelection(isStart: isStartRange, month: value),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: _buildDropdown(
+            hintText: 'YYYY',
+            selectedValue: _getFormattedValue(
+              currentSelection.year,
+              _yearItems,
+            ),
+            items: _yearItems,
+            onChanged: (value) =>
+                _updateSelection(isStart: isStartRange, year: value),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title) => Text(
+    title,
+    style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+  );
+
+  Widget _buildDragHandle() => Center(
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragUpdate: (dragDetails) {
+        if (dragDetails.primaryDelta! > 10) Navigator.pop(context);
+      },
+      child: Container(
+        height: 4,
+        width: 40,
+        margin: const EdgeInsets.only(top: 10, bottom: 24),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade400,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    ),
+  );
+
+  Widget _buildDropdown({
+    required String hintText,
+    required String? selectedValue,
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-
-      /// Dropdown container styling
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade400),
         borderRadius: BorderRadius.circular(8),
       ),
-
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: true,
-          value: value,
-          menuMaxHeight: 250,
-
-          /// Placeholder text
-          hint: Text(
-            hint,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-          ),
-
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 18,
-            color: Colors.grey,
-          ),
-
-          /// Map items to dropdown entries
-          items: items.map((String item) {
-            return DropdownMenuItem<String>(
-              value: item,
-              child: Text(item, style: const TextStyle(fontSize: 14)),
-            );
-          }).toList(),
-
-          /// Propagate selection change
+          value: selectedValue,
+          menuMaxHeight: 300,
+          hint: Text(hintText, style: const TextStyle(fontSize: 14)),
+          items: items
+              .map(
+                (item) => DropdownMenuItem(
+                  value: item,
+                  child: Text(item, style: const TextStyle(fontSize: 14)),
+                ),
+              )
+              .toList(),
           onChanged: onChanged,
         ),
       ),
     );
   }
 }
-
-/// ---------------------------------------------------------------------------
-/// INTERVIEW NOTE
-/// ---------------------------------------------------------------------------
-///
-/// Role:
-/// Acts as an interactive UI component for building search filters.
-///
-/// Why this design:
-/// Uses a local mutable state to handle user input smoothly while
-/// keeping the underlying SearchFilters model immutable.
-///
-/// Key Decisions:
-/// - copyWith ensures controlled updates without mutating original state
-/// - AnimatedSize provides smooth UX for range toggle
-/// - Dropdown-based input simplifies structured date/time selection
-///
-/// Trade-offs:
-/// - Uses local state instead of controller-managed state for simplicity
-/// - UI handles input formatting (string-based dates), which could be
-///   abstracted if complexity increases

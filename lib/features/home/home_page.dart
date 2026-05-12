@@ -7,7 +7,6 @@ import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/services/app_router.dart';
-
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';

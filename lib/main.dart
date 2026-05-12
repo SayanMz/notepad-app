@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
@@ -44,8 +43,6 @@ Future<void> main() async {
       };
 
       debugPrint('Starting Notepad bootstrap...');
-      await dotenv.load(fileName: '.env');
-      debugPrint(dotenv.env['GOOGLE_CLIENT_ID']);
 
       final bootstrapper = AppBootstrapper(
         noteRepository: noteRepository,

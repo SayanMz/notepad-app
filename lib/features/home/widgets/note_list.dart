@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/services/note_timestamp_formatter.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
@@ -284,7 +285,7 @@ class _NoteCard extends StatelessWidget {
                       const SizedBox(height: UIConstants.paddingXS),
 
                       Text(
-                        'Edited: ${_formatTimestamp(note.updatedAt)}',
+                        'Edited: ${note.updatedAt.format(showYear: false)}',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: UIConstants.noteCardEditedFontSize,
@@ -673,48 +674,4 @@ class _AnimatedTrashIcon extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Formats DateTime into user-readable string.
-///
-/// OUTPUT FORMAT:
-/// Example Ã¢â€ â€™ "Jan 12, 2026 Ã¢â‚¬Â¢ 3:45 PM"
-///
-/// DESIGN:
-/// - Lightweight formatter (no intl dependency)
-/// - Assumes local device time
-String _formatTimestamp(DateTime value) {
-  final month = _monthName(value.month);
-
-  final hour = value.hour == 0
-      ? 12
-      : (value.hour > 12 ? value.hour - 12 : value.hour);
-
-  final minute = value.minute.toString().padLeft(2, '0');
-  final meridiem = value.hour >= 12 ? 'PM' : 'AM';
-
-  return '$month ${value.day}, $hour:$minute $meridiem';
-}
-
-/// Maps month index Ã¢â€ â€™ abbreviated name.
-///
-/// NOTE:
-/// - Assumes valid 1Ã¢â‚¬â€œ12 input
-/// - No bounds checking (caller responsibility)
-String _monthName(int month) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return months[month - 1];
 }

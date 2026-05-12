@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/models/search_state.dart';
+import 'package:notepad/features/search/services/note_search_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// SEARCH CONTROLLER (INTERVIEW NOTE)
@@ -40,11 +40,7 @@ import 'package:notepad/features/search/models/search_state.dart';
 /// - Suitable for mid-scale apps; can evolve to more structured state
 ///   management if complexity grows
 class SearchController extends ChangeNotifier {
-  SearchController({required NoteRepository repository})
-    : _repository = repository;
-
   /// Repository used to perform search operations
-  final NoteRepository _repository;
 
   /// Text controller owned by controller (single source for query input)
   final TextEditingController textController = TextEditingController();
@@ -152,7 +148,7 @@ class SearchController extends ChangeNotifier {
   /// - Updates cached results
   /// - Notifies listeners (UI rebuild)
   void _recompute() {
-    _results = _repository.search(_state);
+    _results = search(_state);
     notifyListeners();
   }
 
