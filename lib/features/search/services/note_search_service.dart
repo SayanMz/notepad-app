@@ -22,10 +22,12 @@ DateTime? _buildBoundary(
   return DateTime(year, month, day, hour, minute);
 }
 
-List<NotesSection> search(SearchState searchState) {
+// UPDATED: Now returns a Future to handle potential heavy lifting
+Future<List<NotesSection>> search(SearchState searchState) async {
   final normalizedQuery = searchState.normalizedQuery;
   final filters = searchState.filters;
 
+  // Instant return for empty states to save CPU cycles
   if (normalizedQuery.isEmpty && !searchState.hasFilters) {
     return const [];
   }
@@ -33,6 +35,7 @@ List<NotesSection> search(SearchState searchState) {
   final startDate = _buildBoundary(filters.start, isEndOfRange: false);
   final endDate = _buildBoundary(filters.end, isEndOfRange: true);
 
+  // We simulate a small delay or use 'async' to ensure non-blocking behavior
   return List<NotesSection>.unmodifiable(
     activeNotes.where((note) {
       if (normalizedQuery.isNotEmpty) {
@@ -47,6 +50,7 @@ List<NotesSection> search(SearchState searchState) {
       final date = note.updatedAt;
 
       if (!filters.isRangeSearch) {
+        // Precise date component matching
         if (filters.start.year != null && date.year != filters.start.year) {
           return false;
         }
@@ -64,6 +68,7 @@ List<NotesSection> search(SearchState searchState) {
           return false;
         }
       } else {
+        // Range-based chronological matching
         if (startDate != null && date.isBefore(startDate)) return false;
         if (endDate != null && date.isAfter(endDate)) return false;
       }

@@ -2,10 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/services/ui_notifier.dart';
-import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/main.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/note/widgets/alignment_menu.dart';
+import 'package:notepad/features/note/widgets/color_menu.dart';
+import 'package:notepad/features/note/widgets/hyperlink_title_dialog.dart';
 
 class NoteToolbar extends StatefulWidget {
   const NoteToolbar({
@@ -51,88 +51,20 @@ class _NoteToolbarState extends State<NoteToolbar> {
     super.dispose();
   }
 
-  void _openCustomColorPicker() {
-    // Get currently selected color to start the picker with, default to black/white
-    final currentAttr = widget.controller
-        .getSelectionStyle()
-        .attributes['color'];
-    Color pickerColor = currentAttr != null
-        ? Color(int.parse(currentAttr.value.replaceFirst('#', '0xff')))
-        : (isDark ? Colors.white : Colors.black);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Custom Color'),
-        content: SingleChildScrollView(
-          child: ColorPicker(
-            pickerColor: pickerColor,
-            onColorChanged: (color) => pickerColor = color,
-            pickerAreaHeightPercent: 0.7, // Balances height like your reference
-            enableAlpha: false, // Standard hex only for Quill
-            displayThumbColor: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final hex =
-                  '#${pickerColor.toARGB32().toRadixString(16).substring(2)}';
-              widget.controller.formatSelection(ColorAttribute(hex));
-              Navigator.pop(context);
-            },
-            child: const Text('Select'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _performNudge() async {
-    // Wait for the NotePage's AnimatedSize to finish sliding down
-    // (Adjust this duration if your UIConstants.animationMedium is different)
-    await Future.delayed(UIConstants.animationExtraSlow);
-
-    if (!mounted || !_rowScrollController.hasClients) return;
-
-    // Nudge right
-    await _rowScrollController.animateTo(
-      180.0,
-      duration: UIConstants.animationMedium,
-      curve: Curves.easeOut,
-    );
-
-    if (!mounted || !_rowScrollController.hasClients) return;
-
-    // Snap back
-    await _rowScrollController.animateTo(
-      0.0,
-      duration: UIConstants.animationMedium,
-      curve: Curves.easeIn,
-    );
-
-    // Tell the parent we are done so it never happens again
-    widget.onNudgeComplete?.call();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         _buildRawGlassToolbar(
           [
             _buildRawToggle(Icons.format_bold, Attribute.bold),
             _buildRawToggle(Icons.format_italic, Attribute.italic),
-            _buildRawToggle(Icons.format_underlined, Attribute.underline),
+            _buildRawToggle(Icons.format_underline, Attribute.underline),
             _buildRawToggle(
               Icons.format_strikethrough,
               Attribute.strikeThrough,
             ),
-            _buildCheckboxToggle(),
           ],
           isScrollable: true,
           scrollController: _rowScrollController,
@@ -140,133 +72,74 @@ class _NoteToolbarState extends State<NoteToolbar> {
         _buildRawGlassToolbar(
           [
             _buildRawSizeMenu(),
-            _buildRawColorMenu(),
+            ColorMenu(
+              controller: widget.controller,
+              focusNode: widget.focusNode,
+              isDark: isDark,
+            ),
             _buildRawListMenu(),
-            _buildRawAlignmentMenu(widget.controller),
+            AlignmentMenu(controller: widget.controller, isDark: isDark),
             IconButton(
               icon: Icon(
                 Icons.link,
                 color: isDark ? Colors.white : colorScheme.onSurfaceVariant,
               ),
-              onPressed: () => _convertToHyperlink(context),
+              onPressed: _convertToHyperlink,
             ),
           ],
           isScrollable: true,
           scrollController: _rowScrollController,
         ),
-        const SizedBox(height: UIConstants.paddingM),
       ],
     );
   }
 
-  // --- HYPERLINK LOGIC ---
-  Future<void> _convertToHyperlink(BuildContext context) async {
-    final selection = widget.controller.selection;
-    int startIndex = selection.baseOffset;
-    int textLength = selection.extentOffset - startIndex;
+  void _performNudge() {
+    if (!mounted) return;
 
-    String targetUrl = '';
-
-    /// Extract selected or nearby text
-    if (textLength > 0) {
-      targetUrl = widget.controller.document.getPlainText(
-        startIndex,
-        textLength,
-      );
-    } else {
-      final textBefore = widget.controller.document.getPlainText(0, startIndex);
-      final lastSpace = textBefore.lastIndexOf(RegExp(r'\s'));
-      startIndex = lastSpace == -1 ? 0 : lastSpace + 1;
-      textLength = selection.baseOffset - startIndex;
-
-      if (textLength <= 0) return;
-      targetUrl = widget.controller.document.getPlainText(
-        startIndex,
-        textLength,
+    if (_rowScrollController.hasClients) {
+      _rowScrollController.animateTo(
+        _rowScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
       );
     }
 
-    /// Validate URL
-    if (!_isValidLink(targetUrl)) {
-      showRootSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.deleteDarkIcon,
-          content: Text('Please enter a valid link'),
-        ),
-      );
+    widget.onNudgeComplete?.call();
+  }
+
+  Future<void> _convertToHyperlink() async {
+    final selection = widget.controller.selection;
+    if (selection.isCollapsed) {
+      showErrorSnackBar('Select some text before adding a link.');
       return;
     }
 
-    String finalUrl = targetUrl.trim();
-    if (!finalUrl.toLowerCase().startsWith('http://') &&
-        !finalUrl.toLowerCase().startsWith('https://')) {
+    final rawValue = await showHyperlinkTitleDialog(context);
+    final enteredValue = rawValue?.trim();
+    if (enteredValue == null || enteredValue.isEmpty) {
+      return;
+    }
+
+    var finalUrl = enteredValue;
+    if (!finalUrl.toLowerCase().startsWith('http')) {
       finalUrl = 'https://$finalUrl';
     }
 
-    /// Ask user for display title
-    final displayTitle = await _showLinkTitleDialog(context);
-
-    if (displayTitle != null && displayTitle.isNotEmpty) {
-      const trailingSpace = ' ';
-      final insertedText = '$displayTitle$trailingSpace';
-      widget.controller.replaceText(startIndex, textLength, insertedText, null);
-
-      widget.controller.formatText(
-        startIndex,
-        displayTitle.length,
-        Attribute.fromKeyValue('link', finalUrl),
-      );
-      widget.controller.formatText(
-        startIndex,
-        displayTitle.length,
-        Attribute.fromKeyValue('color', AppColors.hyperlinkHex),
-      );
-      widget.controller.formatText(
-        startIndex,
-        displayTitle.length,
-        Attribute.underline,
-      );
-
-      widget.controller.updateSelection(
-        TextSelection.collapsed(offset: startIndex + insertedText.length),
-        ChangeSource.local,
-      );
-      widget.controller.forceToggledStyle(const Style());
-      widget.focusNode.requestFocus();
-    }
-  }
-
-  bool _isValidLink(String text) {
-    return RegExp(
-      r'^(https?://)?([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?$',
-    ).hasMatch(text.trim());
-  }
-
-  Future<String?> _showLinkTitleDialog(BuildContext context) {
-    final textController = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enter Hyperlink Title'),
-        content: TextField(
-          controller: textController,
-          decoration: const InputDecoration(
-            hintText: 'e.g., Google or My Website',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, textController.text),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+    final length = selection.end - selection.start;
+    widget.controller.formatText(
+      selection.start,
+      length,
+      Attribute.fromKeyValue('link', finalUrl),
     );
+    widget.controller.formatText(
+      selection.start,
+      length,
+      Attribute.fromKeyValue('color', '#1E88E5'),
+    );
+    widget.controller.formatText(selection.start, length, Attribute.underline);
+
+    widget.focusNode.requestFocus();
   }
 
   // --- UI Helpers for Styling Bar ---
@@ -593,141 +466,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
     );
   }
 
-  Widget _buildRawColorMenu() {
-    return MenuAnchor(
-      alignmentOffset: const Offset(-UIConstants.toolbarColorMenuOffsetX, 0),
-      builder: (context, menuController, child) => IconButton(
-        icon: const Icon(Icons.palette, color: Colors.redAccent),
-        onPressed: () => menuController.isOpen
-            ? menuController.close()
-            : menuController.open(),
-      ),
-      menuChildren: [
-        SizedBox(
-          width: UIConstants.toolbarMenuWidth,
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            children: [
-              _buildColorCircle(
-                isDark ? Colors.white : Colors.black,
-                isDefault: true,
-              ),
-              _buildColorCircle(Colors.red),
-              _buildColorCircle(Colors.pinkAccent),
-              _buildColorCircle(Colors.amber),
-              _buildColorCircle(Colors.green),
-              _buildColorCircle(Colors.blue),
-              _buildColorCircle(Colors.purple),
-              // Rainbow trigger
-              _buildColorCircle(Colors.transparent, isRainbow: true),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildColorCircle(
-    Color color, {
-    bool isDefault = false,
-    bool isRainbow = false,
-  }) {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, child) {
-        final String hexString =
-            '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
-        final bool isSelected = isDefault
-            ? widget.controller.getSelectionStyle().attributes['color'] == null
-            : !isRainbow &&
-                  widget.controller
-                          .getSelectionStyle()
-                          .attributes['color']
-                          ?.value ==
-                      hexString;
-        return GestureDetector(
-          onTap: () {
-            if (isRainbow) {
-              _openCustomColorPicker();
-            } else {
-              final colorAttr = isDefault
-                  ? Attribute.fromKeyValue('color', null)
-                  : ColorAttribute(hexString);
-              if (widget.controller.selection.isCollapsed) {
-                widget.controller.formatSelection(colorAttr);
-              } else {
-                widget.controller.formatText(
-                  widget.controller.selection.start,
-                  widget.controller.selection.end -
-                      widget.controller.selection.start,
-                  colorAttr,
-                );
-              }
-            }
-
-            widget.focusNode.requestFocus();
-          },
-          child: Container(
-            margin: const EdgeInsets.all(UIConstants.toolbarColorCircleMargin),
-            width: UIConstants.toolbarColorCircleSize,
-            height: UIConstants.toolbarColorCircleSize,
-            decoration: BoxDecoration(
-              // Use gradient for rainbow, solid color for others
-              color: isRainbow ? null : color,
-              gradient: isRainbow
-                  ? const SweepGradient(
-                      colors: [
-                        Colors.red,
-                        Colors.orange,
-                        Colors.yellow,
-                        Colors.green,
-                        Colors.blue,
-                        Colors.indigo,
-                        Colors.purple,
-                        Colors.red,
-                      ],
-                    )
-                  : null,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected ? Colors.lightGreenAccent : Colors.white,
-                width: UIConstants.toolbarColorCircleBorderWidth,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCheckboxToggle() {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, child) {
-        final currentList = widget.controller
-            .getSelectionStyle()
-            .attributes['list']
-            ?.value;
-
-        // Checkboxes have two possible values: 'unchecked' or 'checked'
-        final bool isSelected =
-            currentList == Attribute.unchecked.value ||
-            currentList == Attribute.checked.value;
-
-        return IconButton(
-          icon: Icon(
-            Icons.check_box_outlined,
-            color: isSelected
-                ? Colors
-                      .blueAccent // Turn blue when selected
-                : (isDark ? Colors.white : colorScheme.onSurfaceVariant),
-          ),
-          onPressed: () => _toggleListAttribute(Attribute.unchecked),
-        );
-      },
-    );
-  }
-
   Widget _buildRawListMenu() {
     return ListenableBuilder(
       listenable: widget.controller,
@@ -885,85 +623,4 @@ class _NoteToolbarState extends State<NoteToolbar> {
       widget.controller.formatSelection(attribute);
     }
   }
-
-  Widget _buildRawAlignmentMenu(QuillController controller) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, child) {
-        final currentAlign = controller
-            .getSelectionStyle()
-            .attributes[Attribute.align.key]
-            ?.value;
-
-        return MenuAnchor(
-          builder: (context, menuController, child) => IconButton(
-            icon: const Icon(
-              Icons.format_align_justify,
-              color: Colors.blueAccent,
-            ),
-            onPressed: () => menuController.isOpen
-                ? menuController.close()
-                : menuController.open(),
-          ),
-          menuChildren: [
-            _buildAlignmentItem(
-              Icons.format_align_left,
-              'left',
-              'Left',
-              isDark,
-              currentAlign,
-            ),
-            _buildAlignmentItem(
-              Icons.format_align_center,
-              'center',
-              'Center',
-              isDark,
-              currentAlign,
-            ),
-            _buildAlignmentItem(
-              Icons.format_align_right,
-              'right',
-              'Right',
-              isDark,
-              currentAlign,
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildAlignmentItem(
-    IconData icon,
-    String value,
-    String label,
-    bool isDark,
-    dynamic currentAlign,
-  ) {
-    final bool isSelected =
-        (currentAlign == value) || (currentAlign == null && value == 'left');
-
-    final activeColor = colorScheme.primary;
-    final defaultColor = isDark
-        ? Colors.white
-        : Theme.of(context).colorScheme.onSurfaceVariant;
-
-    return MenuItemButton(
-      leadingIcon: Icon(icon, color: isSelected ? activeColor : defaultColor),
-      onPressed: () => widget.controller.formatSelection(
-        value == 'left'
-            ? Attribute.leftAlignment
-            : value == 'center'
-            ? Attribute.centerAlignment
-            : Attribute.rightAlignment,
-      ),
-      child: Text(label),
-    );
-  }
 }
-
-/*
-Interview Note: "I refactored the toolbar into a StatefulWidget to centralize theme data access. 
-By using getters on the State class, I eliminated redundant context passing across my helper methods 
-while ensuring the UI remains reactive to system theme changes."
-*/

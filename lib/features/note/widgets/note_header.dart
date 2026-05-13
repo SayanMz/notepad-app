@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
+import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
 import 'package:notepad/features/note/controllers/note_controller.dart';
 
 class NoteHeader extends StatelessWidget {
@@ -65,33 +65,11 @@ class NoteHeader extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  ValueListenableBuilder<bool>(
-                    valueListenable: noteController.isProcessingVoice,
-                    builder: (context, isProcessing, _) {
-                      if (isProcessing) {
-                        if (!lottieController.isAnimating) {
-                          lottieController.repeat();
-                        }
-                      } else {
-                        lottieController.stop();
-                        lottieController.reset();
-                      }
-
-                      return GestureDetector(
-                        onTap: (isProcessing && !isListening)
-                            ? null
-                            : toggleListening,
-                        child: Lottie.asset(
-                          'assets/lotties/Ai_Assistant.json',
-                          controller: lottieController,
-                          onLoaded: (composition) {
-                            lottieController.duration = composition.duration;
-                          },
-                          height: 48,
-                          width: 48,
-                        ),
-                      );
-                    },
+                  VoiceAssistantButton(
+                    noteController: noteController,
+                    lottieController: lottieController,
+                    isListening: isListening,
+                    toggleListening: toggleListening,
                   ),
                   IconButton(
                     onPressed: onToggleEdit,

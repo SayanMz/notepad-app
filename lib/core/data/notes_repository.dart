@@ -387,8 +387,8 @@ class NoteRepository extends ChangeNotifier {
         ..richContent = richContent
         ..updatedAt = now;
 
-      _noteMap[existingNote.id] = existingNote;
       await _box.put(existingNote.id, existingNote);
+      _noteMap[existingNote.id] = existingNote;
       notifyListeners();
       return existingNote;
     }
@@ -402,9 +402,9 @@ class NoteRepository extends ChangeNotifier {
     );
 
     final pinnedCount = _notes.where((n) => n.isPinned).length;
+    await _box.put(newNote.id, newNote);
     _notes.insert(pinnedCount, newNote);
     _noteMap[newNote.id] = newNote;
-    await _box.put(newNote.id, newNote);
     notifyListeners();
     return newNote;
   }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/note/services/groq_service.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/features/note/services/voice_formatting_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
 
@@ -82,7 +82,7 @@ class NoteController {
           ? 'Untitled note'
           : title.trim();
 
-      final saved = noteRepository.saveNote(
+      final saved = await noteRepository.saveNote(
         noteId: noteId, // Passes current ID (null if new)
         title: resolvedTitle,
         content: plainText,
@@ -131,7 +131,7 @@ class NoteController {
       return;
     }
 
-    saveNote(title: title, document: document);
+    await saveNote(title: title, document: document);
   }
 
   /// State for the voice processing spinner
@@ -159,7 +159,7 @@ class NoteController {
       final feedback = VoiceFormattingService.applyInstructions(
         instructions: instructions,
         controller: controller,
-        commandText: '',
+        commandText: commandText,
       );
 
       return feedback;
@@ -178,11 +178,3 @@ class NoteController {
     saveState.dispose();
   }
 }
-
-/*
-Interview Note: "I designed the AI integration to be fully data-driven. 
-Instead of writing brittle parsing logic with hardcoded switch cases in Dart, 
-I prompt-engineered the LLM to output exact flutter_quill Delta JSON keys. 
-This allows me to use Quill's native deserialization, reducing my processing 
-logic to a single line of code and making the architecture instantly scalable for new formatting features."
-*/

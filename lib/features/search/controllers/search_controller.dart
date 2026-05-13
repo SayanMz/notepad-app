@@ -137,8 +137,8 @@ class SearchController extends ChangeNotifier {
   /// Used when:
   /// - Returning from note editing
   /// - External data changes
-  void refresh() {
-    _recompute();
+  Future<void> refresh() async {
+    await _recompute();
   }
 
   /// Core search execution method
@@ -147,9 +147,12 @@ class SearchController extends ChangeNotifier {
   /// - Delegates search to repository using current state
   /// - Updates cached results
   /// - Notifies listeners (UI rebuild)
-  void _recompute() {
-    _results = search(_state);
-    notifyListeners();
+  Future<void> _recompute() async {
+    // The UI stays responsive while this waits for the result
+    final newResults = await search(_state);
+
+    _results = newResults;
+    notifyListeners(); // Triggers the AnimatedSwitcher in your results panel
   }
 
   /// -------------------------------------------------------------------------

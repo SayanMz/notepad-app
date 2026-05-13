@@ -1,4 +1,5 @@
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:notepad/features/note/services/voice_formatting_target_resolver.dart';
 
 class VoiceFormattingService {
   static String applyInstructions({
@@ -34,7 +35,7 @@ class VoiceFormattingService {
         v = (v.toString().toLowerCase() == 'true');
       }
 
-      // --- 1. RUTHLESS CLEAR (VIP Pass) ---
+      // --- 1. Clear formatting first ---
       if (k == 'unformat_all') {
         final keys = [
           'bold',
@@ -57,148 +58,22 @@ class VoiceFormattingService {
         didApplyFormat = true;
         continue;
       }
+      final resolution = VoiceFormattingTargetResolver.resolve(
+        controller: controller,
+        plainText: pt,
+        target: target,
+        occurrence: occ,
+        commandText: commandText,
+        key: k,
+      );
+      final ranges = resolution.ranges;
+      final isGlobal = resolution.isGlobal;
+      final isSelectionTarget = resolution.isSelectionTarget;
+      final hasSelection = resolution.hasSelection;
+      skippedInlineOnEmpty =
+          skippedInlineOnEmpty || resolution.skippedInlineOnEmpty;
 
-      // --- 2. TARGET RESOLUTION (Selection & Positioning) ---
-      List<Map<String, int>> ranges = [];
-      final selection = controller.selection;
-      bool hasSelection = selection.isValid && !selection.isCollapsed;
-
-      // [INTACT: Safety lock strictly isolates "it", "this", "that" from triggering global formats]
-      // [INTACT: Safety lock strictly isolates "it", "this", "that" from triggering global formats]
-      bool isGlobal =
-          (target.toLowerCase() == 'all' ||
-              target.toLowerCase() == 'everything' ||
-              target.toLowerCase() == 'document') &&
-          !commandText.toLowerCase().contains(
-            RegExp(
-              r'\b(dog|intelligent|because|loyal|smell|taking|starting|top|bottom|first|last|third|items|list|tasks|selection|this|that|it|sentence|paragraph)\b',
-            ),
-          );
-
-      bool isSelectionTarget = [
-        'selection',
-        'this',
-        'it',
-        'this line',
-        'this paragraph',
-        'this sentence',
-        'that',
-        'selected text',
-        'paragraph:this',
-        'line:this',
-      ].contains(target.toLowerCase());
-
-      if (isSelectionTarget && hasSelection) {
-        ranges.add({
-          'start': selection.start,
-          'len': selection.end - selection.start,
-        });
-      } else if (isGlobal) {
-        ranges.add({'start': 0, 'len': pt.length});
-      } else if (target.startsWith('line:') ||
-          target.startsWith('sentence:') ||
-          target.startsWith('paragraph:')) {
-        String type = target.split(':')[0];
-        String idxStr = target.split(':')[1];
-        List<String> segments = [];
-
-        if (type == 'paragraph') {
-          segments = pt.split(RegExp(r'(?<=\n\s*\n)'));
-        } else {
-          segments = pt.split(RegExp(r'(?<=[.\n])'));
-        }
-
-        const ordinals = {
-          'first': 0,
-          '1st': 0,
-          'top': 0,
-          'starting': 0,
-          'beginning': 0,
-          'second': 1,
-          '2nd': 1,
-          'third': 2,
-          '3rd': 2,
-          'fourth': 3,
-          '4th': 3,
-          'fifth': 4,
-          '5th': 4,
-          'last': -1,
-          'bottom': -1,
-          'end': -1,
-          'ending': -1,
-        };
-
-        int targetIdx = -1;
-        if (['last', 'bottom', 'end', 'ending'].contains(idxStr)) {
-          for (int i = segments.length - 1; i >= 0; i--) {
-            if (segments[i].trim().isNotEmpty) {
-              targetIdx = i;
-              break;
-            }
-          }
-        } else {
-          targetIdx = ordinals[idxStr] ?? (int.tryParse(idxStr) ?? -1);
-        }
-
-        if (targetIdx >= 0 && targetIdx < segments.length) {
-          int startOffset = 0;
-          for (int i = 0; i < targetIdx; i++) {
-            startOffset += segments[i].length;
-          }
-
-          int len = segments[targetIdx].length;
-          if (len > 0) {
-            ranges.add({'start': startOffset, 'len': len});
-          } else if (['align', 'list'].contains(k)) {
-            ranges.add({'start': startOffset, 'len': 1});
-          } else {
-            skippedInlineOnEmpty = true;
-            continue;
-          }
-        }
-      } else {
-        String lowPt = pt.toLowerCase();
-        String pattern = RegExp.escape(target.toLowerCase());
-        var matches = RegExp(
-          r'\b' + pattern + r'\b',
-          caseSensitive: false,
-        ).allMatches(lowPt).toList();
-        if (matches.isEmpty) {
-          matches = RegExp(
-            r'\b' + pattern,
-            caseSensitive: false,
-          ).allMatches(lowPt).toList();
-        }
-        if (matches.isEmpty) {
-          matches = RegExp(
-            pattern,
-            caseSensitive: false,
-          ).allMatches(lowPt).toList();
-        }
-
-        if (occ != 'all' && matches.isNotEmpty) {
-          const ords = {
-            'first': 0,
-            '1st': 0,
-            'second': 1,
-            '2nd': 1,
-            'third': 2,
-            '3rd': 2,
-            'last': -1,
-          };
-          int? i = (occ == 'last') ? matches.length - 1 : ords[occ];
-          if (i != null && matches.length > i) {
-            matches = [matches[i]];
-          } else if (occ != 'all') {
-            matches = [];
-          }
-        }
-        for (var m in matches) {
-          ranges.add({'start': m.start, 'len': m.end - m.start});
-        }
-      }
-
-      // --- 3. EXECUTE UI FORMATTING ---
+      // --- 3. Execute formatting ---
       for (var range in ranges.reversed) {
         int s = range['start']!;
         int l = range['len']!;
@@ -242,7 +117,7 @@ class VoiceFormattingService {
             controller.formatText(s, l, Attribute.fromKeyValue(k, val));
           }
         } else if (['align', 'list'].contains(k)) {
-          // --- Paragraph Block Modifier ---
+          // --- Paragraph block modifier ---
           dynamic val = v;
           if (k == 'list') {
             String vStr = (v ?? '').toString().toLowerCase();

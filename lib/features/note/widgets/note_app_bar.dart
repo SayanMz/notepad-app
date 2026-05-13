@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
 
@@ -57,8 +58,9 @@ class _NoteAppBarState extends State<NoteAppBar> {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: const Text('Note'),
-      centerTitle: true,
+      backgroundColor: widget.isDark
+          ? const Color(0xFF1A1A1A)
+          : const Color(0xFFF8FAFC),
       actions: [
         /// SAVE INDICATOR (isolated, efficient)
         Padding(
@@ -105,8 +107,8 @@ class _NoteAppBarState extends State<NoteAppBar> {
             );
           },
           menuChildren: [
-            _buildMenuItem(
-              label: 'Save as PDF',
+            MenuItemButton(
+              child: Text('Save as PDF', style: TextStyle(color: iconColor)),
               onPressed: () async {
                 final isNotEmpty =
                     widget.title.text.isNotEmpty &&
@@ -137,8 +139,8 @@ class _NoteAppBarState extends State<NoteAppBar> {
                 }
               },
             ),
-            _buildMenuItem(
-              label: 'Share Note',
+            MenuItemButton(
+              child: Text('Share Note', style: TextStyle(color: iconColor)),
               onPressed: () async {
                 final isNotEmpty =
                     widget.title.text.isNotEmpty &&
@@ -189,16 +191,6 @@ class _NoteAppBarState extends State<NoteAppBar> {
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildMenuItem({
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return MenuItemButton(
-      onPressed: onPressed,
-      child: Text(label, style: TextStyle(color: iconColor)),
     );
   }
 }

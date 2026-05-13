@@ -99,19 +99,14 @@ class _SearchPageState extends State<SearchPage> {
                       _showHeaders.value = true;
                     },
                     onNoteTap: (note) async {
-                      final didChange = await Navigator.push<bool>(
+                      await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(
                           builder: (context) => NotePage(noteId: note.id),
                         ),
                       );
-                      if (mounted && didChange == true) {
-                        _searchController.refresh();
-                        if (_searchController.results.isEmpty &&
-                            !_showHeaders.value) {
-                          _showHeaders.value = true;
-                        }
-                      }
+                      if (!mounted) return;
+                      _searchController.refresh();
                     },
                   ),
                 ),

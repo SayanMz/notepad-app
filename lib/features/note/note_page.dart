@@ -1,50 +1,29 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/features/note/services/note_document_service.dart';
 import 'package:notepad/features/note/controllers/note_controller.dart';
+import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/features/note/services/groq_service.dart';
+import 'package:notepad/features/note/services/note_document_service.dart';
+import 'package:notepad/features/note/services/note_voice_feedback_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
 import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
+import 'package:notepad/features/note/widgets/plain_paste_wrapper.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:flutter_tts/flutter_tts.dart';
-import 'package:notepad/core/services/ui_notifier.dart';
 
-/// ---------------------------------------------------------------------------
-/// NOTE PAGE (EDITOR SCREEN)
-/// ---------------------------------------------------------------------------
-///
-/// ROLE IN ARCHITECTURE:
-/// - Core feature screen for creating & editing notes
-/// - Integrates:
-///     • Rich text editor (flutter_quill)
-///     • Persistence layer (NoteRepository)
-///     • Recovery system
-///     • Controller abstraction (NoteController)
-///
-/// RESPONSIBILITIES:
-/// - Initialize editor state (new / existing / recovered note)
-/// - Handle user input (title + content)
-/// - Delegate saving & debouncing to controller
-/// - Manage editor lifecycle and focus
-///
-/// DESIGN PRINCIPLES:
-/// - UI delegates logic → NoteController
-/// - Editor state is reactive via controllers
-/// - Lifecycle-aware saving (AppLifecycleListener)
-///
-/// INTERVIEW NOTE:
-/// This is the most complex screen — demonstrates state handling,
-/// editor integration, and lifecycle awareness.
+/// Note editor screen.
+/// Keeps note orchestration in one place while delegates saving, voice input,
+/// and formatting to smaller helpers.
+
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
@@ -68,28 +47,7 @@ class _NotePageState extends State<NotePage>
   bool _isListening = false;
   String _lastWords = '';
 
-  final FlutterTts _tts = FlutterTts();
-  final Random _random = Random();
-
-  // Blending professional efficiency with an encouraging, conversational tone
-  final List<String> _successPhrases = [
-    "Awesome! Here it is.",
-    "All set, there you go!",
-    "That's cool, let me handle it.",
-    "You have great artistic instincts! Done.",
-    "Looking good! Formatting applied.",
-    "Consider it done!",
-    "Perfect, applying that right now.",
-    "Got it! Your changes are live.",
-  ];
-
-  final List<String> _failurePhrases = [
-    "Sorry, I couldn't find that word in the text.",
-    "I don't support that specific feature just yet!",
-    "Oops, I didn't quite catch that. Could you rephrase?",
-    "Hmm, I couldn't find a match for that command.",
-    "Sorry! I didn't understand. Let's try again.",
-  ];
+  final NoteVoiceFeedbackService _voiceFeedback = NoteVoiceFeedbackService();
 
   /// Listens to app lifecycle (background, pause, etc.)
   late final AppLifecycleListener _lifecycleListener;
@@ -109,7 +67,7 @@ class _NotePageState extends State<NotePage>
   /// Scroll control for editor
   final ScrollController _editorScrollController = ScrollController();
 
-  /// UI-only state → toggles toolbar visibility
+  /// UI-only state that toggles toolbar visibility
   bool _isEditing = false;
   bool _hasNudgedToolbar = false; //Track the Nudge
   bool _isHandlingBackNavigation = false;
@@ -123,56 +81,7 @@ class _NotePageState extends State<NotePage>
   /// --- VOICE AI LOGIC ---
 
   void _initSpeech() async {
-    try {
-      await _speech.initialize(debugLogging: true);
-      List<dynamic> voices = await _tts.getVoices;
-
-      // 1. The Priority List (Deepest & most professional voices first)
-      final preferredVoices = [
-        'en-us-x-iom-network', // Deepest US Male (Closest to ChatGPT Cove)
-        'en-us-x-sfg-network', // Standard US Male
-        'en-gb-x-rjs-network', // Professional UK Male
-        'en-in-x-ene-network', // Regional Indian Male (Safeguard)
-      ];
-
-      Map<String, String>? selectedVoice;
-
-      // 2. Safe iteration avoids Dart's null-safety crashes
-      for (String preferredName in preferredVoices) {
-        for (var v in voices) {
-          final voiceName = v['name'].toString().trim().toLowerCase();
-
-          if (voiceName == preferredName) {
-            // Explicitly cast to String to prevent platform channel errors
-            selectedVoice = {
-              "name": v['name'].toString(),
-              "locale": v['locale'].toString(),
-            };
-            break;
-          }
-        }
-        if (selectedVoice != null) {
-          break; // Stop searching once the highest priority is found
-        }
-      }
-
-      // 3. Apply the Voice
-      if (selectedVoice != null) {
-        await _tts.setVoice(selectedVoice);
-        debugPrint("SUCCESS: Forced Voice to -> ${selectedVoice['name']}");
-      } else {
-        // Fallback if offline
-        debugPrint("FAILED: Network voices missing. Trying local default.");
-        await _tts.setLanguage("en-US");
-      }
-
-      // 4. Tone Tuning (ChatGPT Professional Vibe)
-      await _tts.setSpeechRate(0.45); // Calm pacing
-      await _tts.setPitch(0.85); // Deepens the tone
-      await _tts.setVolume(1.0);
-    } catch (e) {
-      debugPrint("Speech init error: $e");
-    }
+    await _voiceFeedback.initializeSpeech(_speech);
   }
 
   void _toggleListening() async {
@@ -235,15 +144,13 @@ class _NotePageState extends State<NotePage>
         HapticFeedback.mediumImpact();
 
         // 2. SPOKEN FEEDBACK (Randomized)
-        final phrase = _successPhrases[_random.nextInt(_successPhrases.length)];
-        await _tts.speak(phrase);
+        await _voiceFeedback.speakSuccess();
         // FAILURE CASE
       } else if (feedback == 'No matches found.') {
         // Option: Neutral haptic here if desired
         HapticFeedback.selectionClick();
 
-        final phrase = _failurePhrases[_random.nextInt(_failurePhrases.length)];
-        await _tts.speak(phrase);
+        await _voiceFeedback.speakFailure();
         // FATAL ERROR CASE (Keep SnackBar for system/network errors)
       } else if (feedback != null && mounted) {
         // Keep SnackBar only for errors or "No matches found"
@@ -255,66 +162,62 @@ class _NotePageState extends State<NotePage>
   @override
   void initState() {
     super.initState();
+    GroqService.warmUp().catchError((e) => debugPrint('AI Warmup skip: $e'));
 
     _lottieController = AnimationController(vsync: this);
     _initSpeech();
-
-    // -----------------------------------------------------------------------
-    // 1. CONTROLLER INITIALIZATION
-    // -----------------------------------------------------------------------
     _noteController = NoteController(
       noteRepository: noteRepository,
       noteId: widget.noteId,
     );
-    // -----------------------------------------------------------------------
-    // 2. LOAD NOTE DATA
-    // -----------------------------------------------------------------------
+    _initializeControllers();
+    _attachListeners();
+    _lifecycleListener = _createLifecycleListener();
+    lastEditorSignature = currentSignature;
+  }
 
+  void _initializeControllers() {
     final note = widget.noteId == null
         ? null
         : noteRepository.findById(widget.noteId!);
 
-    /// Initialize title
     titleController = TextEditingController(text: note?.title ?? widget.title);
+    contentController = _createContentController(note);
+  }
 
-    /// Initialize content controller
+  QuillController _createContentController(NotesSection? note) {
     if (note != null) {
-      /// Existing note → decode rich content
-      contentController = QuillController(
+      return QuillController(
         document: Document.fromJson(
           NoteDocumentService.decodeRichContent(note.richContent, note.content),
         ),
         selection: const TextSelection.collapsed(offset: 0),
         keepStyleOnNewLine: false,
       );
-    } else if (widget.content.isNotEmpty) {
-      /// Recovered draft
-      final recoveredDoc = Document()..insert(0, widget.content);
+    }
 
-      contentController = QuillController(
-        document: recoveredDoc,
-        selection: const TextSelection.collapsed(offset: 0),
-        keepStyleOnNewLine: false,
-      );
-    } else {
-      /// New note
-      contentController = QuillController(
-        document: Document(),
+    if (widget.content.isNotEmpty) {
+      return QuillController(
+        document: Document()..insert(0, widget.content),
         selection: const TextSelection.collapsed(offset: 0),
         keepStyleOnNewLine: false,
       );
     }
 
-    // -----------------------------------------------------------------------
-    // 3. LISTENERS
-    // -----------------------------------------------------------------------
+    return QuillController(
+      document: Document(),
+      selection: const TextSelection.collapsed(offset: 0),
+      keepStyleOnNewLine: false,
+    );
+  }
 
-    /// Detect changes in title/content
+  void _attachListeners() {
     titleController.addListener(_handleEditorChanged);
     contentController.addListener(_handleEditorChanged);
+  }
 
-    /// Lifecycle-based auto-save
-    _lifecycleListener = AppLifecycleListener(
+  AppLifecycleListener _createLifecycleListener() {
+    return AppLifecycleListener(
       onInactive: () => _noteController.saveNote(
         title: titleController.text,
         document: contentController.document,
@@ -328,9 +231,6 @@ class _NotePageState extends State<NotePage>
         document: contentController.document,
       ),
     );
-
-    /// Initial snapshot for change detection
-    lastEditorSignature = currentSignature;
   }
 
   String _editorSignature(String title, Document document) {
@@ -379,7 +279,6 @@ class _NotePageState extends State<NotePage>
   }
 
   Future<void> _handleBackNavigation() async {
-    // 1. Prevent double-tapping
     if (_isHandlingBackNavigation) return;
     _isHandlingBackNavigation = true;
 
@@ -388,11 +287,7 @@ class _NotePageState extends State<NotePage>
         title: titleController.text,
         document: contentController.document,
       );
-      // Navigator.of(context).pop(true);
-      // return;
     }
-
-    // 3. Just leave the screen.
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -431,11 +326,6 @@ class _NotePageState extends State<NotePage>
         body: SafeArea(
           child: Column(
             children: [
-              // -------------------------------------------------------------
-              // TOOLBAR (FORMATTING)
-              // -------------------------------------------------------------
-              const SizedBox(height: UIConstants.paddingSM),
-
               // -------------------------------------------------------------
               // HEADER (TITLE)
               // -------------------------------------------------------------
@@ -514,119 +404,7 @@ class _NotePageState extends State<NotePage>
             ],
           ),
         ),
-        // floatingActionButton: ValueListenableBuilder<bool>(
-        //   valueListenable: _noteController.isProcessingVoice,
-        //   builder: (context, isProcessing, _) {
-        //     if (isProcessing) {
-        //       _lottieController.repeat();
-        //     } else {
-        //       _lottieController.stop();
-        //       _lottieController.reset();
-        //     }
-        //     return GestureDetector(
-        //       onTap: isProcessing ? null : _toggleListening,
-
-        //       child: Lottie.asset(
-        //         controller: _lottieController,
-        //         'assets/lotties/Ai_Robot.json',
-        //         onLoaded: (composition) {
-        //           _lottieController.duration = composition.duration;
-        //         },
-        //         height: 80,
-        //         width: 80,
-        //       ),
-        //     );
-        //   },
-        // ),
-        floatingActionButton: ValueListenableBuilder<bool>(
-          valueListenable: _noteController.isProcessingVoice,
-          builder: (context, isProcessing, _) {
-            // Animation Trigger
-            if (isProcessing) {
-              if (!_lottieController.isAnimating) _lottieController.repeat();
-            } else {
-              _lottieController.stop();
-              _lottieController.reset();
-            }
-
-            return GestureDetector(
-              // Allow tapping to stop listening, but lock during AI thinking
-              onTap: (isProcessing && !_isListening) ? null : _toggleListening,
-              child: Lottie.asset(
-                'assets/lotties/Ai_Assistant.json',
-                controller: _lottieController,
-                onLoaded: (composition) {
-                  _lottieController.duration = composition.duration;
-                },
-                height: 80,
-                width: 80,
-              ),
-            );
-          },
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
   }
 }
-
-/// ---------------------------------------------------------------------------
-/// PLAIN PASTE WRAPPER
-/// ---------------------------------------------------------------------------
-///
-/// PURPOSE:
-/// - Overrides default paste behavior
-/// - Ensures only plain text is pasted (no formatting - from websites)
-///
-/// BENEFIT:
-/// - Prevents unwanted styles from external sources
-class PlainPasteIntent extends Intent {
-  const PlainPasteIntent();
-}
-
-class PlainPasteWrapper extends StatelessWidget {
-  final Widget child;
-  final QuillController controller;
-
-  const PlainPasteWrapper({
-    super.key,
-    required this.child,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.keyV, control: true):
-            PlainPasteIntent(),
-      },
-      child: Actions(
-        actions: {
-          PlainPasteIntent: CallbackAction<PlainPasteIntent>(
-            onInvoke: (_) async {
-              final data = await Clipboard.getData(Clipboard.kTextPlain);
-
-              if (data?.text != null) {
-                final index = controller.selection.baseOffset;
-
-                final length = controller.selection.extentOffset - index;
-
-                controller.replaceText(index, length, data!.text!, null);
-              }
-              return null;
-            },
-          ),
-        },
-        child: child,
-      ),
-    );
-  }
-}
-
-/*
-🧠 INTERVIEW GOLD ANSWER
-
-“I centralized all persistence triggers inside the controller to ensure consistent behavior and 
-make the UI fully declarative.”
-*/

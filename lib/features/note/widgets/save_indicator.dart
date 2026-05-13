@@ -11,8 +11,8 @@ enum SaveState { idle, saving, saved }
 /// ---------------------------------------------------------------------------
 ///
 /// RESPONSIBILITY:
-/// - Shows save status (Saving... → Saved ✓)
-/// - Fully isolated → prevents unnecessary AppBar rebuilds
+/// - Shows save status (Saving... -> Saved)
+/// - Fully isolated to prevent unnecessary AppBar rebuilds
 ///
 /// DESIGN:
 /// - Uses ValueListenableBuilder for reactive updates
@@ -81,12 +81,3 @@ class SaveIndicator extends StatelessWidget {
     );
   }
 }
-
-/*
-Improvement: Icons.sync → Icons.check
-Positioned(
-  top: 10,
-  right: 16,
-  child: ...
-)
-              */
