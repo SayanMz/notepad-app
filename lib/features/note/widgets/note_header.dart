@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
-import 'package:notepad/features/note/controllers/note_controller.dart';
 
 class NoteHeader extends StatelessWidget {
   const NoteHeader({
@@ -9,19 +7,13 @@ class NoteHeader extends StatelessWidget {
     required this.titleController,
     required this.onToggleEdit,
     required this.isEditing,
-    required this.noteController,
-    required this.lottieController,
-    required this.isListening,
-    required this.toggleListening,
+    required this.readOnly,
   });
 
   final TextEditingController titleController;
   final VoidCallback onToggleEdit;
   final bool isEditing;
-  final NoteController noteController;
-  final AnimationController lottieController;
-  final bool isListening;
-  final VoidCallback toggleListening;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +35,7 @@ class NoteHeader extends StatelessWidget {
                 child: TextField(
                   controller: titleController,
                   textAlign: TextAlign.start,
+                  showCursor: !readOnly,
                   style: GoogleFonts.inter(
                     fontSize: 32,
                     height: 1.5,
@@ -59,28 +52,17 @@ class NoteHeader extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  VoiceAssistantButton(
-                    noteController: noteController,
-                    lottieController: lottieController,
-                    isListening: isListening,
-                    toggleListening: toggleListening,
+            if (!readOnly)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: IconButton(
+                  onPressed: onToggleEdit,
+                  icon: Icon(
+                    Icons.auto_fix_high,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
-                  IconButton(
-                    onPressed: onToggleEdit,
-                    icon: Icon(
-                      Icons.auto_fix_high,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
           ],
         ),
       ],

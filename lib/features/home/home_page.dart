@@ -171,9 +171,12 @@ class _HomePageState extends State<HomePage> {
             children: [
               CustomScrollView(
                 controller: _scrollController,
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
+                cacheExtent: 400.0,
+                physics: _controller.activeNotes.isEmpty
+                    ? const NeverScrollableScrollPhysics()
+                    : const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                 slivers: [
                   HomeAppBar(
                     isDark: isDark,
@@ -186,7 +189,6 @@ class _HomePageState extends State<HomePage> {
 
                   NoteList(
                     isSelectionMode: isSelectionMode,
-                    isSavingNotifier: _controller.isSavingNotifier,
                     // Inside CustomScrollView -> slivers -> NoteList
                     onOpenNote: (noteId) => _controller.openNote(
                       noteId: noteId,

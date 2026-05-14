@@ -1,10 +1,10 @@
 import 'dart:math' as math;
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
 import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/features/home/widgets/premium_color_picker.dart';
 
 class SelectionToolbar extends StatefulWidget {
   const SelectionToolbar({
@@ -98,7 +98,9 @@ class _SelectionToolbarState extends State<SelectionToolbar>
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = isDark ? Colors.white : colorScheme.onSurfaceVariant;
+    final iconColor = isDark
+        ? Colors.white
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
 
     return Container(
       height: 56.0, // Enforce a strict, sleek height[cite: 12]
@@ -214,295 +216,41 @@ class _SelectionToolbarState extends State<SelectionToolbar>
   }
 
   void _openPremiumColorPicker() async {
-    _rotationController.stop(); //[cite: 12]
-    Color temporaryColor = recentColors.isEmpty
-        ? Colors.red
-        : recentColors[0]; //[cite: 12] //[cite: 12]
+    _rotationController.stop();
     final Map<String, Color> originalColors = {
       for (var note in noteRepository.selectedNotes) note.id: note.cardColor,
     };
-    final colorScheme = Theme.of(context).colorScheme;
 
-    final screenSize = MediaQuery.of(context).size; //[cite: 12]
-    final maxColors = screenSize.width > 600 ? 8 : 6; //[cite: 12]
+    final screenSize = MediaQuery.of(context).size;
+    final maxColors = screenSize.width > 600 ? 8 : 6;
+    final Color initialColor = recentColors.isEmpty
+        ? Colors.red
+        : recentColors[0];
 
-    final bool? applied = await showDialog(
+    final Color? resultColor = await showDialog<Color>(
       context: context,
-      barrierColor: Colors.transparent, //[cite: 12]
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          // Optimized width for mobile ergonomics
-          final availableWidth = (screenSize.width * 0.85).clamp(
-            280.0,
-            360.0,
-          ); //[cite: 12]
-          final maxHeight = screenSize.height * 0.85; //[cite: 12]
-          final displayColors = recentColors
-              .take(maxColors)
-              .toList(); //[cite: 12]
-
-          final surfaceColor = isDark
-              ? const Color(0xFF1E1E1E) // Premium solid dark surface
-              : Colors.white;
-          final borderColor = isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.05);
-
-          return ValueListenableBuilder<Offset>(
-            valueListenable: dialogOffsetNotifier, //[cite: 12]
-            builder: (context, offset, child) {
-              return Transform.translate(
-                offset: offset,
-                child: child,
-              ); //[cite: 12]
-            },
-            child: GestureDetector(
-              onPanUpdate: (details) {
-                final screenSize = MediaQuery.of(context).size;
-                final double dWidth = (screenSize.width * 0.85).clamp(
-                  280.0,
-                  360.0,
-                );
-                const double dHeight = 350;
-
-                double newX = dialogOffsetNotifier.value.dx + details.delta.dx;
-                double newY = dialogOffsetNotifier.value.dy + details.delta.dy;
-
-                final double maxX = (screenSize.width - dWidth) / 2;
-                final double maxY = (screenSize.height - dHeight) / 2;
-
-                dialogOffsetNotifier.value = Offset(
-                  newX.clamp(-maxX, maxX),
-                  newY.clamp(-maxY, maxY),
-                );
-              }, //[cite: 12]
-              child: Align(
-                alignment: Alignment.center,
-                child: Material(
-                  type: MaterialType.transparency, //[cite: 12]
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24.0),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                        sigmaX: 12,
-                        sigmaY: 12,
-                      ), //[cite: 12]
-                      child: Container(
-                        width: availableWidth,
-                        constraints: BoxConstraints(maxHeight: maxHeight),
-                        padding: const EdgeInsets.all(20.0),
-                        decoration: BoxDecoration(
-                          color: surfaceColor,
-                          borderRadius: BorderRadius.circular(
-                            24.0,
-                          ), //[cite: 12]
-                          border: Border.all(color: borderColor, width: 1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 32,
-                              offset: const Offset(0, 16),
-                            ),
-                          ],
-                        ),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // --- THE DRAG HANDLE ---
-                              Center(
-                                child: Container(
-                                  width: 40,
-                                  height: 4,
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ),
-                              // 1. CLEAN HEADER
-                              Text(
-                                'Color',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -0.5,
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF111111),
-                                ),
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // 2. SQUASHED COLOR PICKER (Widescreen feel)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: ColorPicker(
-                                  pickerColor: temporaryColor,
-                                  onColorChanged: (color) {
-                                    setDialogState(
-                                      () => temporaryColor = color,
-                                    );
-                                    noteRepository.updateColorPreview(color);
-                                  },
-                                  pickerAreaHeightPercent:
-                                      0.25, // Compact height
-                                  enableAlpha: false,
-                                  displayThumbColor: true,
-                                  labelTypes: const [],
-                                  portraitOnly: true,
-                                  colorPickerWidth: availableWidth - 40,
-                                ),
-                              ),
-
-                              //const SizedBox(height: 16),
-
-                              // 3. THE "SMART ROW" (Title + Actions on one line)
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "Recent",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? Colors.white54
-                                          : Colors.black45,
-                                    ),
-                                  ),
-
-                                  // Inline Text Buttons with Compact Visual Density
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      TextButton(
-                                        style: TextButton.styleFrom(
-                                          visualDensity: VisualDensity
-                                              .compact, // Squeezes default margins
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                          ),
-                                          foregroundColor: isDark
-                                              ? Colors.white60
-                                              : Colors.black54,
-                                        ),
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: const Text(
-                                          'Cancel',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        style: TextButton.styleFrom(
-                                          visualDensity: VisualDensity.compact,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                          ),
-                                          foregroundColor: const Color(
-                                            0xFF2C9C8D,
-                                          ), // Your brand green
-                                        ),
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child: const Text(
-                                          'Apply',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 12),
-
-                              // 4. RECENT COLORS WRAP
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: displayColors
-                                    .map(
-                                      (color) => GestureDetector(
-                                        onTap: () {
-                                          setDialogState(
-                                            () => temporaryColor = color,
-                                          );
-                                          widget.onColorChanged(color);
-                                        },
-                                        onDoubleTap: () {
-                                          widget.onColorChanged(color);
-                                          Navigator.pop(context, true);
-                                        },
-                                        child: Container(
-                                          width: 36,
-                                          height: 36,
-                                          decoration: BoxDecoration(
-                                            color: color,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: isDark
-                                                  ? Colors.white24
-                                                  : Colors.black12,
-                                              width: 1,
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: 0.08,
-                                                ),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+      barrierColor: Colors.transparent,
+      builder: (context) => PremiumColorPicker(
+        initialColor: initialColor,
+        recentColors: recentColors,
+        isDark: isDark,
+        maxColors: maxColors,
+        onPreviewChanged: (color) => noteRepository.updateColorPreview(color),
       ),
     );
 
-    // 3. LOGIC HANDLER: Keeps your existing persistence and revert logic[cite: 12]
-    if (applied == true) {
-      appSettingsRepository.addRecentColor(
-        temporaryColor,
-        maxColors,
-      ); //[cite: 12]
-      noteRepository.saveSelectedColors(); //[cite: 12]
+    if (resultColor != null) {
+      appSettingsRepository.addRecentColor(resultColor, maxColors);
+      noteRepository.saveSelectedColors();
       setState(() {
-        recentColors.remove(temporaryColor); //[cite: 12]
-        recentColors.insert(0, temporaryColor); //[cite: 12]
-        if (recentColors.length > maxColors) {
-          recentColors.removeLast(); //[cite: 12]
-        }
+        recentColors.remove(resultColor);
+        recentColors.insert(0, resultColor);
+        if (recentColors.length > maxColors) recentColors.removeLast();
       });
     } else {
-      noteRepository.restoreColors(originalColors); //[cite: 12]
+      noteRepository.restoreColors(originalColors);
     }
 
-    _rotationController.repeat(); //[cite: 12]
+    _rotationController.repeat();
   }
 }

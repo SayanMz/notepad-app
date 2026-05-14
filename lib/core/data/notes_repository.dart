@@ -30,6 +30,7 @@ class NoteRepository extends ChangeNotifier {
   static final NoteRepository _instance = NoteRepository._internal();
 
   Future<void> init() async {
+    _deletedNotes.clear();
     _notes.clear();
     _noteMap.clear();
 
@@ -116,7 +117,6 @@ class NoteRepository extends ChangeNotifier {
     }
 
     note.isDeleted = isDeleted;
-    note.isSelected = false;
 
     if (isDeleted) {
       _deletedNotes.add(note);
@@ -124,8 +124,13 @@ class NoteRepository extends ChangeNotifier {
       _deletedNotes.removeWhere((n) => n.id == noteId);
     }
 
-    await _box.put(note.id, note);
     notifyListeners();
+    try {
+      await _box.put(note.id, note);
+    } catch (e) {
+      debugPrint("Background save failed: $e");
+      // Optional: Revert state if the DB write fails
+    }
     return true;
   }
 
@@ -148,9 +153,14 @@ class NoteRepository extends ChangeNotifier {
         _deletedNotes.removeWhere((n) => n.id == id);
       }
 
-      _box.put(note.id, note);
+      notifyListeners();
+      try {
+        await _box.put(note.id, note);
+      } catch (e) {
+        debugPrint("Background save failed: $e");
+        // Optional: Revert state if the DB write fails
+      }
     }
-    notifyListeners();
   }
 
   Future<bool> deleteForever(String noteId) async {
@@ -209,39 +219,26 @@ class NoteRepository extends ChangeNotifier {
     for (var cloudNote in importedNotes) {
       final localNote = _noteMap[cloudNote.id];
 
-      // 1. COLLISION CHECK: Archive local note if it's fresher than the backup
-      if (localNote != null &&
-          localNote.updatedAt.isAfter(cloudNote.updatedAt)) {
-        // SAFETY ARCHIVE: Move local version to Recycle Bin with a new ID
-        final archivedNote = NotesSection(
-          id: '${localNote.id}_local_conflict_${DateTime.now().millisecondsSinceEpoch}',
-          title: localNote.title,
-          content: localNote.content,
-          richContent: localNote.richContent,
-          createdAt: localNote.createdAt,
-          updatedAt: localNote.updatedAt,
-          isDeleted: true,
-        );
+      // LOGIC: Replace existing note ONLY if cloud note has a greater updatedAt value
+      if (localNote == null ||
+          cloudNote.updatedAt.isAfter(localNote.updatedAt)) {
+        await _box.put(cloudNote.id, cloudNote);
+        _noteMap[cloudNote.id] = cloudNote;
 
-        await _box.put(archivedNote.id, archivedNote);
-        _noteMap[archivedNote.id] = archivedNote;
-        _deletedNotes.add(archivedNote);
+        // UI Sync: Clean up old references before adding updated data
+        _notes.removeWhere((n) => n.id == cloudNote.id);
+        _deletedNotes.removeWhere((n) => n.id == cloudNote.id);
 
-        debugPrint('Safety: Archived local content for ${localNote.title}');
-      }
-
-      // 2. AUTHORITATIVE CLOUD SYNC: Overwrite original ID with cloud data
-      await _box.put(cloudNote.id, cloudNote);
-      _noteMap[cloudNote.id] = cloudNote;
-
-      // 3. UI SYNC: Clear old references and route to correct list
-      _notes.removeWhere((n) => n.id == cloudNote.id);
-      _deletedNotes.removeWhere((n) => n.id == cloudNote.id);
-
-      if (cloudNote.isDeleted) {
-        _deletedNotes.add(cloudNote);
+        if (cloudNote.isDeleted) {
+          _deletedNotes.add(cloudNote);
+        } else {
+          _notes.add(cloudNote);
+        }
+        debugPrint('Sync: Updated ${cloudNote.title} from cloud data.');
       } else {
-        _notes.add(cloudNote);
+        debugPrint(
+          'Sync: Kept local version of ${localNote.title} (Local is newer or equal).',
+        );
       }
     }
 

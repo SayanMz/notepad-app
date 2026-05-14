@@ -166,13 +166,6 @@ class AppSettings {
     ],
   });
 
-  /// Serializes settings for local persistence.
-  //Map<String, dynamic> toJson() => {'isDarkMode': isDarkMode};
-
-  /// Rebuilds settings from stored JSON data.
-  // factory AppSettings.fromJson(Map<String, dynamic> json) =>
-  //     AppSettings(isDarkMode: json['isDarkMode'] ?? false);
-
   /// Returns a new settings object with only the requested values changed.
   AppSettings copyWith({
     bool? isDarkMode,

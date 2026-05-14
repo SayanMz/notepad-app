@@ -6,18 +6,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_controller.dart';
-import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/features/note/services/groq_service.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:notepad/features/note/services/note_voice_feedback_service.dart';
+import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
+import 'package:notepad/features/note/services/voice_ai/note_voice_feedback_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
 import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
 import 'package:notepad/features/note/widgets/plain_paste_wrapper.dart';
+import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Note editor screen.
@@ -27,12 +28,19 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
+  final bool readOnly;
 
   /// Supports:
   /// - Creating new notes
   /// - Editing existing notes (via noteId)
   /// - Restoring unsaved drafts (title/content)
-  const NotePage({super.key, this.noteId, this.title = '', this.content = ''});
+  const NotePage({
+    super.key,
+    this.noteId,
+    this.title = '',
+    this.content = '',
+    this.readOnly = false,
+  });
 
   @override
   State<NotePage> createState() => _NotePageState();
@@ -40,6 +48,7 @@ class NotePage extends StatefulWidget {
 
 class _NotePageState extends State<NotePage>
     with SingleTickerProviderStateMixin {
+  late bool _isReadOnly;
   late AnimationController _lottieController;
 
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -162,6 +171,7 @@ class _NotePageState extends State<NotePage>
   @override
   void initState() {
     super.initState();
+
     GroqService.warmUp().catchError((e) => debugPrint('AI Warmup skip: $e'));
 
     _lottieController = AnimationController(vsync: this);
@@ -171,9 +181,50 @@ class _NotePageState extends State<NotePage>
       noteId: widget.noteId,
     );
     _initializeControllers();
+    _isReadOnly = widget.readOnly;
+    contentController.readOnly = _isReadOnly;
+    if (!_isReadOnly) {
+      _editorFocusNode.requestFocus();
+    }
     _attachListeners();
     _lifecycleListener = _createLifecycleListener();
     lastEditorSignature = currentSignature;
+  }
+
+  Future<void> _showRestoreDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore Note'),
+        content: const Text('Do you want to restore this note?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && widget.noteId != null) {
+      // Toggle the status in the repository
+      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
+      final note = noteRepository.findById(widget.noteId!);
+
+      setState(() {
+        _isReadOnly = false;
+        contentController.readOnly = false;
+      });
+
+      uiNotifier.showSnackBar(
+        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
+      );
+      _editorFocusNode.requestFocus();
+    }
   }
 
   void _initializeControllers() {
@@ -283,7 +334,7 @@ class _NotePageState extends State<NotePage>
     _isHandlingBackNavigation = true;
 
     if (hasChanges) {
-      _noteController.saveAndCleanupOnClose(
+      await _noteController.saveAndCleanupOnClose(
         title: titleController.text,
         document: contentController.document,
       );
@@ -312,98 +363,143 @@ class _NotePageState extends State<NotePage>
         // -------------------------------------------------------------------
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
-          child: NoteAppBar(
-            saveState: _noteController.saveState,
-            contentController: contentController,
-            title: titleController,
-            isDark: isDark,
-          ),
+          child: _isReadOnly
+              ? NoteAppBar(
+                  key: const ValueKey('readonly_bar'), // Distinct key 1
+                  saveState: _noteController.saveState,
+                  contentController: contentController,
+                  title: titleController,
+                  isDark: isDark,
+                  readOnly: true,
+                )
+              : NoteAppBar(
+                  key: const ValueKey('editable_bar'), // Distinct key 2
+                  saveState: _noteController.saveState,
+                  contentController: contentController,
+                  title: titleController,
+                  isDark: isDark,
+                  readOnly: false,
+                ),
         ),
 
         // -------------------------------------------------------------------
         // BODY
         // -------------------------------------------------------------------
         body: SafeArea(
-          child: Column(
+          child: Stack(
+            clipBehavior: Clip
+                .none, // Allows the Gallery button to fly outside the FAB boundaries
             children: [
               // -------------------------------------------------------------
-              // HEADER (TITLE)
+              // MAIN CONTENT LAYER (Header, Editor, Toolbar)
               // -------------------------------------------------------------
-              NoteHeader(
-                titleController: titleController,
-                onToggleEdit: _toggleEditMode,
-                isEditing: _isEditing,
-                noteController: _noteController,
-                lottieController: _lottieController,
-                isListening: _isListening,
-                toggleListening: _toggleListening,
-              ),
-
-              const SizedBox(height: UIConstants.paddingMD),
-
-              // -------------------------------------------------------------
-              // EDITOR
-              // -------------------------------------------------------------
-              Expanded(
-                child: PlainPasteWrapper(
-                  controller: contentController,
-
-                  /// Custom editor widget
-                  child: NoteEditor(
-                    controller: contentController,
-                    focusNode: _editorFocusNode,
-                    scrollController: _editorScrollController,
+              Column(
+                children: [
+                  NoteHeader(
+                    key: ValueKey('header_$_isReadOnly'),
+                    titleController: titleController,
+                    onToggleEdit: _toggleEditMode,
+                    isEditing: _isEditing,
+                    readOnly: _isReadOnly == true,
                   ),
-                ),
-              ),
 
-              // Replace AnimatedSize with AnimatedSwitcher
-              AnimatedSwitcher(
-                // Snappy entrance, slightly faster exit to get out of the user's way
-                duration: const Duration(milliseconds: 250),
-                reverseDuration: const Duration(milliseconds: 200),
-                // Decelerates smoothly on the way in, accelerates on the way out
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  // 1. Hardware-accelerated slide from the bottom
-                  final slideAnimation = Tween<Offset>(
-                    begin: const Offset(0.0, 0.5), // Starts 50% lower
-                    end: Offset.zero,
-                  ).animate(animation);
-
-                  // 2. Hardware-accelerated opacity fade
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: slideAnimation,
-                      child: child,
+                  const SizedBox(height: UIConstants.paddingMD), //
+                  // note_page.dart
+                  Expanded(
+                    child: PlainPasteWrapper(
+                      controller: contentController,
+                      child: _isReadOnly
+                          // ---------------------------------------------------------
+                          // READ-ONLY MODE (Recycle Bin)
+                          // ---------------------------------------------------------
+                          ? GestureDetector(
+                              onTap: _showRestoreDialog,
+                              behavior: HitTestBehavior.opaque,
+                              child: SingleChildScrollView(
+                                controller: _editorScrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: AbsorbPointer(
+                                  // Blocks the keyboard and typing
+                                  child: NoteEditor(
+                                    controller: contentController,
+                                    focusNode: _editorFocusNode,
+                                    scrollController: _editorScrollController,
+                                    // We disable internal scrolling so the parent handles it
+                                    scrollable: false,
+                                    // We disable expand so it acts like a long static document
+                                    expands: false,
+                                    showCursor: false,
+                                  ),
+                                ),
+                              ),
+                            )
+                          // ---------------------------------------------------------
+                          // NORMAL EDITING MODE
+                          // ---------------------------------------------------------
+                          : NoteEditor(
+                              controller: contentController,
+                              focusNode: _editorFocusNode,
+                              scrollController: _editorScrollController,
+                              // Uses the default true/true we set up in the constructor
+                            ),
                     ),
-                  );
-                },
-                child: _isEditing
-                    ? Container(
-                        // CRITICAL: AnimatedSwitcher requires a Key to know when widgets change
-                        key: const ValueKey('note_toolbar'),
-                        padding: const EdgeInsets.only(
-                          bottom: UIConstants.paddingSM,
+                  ),
+
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    reverseDuration: const Duration(milliseconds: 200),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.0, 0.5),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
                         ),
-                        child: NoteToolbar(
-                          controller: contentController,
-                          focusNode: _editorFocusNode,
-                          shouldNudge: !_hasNudgedToolbar,
-                          onNudgeComplete: () {
-                            if (mounted) {
-                              setState(() => _hasNudgedToolbar = true);
-                            }
-                          },
-                        ),
-                      )
-                    : const SizedBox.shrink(key: ValueKey('empty_toolbar')),
-              ), // AnimatedSwitcher
+                      );
+                    },
+                    child: _isEditing
+                        ? Container(
+                            key: const ValueKey('note_toolbar'),
+                            padding: const EdgeInsets.only(
+                              bottom: UIConstants.paddingSM,
+                            ),
+                            child: NoteToolbar(
+                              controller: contentController,
+                              focusNode: _editorFocusNode,
+                              shouldNudge: !_hasNudgedToolbar,
+                              onNudgeComplete: () {
+                                if (mounted) {
+                                  setState(() => _hasNudgedToolbar = true);
+                                }
+                              },
+                            ),
+                          )
+                        : const SizedBox.shrink(key: ValueKey('empty_toolbar')),
+                  ), //
+                ],
+              ),
             ],
           ),
         ),
+        floatingActionButton: _isReadOnly
+            ? null
+            : AnimatedPadding(
+                // When editing, push the FAB up by 80 pixels to clear the toolbar
+                padding: EdgeInsets.only(bottom: _isEditing ? 80.0 : 0.0),
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutCubic,
+                child: VoiceAssistantButton(
+                  noteController: _noteController,
+                  lottieController: _lottieController,
+                  isListening: _isListening,
+                  toggleListening: _toggleListening,
+                ),
+              ),
       ),
     );
   }

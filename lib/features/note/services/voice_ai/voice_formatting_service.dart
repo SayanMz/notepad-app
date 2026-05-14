@@ -1,5 +1,5 @@
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/features/note/services/voice_formatting_target_resolver.dart';
+import 'package:notepad/features/note/services/voice_ai/voice_formatting_target_resolver.dart';
 
 class VoiceFormattingService {
   static String applyInstructions({

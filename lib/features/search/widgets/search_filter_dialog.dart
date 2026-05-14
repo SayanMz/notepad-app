@@ -203,7 +203,9 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               style: ElevatedButton.styleFrom(
                 shape: squircleShape,
                 backgroundColor: isDarkMode
-                    ? Theme.of(context).colorScheme.primary
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.9)
                     : const Color(0xFF334155),
               ),
               onPressed: () {
@@ -264,7 +266,9 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 backgroundColor: isDarkMode
-                    ? Theme.of(context).colorScheme.primary
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.9)
                     : const Color(0xFFF1F5F9),
                 padding: const EdgeInsets.symmetric(horizontal: 10),
               ),

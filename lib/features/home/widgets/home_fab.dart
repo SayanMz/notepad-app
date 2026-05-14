@@ -14,87 +14,91 @@ class HomeFab extends StatelessWidget {
     required this.isSelectionMode,
   });
 
+  // features/home/widgets/home_fab.dart
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: ListenableBuilder(
-        listenable: Listenable.merge([
-          controller.isFabExtended,
-          controller.fabAlignX,
-        ]),
-        builder: (context, _) {
-          final bool isExtended = controller.isFabExtended.value;
+        // 1. POSITION ISOLATION: Only listen to alignment changes here
+        listenable: controller.fabAlignX,
+        builder: (context, child) {
           final double alignX = controller.fabAlignX.value;
 
           return AnimatedAlign(
-            // 500ms provides a smooth 'glide' across your monitor
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeOutCubic,
-            // Selection mode slides it off-screen (1.5), otherwise follows alignX
             alignment: Alignment(
               alignX == 0.0 ? 0.0 : 0.95,
               isSelectionMode ? 1.5 : 0.95,
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: OpenContainer(
-                transitionType: ContainerTransitionType.fade,
-                transitionDuration: UIConstants.animationExtraSlow,
-                openColor: Theme.of(context).scaffoldBackgroundColor,
-                closedColor: Colors.transparent,
-                // Hide elevation when selection mode is active
-                closedElevation: isSelectionMode
-                    ? 0
-                    : UIConstants.elevationHigh,
-                closedBuilder: (context, openContainer) => InkWell(
-                  onTap: openContainer,
-                  borderRadius: BorderRadius.circular(16),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    height: 60,
-                    width: isExtended ? 140 : 65.0,
-                    // Adjust padding to maintain the circular/rectangular shape
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isExtended ? 20 : 0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.edit, color: Colors.white),
-                        // AnimatedSize handles the 'New Note' text appearing/disappearing
-                        if (isExtended)
-                          Flexible(
-                            // Wrap in Flexible to prevent Row overflow errors
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 10.0),
-                              child: FittedBox(
-                                child: const Text(
-                                  'New Note',
-                                  maxLines: 1, // Ensure text stays on one line
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+            // Use the cached child to prevent rebuilding the FAB during the glide
+            child: child!,
+          );
+        },
+        // 2. STATIC CHILD CACHING: Everything here is built once
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: OpenContainer(
+            transitionType: ContainerTransitionType.fade,
+            transitionDuration: UIConstants.animationExtraSlow,
+            openColor: Theme.of(context).scaffoldBackgroundColor,
+            closedColor: Colors.transparent,
+            closedElevation: isSelectionMode ? 0 : UIConstants.elevationHigh,
+            closedBuilder: (context, openContainer) => RepaintBoundary(
+              // 3. REPAINT BOUNDARY: Caches the FAB pixels for the GPU
+              child: ValueListenableBuilder<bool>(
+                // 4. TARGETED REBUILD: Only the FAB width changes when extended
+                valueListenable: controller.isFabExtended,
+                builder: (context, isExtended, _) {
+                  return InkWell(
+                    onTap: openContainer,
+                    borderRadius: BorderRadius.circular(16),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      height: 60,
+                      width: isExtended ? 140 : 65.0,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isExtended ? 20 : 0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.edit, color: Colors.white),
+                          if (isExtended)
+                            const Flexible(
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 10.0),
+                                child: FittedBox(
+                                  child: Text(
+                                    'New Note',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                openBuilder: (context, _) => const NotePage(),
+                  );
+                },
               ),
             ),
-          );
-        },
+            openBuilder: (context, _) => const NotePage(),
+          ),
+        ),
       ),
     );
   }

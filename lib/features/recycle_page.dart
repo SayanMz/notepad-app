@@ -1,13 +1,16 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/note_timestamp_formatter.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/features/note/note_page.dart';
 
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
@@ -119,12 +122,15 @@ class _RecyclePageState extends State<RecyclePage> {
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 14),
-        Text(
-          text,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).hintColor,
-            fontStyle: FontStyle.italic,
+        //const SizedBox(height: 5),
+        Transform.translate(
+          offset: const Offset(0, -50), // Adjust this value to your liking
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).hintColor,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ),
       ],
@@ -392,11 +398,24 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                   contentPadding: const EdgeInsets.all(
                     UIConstants.recycleCardPadding,
                   ),
-                  title: Text(
-                    widget.note.title.isEmpty
-                        ? 'Untitled note'
-                        : widget.note.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.note.title.isEmpty
+                            ? 'Untitled note'
+                            : widget.note.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Edited: ${widget.note.updatedAt.format(showYear: false, showTime: false)}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: UIConstants.noteCardEditedFontSize,
+                        ),
+                      ),
+                      const SizedBox(height: UIConstants.paddingSM),
+                    ],
                   ),
                   subtitle: Text(
                     widget.note.content.isEmpty
@@ -415,6 +434,16 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                     ),
                   ),
                   onLongPress: HapticFeedback.mediumImpact,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => NotePage(
+                          noteId: widget.note.id,
+                          readOnly: true, // Opens in preview mode
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

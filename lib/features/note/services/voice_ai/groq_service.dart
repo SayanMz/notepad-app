@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:notepad/features/note/voice_ai/voice_ai_prompt.dart';
+import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
 
 /// Friendly wrapper for Groq availability/configuration failures.
 class GroqServiceException implements Exception {
@@ -20,6 +20,7 @@ class GroqService {
   static const String _endpoint =
       'https://api.groq.com/openai/v1/chat/completions';
   static Future<void>? _warmUpFuture;
+  static String? _apiKey;
 
   static Future<void> warmUp() {
     final existing = _warmUpFuture;
@@ -40,16 +41,19 @@ class GroqService {
   /// to prevent redundant disk I/O. This method simply validates that the
   /// required keys were loaded successfully.
   static Future<void> _ensureEnvLoaded() async {
-    // We check the global environment map populated by the Bootstrapper.
-    final apiKey = dotenv.env['GROQ_API_KEY'];
+    // Optimization: If already cached, exit immediately.
+    if (_apiKey != null && _apiKey!.isNotEmpty) return;
 
-    if (apiKey == null || apiKey.isEmpty) {
-      // Failsafe 1: The .env file was missing or doesn't contain the key.
-      // This matches your original error logic but happens faster.
+    final key = dotenv.env['GROQ_API_KEY'];
+
+    if (key == null || key.isEmpty) {
       throw GroqServiceException(
-        'AI service is not configured yet. Please check your .env file and try again.',
+        'AI service is not configured yet. Please check your .env file.',
       );
     }
+
+    // Cache it for the rest of the app's lifecycle.
+    _apiKey = key;
   }
 
   static Future<List<Map<String, dynamic>>?> parseVoiceCommand(
@@ -57,20 +61,13 @@ class GroqService {
   ) async {
     await _ensureEnvLoaded();
 
-    final apiKey = dotenv.env['GROQ_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      throw GroqServiceException(
-        'AI service is not configured. Please add your API key and try again.',
-      );
-    }
-
     try {
       final response = await http
           .post(
             Uri.parse(_endpoint),
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $apiKey',
+              'Authorization': 'Bearer $_apiKey',
             },
             body: jsonEncode({
               'model': 'llama-3.1-8b-instant',

@@ -29,11 +29,13 @@ class _SpinningSyncIconState extends State<SpinningSyncIcon>
 
   @override
   Widget build(BuildContext context) {
-    return RotationTransition(
-      turns: _controller,
-      child: const Icon(
-        Icons.sync,
-        color: Colors.lightBlueAccent, // Matches your progress bar color
+    return RepaintBoundary(
+      child: RotationTransition(
+        turns: _controller,
+        child: const Icon(
+          Icons.sync,
+          color: Colors.lightBlueAccent, // Matches your progress bar color
+        ),
       ),
     );
   }

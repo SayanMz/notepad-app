@@ -137,16 +137,18 @@ class HomeAppBar extends StatelessWidget {
                   opacity: isOverscrolled ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 250),
                   child: SafeArea(
-                    child: Container(
-                      alignment: Alignment.bottomCenter,
-                      padding: const EdgeInsets.only(bottom: 56.0),
-                      child: Text(
-                        'Notepad',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.5,
-                          color: isDark ? Colors.white : Colors.black87,
+                    child: RepaintBoundary(
+                      child: Container(
+                        alignment: Alignment.bottomCenter,
+                        padding: const EdgeInsets.only(bottom: 56.0),
+                        child: Text(
+                          'Notepad',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1.5,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
                         ),
                       ),
                     ),

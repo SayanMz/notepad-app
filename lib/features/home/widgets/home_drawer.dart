@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/services/auth_controller.dart';
@@ -26,14 +25,9 @@ class HomeDrawer extends StatelessWidget {
       child: Align(
         alignment: Alignment.topRight,
         child: ListenableBuilder(
-          listenable: Listenable.merge([
-            controller.authController,
-            controller.syncStatusNotifier,
-            controller.statusColorNotifier,
-          ]),
+          listenable: controller.authController,
+
           builder: (context, _) {
-            final user = googleDriveService.currentUser;
-            final stats = controller.authController.storageStats;
             return Material(
               elevation: 16,
               color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
@@ -49,16 +43,7 @@ class HomeDrawer extends StatelessWidget {
                     mainAxisSize:
                         MainAxisSize.min, // This makes it grow with content
                     children: [
-                      _HomeDrawerHeader(
-                        isDark: isDark,
-                        controller: controller.authController,
-                        isSavingNotifier: controller.isSavingNotifier,
-                        storageText: stats['text'],
-                        storageProgress: stats['percent'],
-                        user: user,
-                        syncStatusText: controller.syncStatusNotifier.value,
-                        statusColor: controller.statusColorNotifier.value,
-                      ),
+                      _HomeDrawerHeader(isDark: isDark, controller: controller),
                       const SizedBox(height: UIConstants.paddingSM),
                       _HomeDrawerActions(
                         isDark: isDark,
@@ -69,7 +54,6 @@ class HomeDrawer extends StatelessWidget {
                         onRestore: () => handleCloudAction(
                           () => controller.runManualRestore(),
                         ),
-                        user: user,
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -84,29 +68,18 @@ class HomeDrawer extends StatelessWidget {
   }
 }
 
-class _HomeDrawerHeader extends StatelessWidget {
-  const _HomeDrawerHeader({
-    required this.isDark,
-    required this.controller,
-    required this.isSavingNotifier,
-    required this.storageText,
-    required this.storageProgress,
-    required this.user,
-    required this.syncStatusText,
-    required this.statusColor,
-  });
+// controller.syncStatusNotifier,
+//         controller.statusColorNotifier,
 
+class _HomeDrawerHeader extends StatelessWidget {
+  const _HomeDrawerHeader({required this.isDark, required this.controller});
   final bool isDark;
-  final String syncStatusText;
-  final Color? statusColor;
-  final AuthController controller;
-  final ValueNotifier<bool> isSavingNotifier;
-  final String storageText;
-  final double storageProgress;
-  final GoogleSignInAccount? user;
+  final HomeController controller;
 
   @override
   Widget build(BuildContext context) {
+    final stats = controller.authController.storageStats;
+    final user = googleDriveService.currentUser;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
@@ -123,30 +96,37 @@ class _HomeDrawerHeader extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            controller.displayName ?? 'Not signed in',
+            controller.authController.displayName ?? 'Not signed in',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            controller.displayEmail ?? 'Connect Google Drive to sync',
+            controller.authController.displayEmail ??
+                'Connect Google Drive to sync',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
           ),
           const SizedBox(height: 14),
-          StorageProgressBar(progress: storageProgress),
+          StorageProgressBar(progress: stats['percent']),
           const SizedBox(height: 8),
           Text(
-            storageText,
+            stats['text'],
             style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.white70 : Colors.black54,
             ),
           ),
           const SizedBox(height: 10),
-          ValueListenableBuilder<bool>(
-            valueListenable: isSavingNotifier,
-            builder: (context, isSaving, _) {
+          ListenableBuilder(
+            listenable: Listenable.merge([
+              controller.syncStatusNotifier,
+              controller.statusColorNotifier,
+              controller.isSavingNotifier,
+            ]),
+            builder: (context, _) {
+              final isSaving = controller.isSavingNotifier.value;
+              final statusColor = controller.statusColorNotifier.value;
               return Row(
                 children: [
                   if (isSaving)
@@ -165,7 +145,7 @@ class _HomeDrawerHeader extends StatelessWidget {
                         ? 'Cloud sync'
                         : isSaving
                         ? 'Working...'
-                        : syncStatusText,
+                        : controller.syncStatusNotifier.value,
                     style: TextStyle(
                       color:
                           statusColor ??
@@ -188,18 +168,17 @@ class _HomeDrawerActions extends StatelessWidget {
     required this.controller,
     required this.onBackup,
     required this.onRestore,
-    required this.user,
   });
 
   final bool isDark;
   final AuthController controller;
   final Future<void> Function() onBackup;
   final Future<void> Function() onRestore;
-  final GoogleSignInAccount? user;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final user = googleDriveService.currentUser;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),

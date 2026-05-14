@@ -32,25 +32,27 @@ class StorageProgressBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(height / 2),
       ),
       // The foolproof way: FractionalBox WITH a direct alignment anchor
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0.0, end: effectiveProgress),
-        duration: const Duration(milliseconds: 1200),
-        curve: Curves.easeOutCubic,
-        builder: (context, value, child) {
-          return FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: value.clamp(0.0, 1.0),
-            child: Container(
-              // Regular container is fine here because Tween handles the math
-              decoration: BoxDecoration(
-                color: progress > 0.9
-                    ? Colors.redAccent
-                    : (isDark ? Colors.white : colorScheme.primary),
-                borderRadius: BorderRadius.circular((height - 8) / 2),
+      child: RepaintBoundary(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0.0, end: effectiveProgress),
+          duration: const Duration(milliseconds: 1200),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: value.clamp(0.0, 1.0),
+              child: Container(
+                // Regular container is fine here because Tween handles the math
+                decoration: BoxDecoration(
+                  color: progress > 0.9
+                      ? Colors.redAccent
+                      : (isDark ? Colors.white : colorScheme.primary),
+                  borderRadius: BorderRadius.circular((height - 8) / 2),
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

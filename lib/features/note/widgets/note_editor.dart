@@ -10,11 +10,17 @@ class NoteEditor extends StatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.scrollController,
+    this.scrollable = true, // Default to true for normal editing
+    this.expands = true,
+    this.showCursor = true,
   });
 
   final QuillController controller;
   final FocusNode focusNode;
   final ScrollController scrollController;
+  final bool scrollable;
+  final bool expands;
+  final bool showCursor;
 
   @override
   State<NoteEditor> createState() => _NoteEditorState();
@@ -51,6 +57,9 @@ class _NoteEditorState extends State<NoteEditor> {
       focusNode: widget.focusNode,
       scrollController: widget.scrollController,
       config: QuillEditorConfig(
+        scrollable: widget.scrollable, // Dynamic
+        expands: widget.expands,
+        showCursor: widget.showCursor,
         onLaunchUrl: (String url) async {
           final uri = Uri.tryParse(url);
           if (uri != null && await canLaunchUrl(uri)) {
@@ -58,7 +67,6 @@ class _NoteEditorState extends State<NoteEditor> {
           }
         },
         linkActionPickerDelegate: _handleLinkActionPicker,
-        expands: true,
         padding: const EdgeInsets.symmetric(
           horizontal: UIConstants.editorHorizontalPadding,
         ),

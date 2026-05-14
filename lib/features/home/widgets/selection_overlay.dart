@@ -53,40 +53,42 @@ class SelectionOverlay extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.black.withValues(alpha: 0.4)
-                              : Colors.white.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
+                  child: RepaintBoundary(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Container(
+                          decoration: BoxDecoration(
                             color: isDark
-                                ? Colors.white.withValues(alpha: 0.15)
-                                : Colors.white.withValues(alpha: 0.8),
-                            width: 1.2,
+                                ? Colors.black.withValues(alpha: 0.25)
+                                : Colors.white.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : Colors.white.withValues(alpha: 0.5),
+                              width: 0.8,
+                            ),
                           ),
-                        ),
-                        child: ListenableBuilder(
-                          listenable: noteRepository,
-                          builder: (context, _) {
-                            return SelectionToolbar(
-                              isDark: isDark,
-                              allSelected: controller.isAllSelected,
-                              onSelectAll: (val) =>
-                                  controller.toggleSelectAll(val),
-                              onShare: onShare,
-                              onDelete: onDelete,
-                              onColorChanged: (color) =>
-                                  controller.updateSelectedColors(color),
-                              onPin: () => controller.togglePinBulk(),
-                              shouldPin: controller.showPinAction,
-                              selectedCount: controller.selectedNotes.length,
-                            );
-                          },
+                          child: ListenableBuilder(
+                            listenable: noteRepository,
+                            builder: (context, _) {
+                              return SelectionToolbar(
+                                isDark: isDark,
+                                allSelected: controller.isAllSelected,
+                                onSelectAll: (val) =>
+                                    controller.toggleSelectAll(val),
+                                onShare: onShare,
+                                onDelete: onDelete,
+                                onColorChanged: (color) =>
+                                    controller.updateSelectedColors(color),
+                                onPin: () => controller.togglePinBulk(),
+                                shouldPin: controller.showPinAction,
+                                selectedCount: controller.selectedNotes.length,
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),

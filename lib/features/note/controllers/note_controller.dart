@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/features/note/services/groq_service.dart';
+import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/features/note/services/voice_formatting_service.dart';
+import 'package:notepad/features/note/services/voice_ai/voice_formatting_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
 
 /// Handles all non-UI logic for NotePage:
@@ -126,7 +126,7 @@ class NoteController {
     if ((cleanTitle.isEmpty || cleanTitle == 'Untitled note') &&
         plainText.isEmpty) {
       if (noteId != null) {
-        noteRepository.deleteForever(noteId!);
+        await noteRepository.deleteForever(noteId!);
       }
       return;
     }

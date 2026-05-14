@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
@@ -26,7 +27,7 @@ class NoteList extends StatelessWidget {
   const NoteList({
     super.key,
     required this.isSelectionMode,
-    required this.isSavingNotifier,
+
     required this.onOpenNote,
     required this.onTogglePin,
     required this.onShare,
@@ -35,7 +36,6 @@ class NoteList extends StatelessWidget {
   });
 
   final bool isSelectionMode;
-  final ValueNotifier<bool> isSavingNotifier;
 
   final Future<void> Function(String noteId) onOpenNote;
   final Future<void> Function(String noteId) onTogglePin;
@@ -55,25 +55,51 @@ class NoteList extends StatelessWidget {
         final activeNotes = noteRepository.activeNotes;
 
         return activeNotes.isEmpty
-            ? _buildEmptyState()
+            ? _buildEmptyState(context)
             : SliverPadding(
                 padding: const EdgeInsets.all(UIConstants.listPadding),
-                sliver: SliverList.builder(
-                  itemCount: activeNotes.length,
-                  itemBuilder: (context, index) {
-                    final note = activeNotes[index];
+                sliver: SliverList(
+                  // Use the standard SliverList
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final note = activeNotes[index];
+                      return _SwipeableNoteItem(
+                        key: ValueKey(
+                          note.id,
+                        ), // CRITICAL for reordering stability
+                        note: note,
+                        isDark: isDark,
+                        isSelectionMode: isSelectionMode,
+                        onOpenNote: onOpenNote,
+                        onSelectionToggle: onSelectionToggle,
+                        onTogglePin: onTogglePin,
+                        onDeleted: _showUndoSnackbar,
+                      );
+                    },
+                    childCount: activeNotes.length,
+                    findChildIndexCallback: (Key key) {
+                      if (key is ValueKey<String>) {
+                        final String id = key.value;
 
-                    return _SwipeableNoteItem(
-                      note: note,
-                      isDark: isDark,
-                      isSelectionMode: isSelectionMode,
-                      isSavingNotifier: isSavingNotifier,
-                      onOpenNote: onOpenNote,
-                      onSelectionToggle: onSelectionToggle,
-                      onTogglePin: onTogglePin,
-                      onDeleted: _showUndoSnackbar,
-                    );
-                  },
+                        // 1. Instant lookup via map
+                        final note = noteRepository.findById(id);
+                        if (note == null || note.isDeleted) return null;
+
+                        // 2. Find where this specific object sits in the current active list
+                        // This is still O(n), but much safer for the engine's diffing
+                        final index = noteRepository.activeNotes.indexOf(note);
+                        return index >= 0 ? index : null;
+                      }
+                      return null;
+                    },
+                    // OPTIMIZATION 1: Since we already put a RepaintBoundary on
+                    // the trash lid, we don't need Flutter to wrap the whole card.
+                    addRepaintBoundaries: false,
+                    // OPTIMIZATION 2: Only needed for accessibility;
+                    // disabling can save minor CPU cycles during scroll.
+                    addSemanticIndexes: false,
+                    addAutomaticKeepAlives: true,
+                  ),
                 ),
               );
       },
@@ -86,7 +112,8 @@ class NoteList extends StatelessWidget {
   /// -------------------------------------------------------------------------
   /// EMPTY STATE: The Elastic Physics Fix
   /// -------------------------------------------------------------------------
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // 2. SliverFillRemaining calculates the exact leftover screen space.
     // hasScrollBody: false tells Flutter to treat it elastically during overscroll!
     return SliverFillRemaining(
@@ -99,20 +126,39 @@ class NoteList extends StatelessWidget {
               'assets/lotties/Ai_Robot.json',
               height: UIConstants.noteCardPreviewHeight,
               repeat: true,
-              frameRate: FrameRate.max,
+              frameRate: FrameRate(60),
+              addRepaintBoundary: true,
+              filterQuality: FilterQuality.medium,
             ),
-            const Text(
-              'No notes yet',
-              style: TextStyle(
+            const SizedBox(height: UIConstants.paddingS),
+            // THE HEADLINE
+            Text(
+              "It’s awfully quiet in here",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                // Using Google Fonts
                 fontSize: UIConstants.noteCardPreviewTitleFontSize,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
+                fontWeight:
+                    FontWeight.w700, // Thicker weight for 'Robot' personality
+                color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87,
+                letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: UIConstants.paddingSM),
-            const Text(
-              'Your thoughts belong here.',
-              style: TextStyle(color: Colors.grey),
+            // THE SUBTEXT
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                "Feed me some notes so I can keep them safe for you.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color:
+                      Colors.grey, // Keeps it subtle so the robot/headline pop
+                  height: 1.4, // Improved line spacing
+                ),
+              ),
             ),
           ],
         ),
@@ -159,7 +205,6 @@ class _NoteCard extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     required this.onPin,
-    required this.isSavingNotifier,
   });
 
   final NotesSection note;
@@ -169,7 +214,6 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onPin;
 
   /// Shared notifier to indicate export/save progress.
-  final ValueNotifier<bool> isSavingNotifier;
 
   @override
   Widget build(BuildContext context) {
@@ -178,8 +222,8 @@ class _NoteCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     /// Responsive preview density:
-    /// - Smaller screens Ã¢â€ â€™ fewer lines
-    /// - Larger screens Ã¢â€ â€™ more content preview
+    /// - Smaller screens → fewer lines
+    /// - Larger screens → more content preview
     final maxPreviewLines = screenWidth > 1200
         ? UIConstants
               .noteCardPreviewLargeDesktopLines // Desktop/Large Tablet
@@ -192,7 +236,7 @@ class _NoteCard extends StatelessWidget {
         : UIConstants.noteCardPreviewPhoneLines;
 
     /// Extracts formatted preview lines from rich/plain content.
-    final previewLines = note.getPreview(maxPreviewLines);
+    final previewLines = note.getPreview(maxPreviewLines); //
 
     return Card(
       margin: EdgeInsets.zero,
@@ -222,98 +266,106 @@ class _NoteCard extends StatelessWidget {
                   )
                 : null,
           ),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. THE NEURAL EDGE INDICATOR
-                AnimatedContainer(
-                  duration: UIConstants.animationMedium,
-                  margin: const EdgeInsets.only(right: UIConstants.paddingMD),
-                  width: 4,
-                  decoration: BoxDecoration(
-                    color: !isDark
-                        ? note.cardColor
-                        : note.cardColor.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: note.cardColor.withValues(alpha: 0.4),
-                        blurRadius: 6,
-                        offset: const Offset(2, 0),
-                      ),
-                    ],
-                  ),
-                ),
-                // 2. The Selection Indicator
-                AnimatedSwitcher(
-                  duration: UIConstants.animationMedium,
-                  transitionBuilder: (child, animation) =>
-                      ScaleTransition(scale: animation, child: child),
-                  child: isSelectionMode
-                      ? Padding(
-                          padding: const EdgeInsets.only(
-                            right: UIConstants.paddingMD,
-                          ),
-                          child: Icon(
-                            note.isSelected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: note.isSelected
-                                ? colorScheme.primary.withValues(alpha: 0.6)
-                                : Colors.grey,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-
-                // 3. LEFT SIDE: The content column
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        note.title.isEmpty ? 'Untitled note' : note.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: UIConstants.noteCardTitleFontSize,
+          // OPTIMIZATION: Stack replaces IntrinsicHeight to prevent dual layout passes
+          child: Stack(
+            children: [
+              // 1. THE NEURAL EDGE INDICATOR (Stretches to match height naturally)
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AnimatedContainer(
+                    duration: UIConstants.animationMedium,
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: !isDark
+                          ? note.cardColor
+                          : note.cardColor.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: note.cardColor.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          offset: const Offset(2, 0),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      const SizedBox(height: UIConstants.paddingXS),
-
-                      Text(
-                        'Edited: ${note.updatedAt.format(showYear: false)}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: UIConstants.noteCardEditedFontSize,
-                        ),
-                      ),
-
-                      const SizedBox(height: UIConstants.paddingSM),
-
-                      /// Preview lines loop
-                      ...previewLines.map(
-                        (line) => _PreviewLine(line: line, width: screenWidth),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 4. RIGHT SIDE: The Pin
-                if (note.isPinned)
-                  IconButton(
-                    icon: Icon(
-                      Icons.push_pin,
-                      size: UIConstants.iconSM,
-                      color: colorScheme.primary.withValues(alpha: 0.6),
+                      ],
                     ),
-                    onPressed: isSelectionMode ? null : onPin,
                   ),
-              ],
-            ),
+                ),
+              ),
+
+              // 2. MAIN CONTENT
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Spacer to prevent content from overlapping the indicator
+                  const SizedBox(width: 12),
+
+                  // Selection Indicator
+                  AnimatedSwitcher(
+                    duration: UIConstants.animationMedium,
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: isSelectionMode
+                        ? Padding(
+                            padding: const EdgeInsets.only(
+                              right: UIConstants.paddingMD,
+                            ),
+                            child: Icon(
+                              note.isSelected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: note.isSelected
+                                  ? colorScheme.primary.withValues(alpha: 0.6)
+                                  : Colors.grey,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+
+                  // Content Column
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          note.title.isEmpty ? 'Untitled note' : note.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: UIConstants.noteCardTitleFontSize,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: UIConstants.paddingXS),
+                        Text(
+                          'Edited: ${note.updatedAt.format(showYear: false)}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: UIConstants.noteCardEditedFontSize,
+                          ),
+                        ),
+                        const SizedBox(height: UIConstants.paddingSM),
+                        ...previewLines.map(
+                          (line) =>
+                              _PreviewLine(line: line, width: screenWidth),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Pin Button
+                  if (note.isPinned)
+                    IconButton(
+                      icon: Icon(
+                        Icons.push_pin,
+                        size: UIConstants.iconSM,
+                        color: colorScheme.primary.withValues(alpha: 0.6),
+                      ),
+                      onPressed: isSelectionMode ? null : onPin,
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -333,20 +385,23 @@ class _PreviewLine extends StatelessWidget {
   final String line;
   final double width;
 
+  static final RegExp _listRegex = RegExp(
+    r'^[\s]*([•\-\*\u2022]|\d+\.)[\s]*(.*)',
+  );
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     // Aggressive Regex: Detects bullets, dashes, asterisks, or numbers at start
-    final listRegex = RegExp(r'^[\s]*([Ã¢â‚¬Â¢\-\*\u2022]|\d+\.)[\s]*(.*)');
-    final match = listRegex.firstMatch(line);
+    final match = _listRegex.firstMatch(line);
 
     // TRICK: If the Regex fails, we check a second "fallback"
     // to see if the line just starts with common whitespace markers.
     final bool isListLine =
         match != null ||
         line.trimLeft().startsWith('- ') ||
-        line.trimLeft().startsWith('Ã¢â‚¬Â¢ ');
+        line.trimLeft().startsWith('\u2022');
 
     String displayText;
     if (match != null) {
@@ -407,17 +462,16 @@ class _SwipeableNoteItem extends StatefulWidget {
     required this.note,
     required this.isDark,
     required this.isSelectionMode,
-    required this.isSavingNotifier,
     required this.onOpenNote,
     required this.onSelectionToggle,
     required this.onTogglePin,
     required this.onDeleted,
+    super.key,
   });
 
   final NotesSection note;
   final bool isDark;
   final bool isSelectionMode;
-  final ValueNotifier<bool> isSavingNotifier;
   final Future<void> Function(String) onOpenNote; //Callback Delegation
   final VoidCallback onSelectionToggle;
   final Future<void> Function(String) onTogglePin;
@@ -564,7 +618,6 @@ class _SwipeableNoteItemState extends State<_SwipeableNoteItem> {
                 child: _NoteCard(
                   note: widget.note,
                   isSelectionMode: widget.isSelectionMode,
-                  isSavingNotifier: widget.isSavingNotifier,
                   onTap: () async {
                     if (widget.isSelectionMode) {
                       noteRepository.toggleSelected(widget.note.id);
@@ -641,32 +694,34 @@ class _AnimatedTrashIcon extends StatelessWidget {
           // --- THE LID (Straight Up & Down) ---
           Positioned(
             top: size * 0.15,
-            child: Transform.translate(
-              offset: Offset(0, yOffset),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // The Handle
-                  Container(
-                    width: size * 0.2,
-                    height: 2.0,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(3),
+            child: RepaintBoundary(
+              child: Transform.translate(
+                offset: Offset(0, yOffset),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // The Handle
+                    Container(
+                      width: size * 0.2,
+                      height: 2.0,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(3),
+                        ),
                       ),
                     ),
-                  ),
-                  // The Lid Base
-                  Container(
-                    width: size * 0.75,
-                    height: 2.0,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(3),
+                    // The Lid Base
+                    Container(
+                      width: size * 0.75,
+                      height: 2.0,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -239,7 +239,7 @@ class SearchResultsPanel extends StatelessWidget {
       ),
       onPressed: onPressed,
       backgroundColor: isSelected
-          ? colorScheme.primaryContainer
+          ? colorScheme.primaryContainer.withValues(alpha: 0.8)
           : (isDark ? Colors.grey[800] : Colors.grey[200]),
       visualDensity: VisualDensity.compact,
       side: BorderSide.none,
