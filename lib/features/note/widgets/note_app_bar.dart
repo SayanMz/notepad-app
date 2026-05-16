@@ -3,6 +3,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 
 /// AppBar for NotePage
 ///
@@ -40,9 +41,8 @@ class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {
 
 class _NoteAppBarState extends State<NoteAppBar> {
   late final ValueNotifier<bool> isSavingNotifier;
-  ColorScheme get colorScheme => Theme.of(context).colorScheme;
   Color get iconColor =>
-      widget.isDark ? Colors.white : colorScheme.onSurfaceVariant;
+      widget.isDark ? Colors.white : context.colorScheme.onSurfaceVariant;
 
   @override
   void initState() {
@@ -59,6 +59,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      surfaceTintColor: Colors.transparent,
       backgroundColor: widget.isDark
           ? const Color(0xFF1A1A1A)
           : const Color(0xFFF8FAFC),
@@ -194,8 +195,12 @@ class _NoteAppBarState extends State<NoteAppBar> {
 
             return LinearProgressIndicator(
               minHeight: UIConstants.progressBarHeight,
-              backgroundColor: colorScheme.primary.withValues(alpha: 0.6),
-              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+              backgroundColor: context.colorScheme.primary.withValues(
+                alpha: 0.6,
+              ),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                context.colorScheme.primary,
+              ),
             );
           },
         ),

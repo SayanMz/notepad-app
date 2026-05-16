@@ -32,12 +32,7 @@ class HyperlinkHandler {
 
     // 2. Validate the extracted URL
     if (!_isValidLink(targetUrl)) {
-      uiNotifier.showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.deleteDarkIcon,
-          content: Text('Please enter a valid link'),
-        ),
-      );
+      showErrorSnackBar('Please enter a valid link');
       return;
     }
 

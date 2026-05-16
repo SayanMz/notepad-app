@@ -86,6 +86,7 @@ class SelectionOverlay extends StatelessWidget {
                                 onPin: () => controller.togglePinBulk(),
                                 shouldPin: controller.showPinAction,
                                 selectedCount: controller.selectedNotes.length,
+                                controller: controller,
                               );
                             },
                           ),

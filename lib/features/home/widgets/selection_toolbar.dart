@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/premium_color_picker.dart';
 
 class SelectionToolbar extends StatefulWidget {
@@ -18,6 +18,7 @@ class SelectionToolbar extends StatefulWidget {
     required this.onShare,
     required this.onDelete,
     required this.onColorChanged,
+    required this.controller,
   });
 
   final bool isDark;
@@ -29,6 +30,7 @@ class SelectionToolbar extends StatefulWidget {
   final VoidCallback onPin;
   final VoidCallback onDelete;
   final Function(Color) onColorChanged;
+  final HomeController controller;
 
   @override
   State<SelectionToolbar> createState() => _SelectionToolbarState();
@@ -217,8 +219,9 @@ class _SelectionToolbarState extends State<SelectionToolbar>
 
   void _openPremiumColorPicker() async {
     _rotationController.stop();
-    final Map<String, Color> originalColors = {
-      for (var note in noteRepository.selectedNotes) note.id: note.cardColor,
+    final originalColors = {
+      for (final note in widget.controller.selectedNotes)
+        note.id: note.cardColor,
     };
 
     final screenSize = MediaQuery.of(context).size;
@@ -235,20 +238,21 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         recentColors: recentColors,
         isDark: isDark,
         maxColors: maxColors,
-        onPreviewChanged: (color) => noteRepository.updateColorPreview(color),
+        onPreviewChanged: (color) =>
+            widget.controller.updateSelectedColors(color),
       ),
     );
 
     if (resultColor != null) {
       appSettingsRepository.addRecentColor(resultColor, maxColors);
-      noteRepository.saveSelectedColors();
+      widget.controller.saveColors;
       setState(() {
         recentColors.remove(resultColor);
         recentColors.insert(0, resultColor);
         if (recentColors.length > maxColors) recentColors.removeLast();
       });
     } else {
-      noteRepository.restoreColors(originalColors);
+      widget.controller.restoreColors(originalColors);
     }
 
     _rotationController.repeat();

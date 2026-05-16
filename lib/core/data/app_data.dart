@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:uuid/uuid.dart';
-
 part 'app_data.g.dart';
 
 final _uuid = Uuid();
@@ -22,7 +21,6 @@ class NotesSection {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.isDeleted = false,
-    this.isSelected = false,
     this.isPinned = false,
     this.cardColorValue = 0xFFFFFFFF, // Default to white (int)
   }) : id = id ?? generateNoteId(),
@@ -54,12 +52,15 @@ class NotesSection {
     final String sourceData = richContent.isNotEmpty ? richContent : content;
 
     if (_cachedPreview != null && _lastProcessedContent == sourceData) {
-      return _cachedPreview!.take(maxLines).toList();
+      return _cachedPreview!.take(maxLines).toList(); // ⚡ CACHE HIT
     }
 
     _lastProcessedContent = sourceData;
     // Pass the raw JSON to extractor
-    _cachedPreview = extractPreviewLines(sourceData, maxLines: 12);
+    _cachedPreview = extractPreviewLines(
+      sourceData,
+      maxLines: 12,
+    ); // 🐌 CACHE MISS
 
     return _cachedPreview!.take(maxLines).toList();
   }
@@ -82,9 +83,6 @@ class NotesSection {
   // Helper getter/setter to work with Color objects in UI, but it doesn't handle the "Save" or "Notify"
   Color get cardColor => Color(cardColorValue);
   set cardColor(Color color) => cardColorValue = color.toARGB32();
-
-  /// UI-only selection state used by bulk actions.
-  bool isSelected;
 
   ///For Cloud Sync and JSON Export
   /// Serializes the note for local storage and export flows.
@@ -149,12 +147,16 @@ class AppSettings {
   @HiveField(4)
   final List<int> recentColorValues;
 
+  @HiveField(5, defaultValue: -1)
+  final int seedVersion;
+
   /// Creates settings with a light-theme default.
   const AppSettings({
     this.isDarkMode = false,
     this.userName,
     this.userEmail,
     this.userAvatarUrl,
+    this.seedVersion = -1,
     this.recentColorValues = const [
       0xFFFFF59D, // Pastel Yellow
       0xFFFFCC80, // Soft Peach
@@ -174,6 +176,7 @@ class AppSettings {
     String? userAvatarUrl,
     List<int>? recentColorValues,
     bool clearUser = false, // Helper to wipe data on logout
+    int? seedVersion,
   }) {
     return AppSettings(
       isDarkMode: isDarkMode ?? this.isDarkMode,
@@ -181,6 +184,7 @@ class AppSettings {
       userEmail: clearUser ? null : (userEmail ?? this.userEmail),
       userAvatarUrl: clearUser ? null : (userAvatarUrl ?? this.userAvatarUrl),
       recentColorValues: recentColorValues ?? this.recentColorValues,
+      seedVersion: seedVersion ?? this.seedVersion,
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/features/note/widgets/note_toolbar.dart';
+
 import 'draggable_toolbar_color_picker.dart';
 
 class ColorMenu extends StatefulWidget {
@@ -9,9 +11,11 @@ class ColorMenu extends StatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.isDark,
+    required this.toolbarController,
   });
 
   final QuillController controller;
+  final NoteToolbarController toolbarController;
   final FocusNode focusNode;
   final bool isDark;
 
@@ -22,7 +26,11 @@ class ColorMenu extends StatefulWidget {
 class _ColorMenuState extends State<ColorMenu> {
   OverlayEntry? _overlayEntry;
 
+  // In color_menu.dart
   void _toggleCustomPicker() {
+    // Guard: If the page is already closing, do not allow a new overlay
+    if (widget.toolbarController.isLocked) return;
+
     if (_overlayEntry != null) {
       _closePicker();
     } else {
@@ -30,7 +38,15 @@ class _ColorMenuState extends State<ColorMenu> {
     }
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // Register the internal close picker logic with the controller
+    widget.toolbarController.registerMenu(_closePicker);
+  }
+
   void _closePicker() {
+    if (_overlayEntry == null) return;
     _overlayEntry?.remove();
     _overlayEntry = null;
     widget.focusNode.requestFocus(); // Restore focus to editor
@@ -61,8 +77,9 @@ class _ColorMenuState extends State<ColorMenu> {
   }
 
   @override
-  void dispose() {
+  Future<void> dispose() async {
     _overlayEntry?.remove();
+
     super.dispose();
   }
 

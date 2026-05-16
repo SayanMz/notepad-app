@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -9,22 +10,34 @@ class DraggablePickerState {
   final Offset offset;
   final bool isDragging;
   final bool isOverTarget;
+  final double proximityProgress; // Pre-calculated for build performance
+  final double scale; // Calculated in PanUpdate
+  final double opacity; // Calculated in PanUpdate
 
   const DraggablePickerState({
     this.offset = Offset.zero,
     this.isDragging = false,
     this.isOverTarget = false,
+    this.proximityProgress = 1.0,
+    this.scale = 1.0,
+    this.opacity = 1.0,
   });
 
   DraggablePickerState copyWith({
     Offset? offset,
     bool? isDragging,
     bool? isOverTarget,
+    double? proximityProgress,
+    double? scale,
+    double? opacity,
   }) {
     return DraggablePickerState(
       offset: offset ?? this.offset,
       isDragging: isDragging ?? this.isDragging,
       isOverTarget: isOverTarget ?? this.isOverTarget,
+      proximityProgress: proximityProgress ?? this.proximityProgress,
+      scale: scale ?? this.scale,
+      opacity: opacity ?? this.opacity,
     );
   }
 }
@@ -72,132 +85,147 @@ class _DraggableToolbarColorPickerState
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    // COMPACT FIX: Narrower width limits
     final availableWidth = (screenSize.width * 0.8).clamp(260.0, 300.0);
-    // COMPACT FIX: Reduced base height estimate
     const double dHeight = 240;
+    bool isClosing = false;
 
+    // OPTIMIZATION: Logic moved to PanUpdate. Build only reads values.
     return ValueListenableBuilder<DraggablePickerState>(
       valueListenable: _pickerNotifier,
       builder: (context, state, pickerUI) {
-        final offset = state.offset;
-
-        // Target coordinates relative to screen center
-        const targetX = 0.0;
-        final targetY = (screenSize.height / 2) - 110;
-
-        final distance = math.sqrt(
-          math.pow(offset.dx - targetX, 2) + math.pow(offset.dy - targetY, 2),
-        );
-
-        // Visual feedback based on distance
-        const hotZoneRadius = 100.0;
-        final proximityProgress = (distance / 300).clamp(0.0, 1.0);
-
-        return Stack(
-          children: [
-            // --- DYNAMIC DISMISS TARGET ---
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 70),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: state.isOverTarget ? 90 : 72,
-                  height: state.isOverTarget ? 90 : 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: state.isOverTarget
-                        ? Colors.redAccent.withValues(alpha: 0.3)
-                        : Colors.redAccent.withValues(alpha: 0.05),
-                    boxShadow: state.isOverTarget
-                        ? [
-                            BoxShadow(
-                              color: Colors.redAccent.withValues(alpha: 0.4),
-                              blurRadius: 20,
-                              spreadRadius: 5,
-                            ),
-                          ]
-                        : [],
-                    border: Border.all(
+        return IgnorePointer(
+          ignoring: isClosing,
+          child: Stack(
+            children: [
+              // --- DYNAMIC DISMISS TARGET ---
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 70),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: state.isOverTarget ? 90 : 72,
+                    height: state.isOverTarget ? 90 : 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       color: state.isOverTarget
-                          ? Colors.red
-                          : Colors.redAccent.withValues(alpha: 0.3),
-                      width: 1.5,
+                          ? Colors.redAccent.withValues(alpha: 0.3)
+                          : Colors.redAccent.withValues(alpha: 0.05),
+                      boxShadow: state.isOverTarget
+                          ? [
+                              BoxShadow(
+                                color: Colors.redAccent.withValues(alpha: 0.4),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ]
+                          : [],
+                      border: Border.all(
+                        color: state.isOverTarget
+                            ? Colors.red
+                            : Colors.redAccent.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
                     ),
-                  ),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: state.isDragging ? 1.0 : 0.0,
-                    child: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Colors.redAccent,
-                      size: 40,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 200),
+                      opacity: state.isDragging ? 1.0 : 0.0,
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.redAccent,
+                        size: 40,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // --- MAGNETIC DRAGGABLE PICKER ---
-            Positioned(
-              left: (screenSize.width - availableWidth) / 2 + offset.dx,
-              top: (screenSize.height - dHeight) / 2 + offset.dy,
-              child: Opacity(
-                opacity: state.isDragging
-                    ? proximityProgress.clamp(0.0, 1.0)
-                    : 1.0,
-                child: Transform.scale(
-                  scale: state.isDragging
-                      ? proximityProgress.clamp(0.3, 1.0)
-                      : 1.0,
-                  child: GestureDetector(
-                    onPanStart: (_) {
-                      _pickerNotifier.value = state.copyWith(isDragging: true);
-                    },
-                    onPanUpdate: (details) {
-                      final currentState = _pickerNotifier.value;
-                      double newX = currentState.offset.dx + details.delta.dx;
-                      double newY = currentState.offset.dy + details.delta.dy;
+              // --- MAGNETIC DRAGGABLE PICKER ---
+              Positioned(
+                left: (screenSize.width - availableWidth) / 2 + state.offset.dx,
+                top: (screenSize.height - dHeight) / 2 + state.offset.dy,
+                child: Opacity(
+                  opacity: state.opacity,
+                  child: Transform.scale(
+                    scale: state.scale,
+                    child: GestureDetector(
+                      onPanStart: (_) {
+                        _pickerNotifier.value = state.copyWith(
+                          isDragging: true,
+                        );
+                      },
+                      onPanUpdate: (details) {
+                        setState(() => isClosing = true);
+                        final currentState = _pickerNotifier.value;
 
-                      final currentDistance = math.sqrt(
-                        math.pow(newX - targetX, 2) +
-                            math.pow(newY - targetY, 2),
-                      );
+                        // 1. Calculate basic movement
+                        double newX = currentState.offset.dx + details.delta.dx;
+                        double newY = currentState.offset.dy + details.delta.dy;
 
-                      bool isOver = currentDistance < hotZoneRadius;
+                        // 2. Perform math once per update in the callback
+                        const targetX = 0.0;
+                        final targetY = (screenSize.height / 2) - 110;
+                        const hotZoneRadius = 100.0;
 
-                      if (isOver != currentState.isOverTarget) {
-                        if (isOver) HapticFeedback.lightImpact();
-                      }
+                        final distance = math.sqrt(
+                          math.pow(newX - targetX, 2) +
+                              math.pow(newY - targetY, 2),
+                        );
 
-                      if (isOver) {
-                        newX = lerpDouble(newX, targetX, 0.2)!;
-                        newY = lerpDouble(newY, targetY, 0.2)!;
-                      }
+                        // 3. Proximity & Visuals logic
+                        final proximityProgress = (distance / 300).clamp(
+                          0.0,
+                          1.0,
+                        );
+                        bool isOver = distance < hotZoneRadius;
 
-                      _pickerNotifier.value = currentState.copyWith(
-                        offset: Offset(newX, newY),
-                        isOverTarget: isOver,
-                      );
-                    },
-                    onPanEnd: (_) {
-                      final currentState = _pickerNotifier.value;
-                      if (currentState.isOverTarget) {
-                        HapticFeedback.heavyImpact();
-                        widget.onDismissRequested();
-                      }
-                      _pickerNotifier.value = currentState.copyWith(
-                        isDragging: false,
-                        isOverTarget: false,
-                      );
-                    },
-                    child: pickerUI!,
+                        if (isOver != currentState.isOverTarget) {
+                          if (isOver) HapticFeedback.lightImpact();
+                        }
+
+                        // Magnetic effect
+                        if (isOver) {
+                          newX = lerpDouble(newX, targetX, 0.2)!;
+                          newY = lerpDouble(newY, targetY, 0.2)!;
+                        }
+
+                        // 4. Batch update values to prevent build thrashing
+                        _pickerNotifier.value = currentState.copyWith(
+                          offset: Offset(newX, newY),
+                          isOverTarget: isOver,
+                          proximityProgress: proximityProgress,
+                          scale: isOver
+                              ? proximityProgress.clamp(0.3, 1.0)
+                              : 1.0,
+                          opacity: isOver
+                              ? proximityProgress.clamp(0.0, 1.0)
+                              : 1.0,
+                        );
+                      },
+                      onPanEnd: (_) {
+                        final currentState = _pickerNotifier.value;
+                        if (currentState.isOverTarget) {
+                          HapticFeedback.heavyImpact();
+                          widget.onDismissRequested();
+                        }
+                        _pickerNotifier.value = currentState.copyWith(
+                          isDragging: false,
+                          isOverTarget: false,
+                          offset: currentState.isOverTarget
+                              ? currentState.offset
+                              : Offset.zero,
+                          scale: 1.0,
+                          opacity: 1.0,
+                        );
+                      },
+                      // OPTIMIZATION: Child is pre-built and wrapped in RepaintBoundary
+                      child: pickerUI!,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
       child: RepaintBoundary(child: _buildExpensiveUI(availableWidth)),
@@ -213,7 +241,6 @@ class _DraggableToolbarColorPickerState
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             width: width,
-            // COMPACT FIX: Tighter internal padding
             padding: const EdgeInsets.only(
               top: 12.0,
               left: 16.0,
@@ -249,7 +276,6 @@ class _DraggableToolbarColorPickerState
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // COMPACT FIX: Reduced spacer height
                 const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -259,13 +285,11 @@ class _DraggableToolbarColorPickerState
                       setState(() => pickerColor = color);
                       widget.onColorChanged(color);
                     },
-                    // COMPACT FIX: Lowered percentage to flatten the wheel slightly
                     pickerAreaHeightPercent: 0.35,
                     enableAlpha: false,
                     displayThumbColor: true,
                     labelTypes: const [],
                     portraitOnly: true,
-                    // COMPACT FIX: Account for the 16px horizontal padding on both sides
                     colorPickerWidth: width - 32,
                   ),
                 ),

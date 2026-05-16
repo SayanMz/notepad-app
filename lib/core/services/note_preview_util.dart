@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert'; // REQUIRED for parsing Quill Delta correctly
 
 /// Converts note text into short preview lines for list cards and search.
-List<String> extractPreviewLines(String content, {int maxLines = 2}) {
+List<String> extractPreviewLines(String content, {int? maxLines}) {
   if (content.trim().isEmpty) return const ['No additional text'];
 
   List<String> extractedLines = [];
@@ -66,13 +66,9 @@ List<String> extractPreviewLines(String content, {int maxLines = 2}) {
   }
 
   // 3. FINAL CLEANUP & LIMITING
-  return extractedLines
-      .map(
-        (line) => line.trimRight(),
-      ) // DO NOT USE .trim() - it will destroy the markers we just injected
-      .where((line) => line.isNotEmpty)
-      .take(maxLines)
-      .toList();
+  return maxLines != null
+      ? extractedLines.where((line) => line.isNotEmpty).take(maxLines).toList()
+      : extractedLines.where((line) => line.isNotEmpty).toList();
 }
 
 /// Returns search snippets centered around the matched query when possible.
@@ -84,7 +80,7 @@ List<String> extractSearchSnippets(
   final normalizedQuery = query.trim().toLowerCase();
 
   // Use our new robust parser to get the clean lines first
-  final lines = extractPreviewLines(content, maxLines: 1000);
+  final lines = extractPreviewLines(content);
 
   if (normalizedQuery.isEmpty) {
     return lines.take(maxLines).toList();
@@ -100,9 +96,7 @@ List<String> extractSearchSnippets(
 
   final start = matchingIndex.clamp(0, lines.length - 1);
   final end = (matchingIndex + maxLines).clamp(0, lines.length);
-  final snippet = lines.sublist(start, end);
-
-  return snippet.toList();
+  return lines.sublist(start, end);
 }
 
 /// Splits text into highlighted and normal spans for search result rendering.

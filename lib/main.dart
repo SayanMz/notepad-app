@@ -78,6 +78,7 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'My Notepad',
           debugShowCheckedModeBanner: false,
+          //showPerformanceOverlay: true,
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: appSettingsRepository.themeMode,

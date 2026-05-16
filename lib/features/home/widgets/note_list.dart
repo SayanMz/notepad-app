@@ -4,10 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/services/note_timestamp_formatter.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/home/controllers/home_controller.dart';
 
 /// ---------------------------------------------------------------------------
 /// NOTE LIST
@@ -27,33 +28,28 @@ class NoteList extends StatelessWidget {
   const NoteList({
     super.key,
     required this.isSelectionMode,
-
     required this.onOpenNote,
     required this.onTogglePin,
     required this.onShare,
     required this.onDeleteSelected,
     required this.onSelectionToggle,
+    required this.controller,
   });
 
   final bool isSelectionMode;
-
   final Future<void> Function(String noteId) onOpenNote;
   final Future<void> Function(String noteId) onTogglePin;
-
   final VoidCallback onShare;
   final VoidCallback onDeleteSelected;
-
   final VoidCallback onSelectionToggle;
+  final HomeController controller;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return ListenableBuilder(
       listenable: noteRepository,
       builder: (_, _) {
         final activeNotes = noteRepository.activeNotes;
-
         return activeNotes.isEmpty
             ? _buildEmptyState(context)
             : SliverPadding(
@@ -63,36 +59,28 @@ class NoteList extends StatelessWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final note = activeNotes[index];
-                      return _SwipeableNoteItem(
-                        key: ValueKey(
-                          note.id,
-                        ), // CRITICAL for reordering stability
-                        note: note,
-                        isDark: isDark,
-                        isSelectionMode: isSelectionMode,
-                        onOpenNote: onOpenNote,
-                        onSelectionToggle: onSelectionToggle,
-                        onTogglePin: onTogglePin,
-                        onDeleted: _showUndoSnackbar,
+                      return RepaintBoundary(
+                        child: _SwipeableNoteItem(
+                          key: ValueKey(
+                            note.id,
+                          ), // CRITICAL for reordering stability
+                          note: note,
+                          isSelectionMode: isSelectionMode,
+                          onOpenNote: onOpenNote,
+                          onSelectionToggle: onSelectionToggle,
+                          onTogglePin: onTogglePin,
+                          onDeleted: controller.showSingleDeleteSnackbar,
+                          isSelected: controller.isNoteSelected(note.id),
+                        ),
                       );
                     },
                     childCount: activeNotes.length,
                     findChildIndexCallback: (Key key) {
                       if (key is ValueKey<String>) {
-                        final String id = key.value;
-
-                        // 1. Instant lookup via map
-                        final note = noteRepository.findById(id);
-                        if (note == null || note.isDeleted) return null;
-
-                        // 2. Find where this specific object sits in the current active list
-                        // This is still O(n), but much safer for the engine's diffing
-                        final index = noteRepository.activeNotes.indexOf(note);
-                        return index >= 0 ? index : null;
+                        return noteRepository.getActiveIndex(key.value);
                       }
                       return null;
                     },
-                    // OPTIMIZATION 1: Since we already put a RepaintBoundary on
                     // the trash lid, we don't need Flutter to wrap the whole card.
                     addRepaintBoundaries: false,
                     // OPTIMIZATION 2: Only needed for accessibility;
@@ -113,7 +101,6 @@ class NoteList extends StatelessWidget {
   /// EMPTY STATE: The Elastic Physics Fix
   /// -------------------------------------------------------------------------
   Widget _buildEmptyState(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     // 2. SliverFillRemaining calculates the exact leftover screen space.
     // hasScrollBody: false tells Flutter to treat it elastically during overscroll!
     return SliverFillRemaining(
@@ -140,7 +127,9 @@ class NoteList extends StatelessWidget {
                 fontSize: UIConstants.noteCardPreviewTitleFontSize,
                 fontWeight:
                     FontWeight.w700, // Thicker weight for 'Robot' personality
-                color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.black87,
+                color: context.isDark
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.black87,
                 letterSpacing: -0.5,
               ),
             ),
@@ -165,27 +154,6 @@ class NoteList extends StatelessWidget {
       ),
     );
   }
-
-  /// -------------------------------------------------------------------------
-  /// UNDO SNACKBAR: For single swipe delete.
-  /// -------------------------------------------------------------------------
-  void _showUndoSnackbar(NotesSection note) {
-    uiNotifier.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          '${note.title.isEmpty ? "Note" : note.title} moved to recycle bin',
-        ),
-        action: SnackBarAction(
-          label: 'Restore',
-          onPressed: () async {
-            noteRepository.toggleDeletedStatus(note.id, false);
-          },
-        ),
-      ),
-      autoHideAfter: UIConstants.saveIndicatorDuration,
-    );
-  }
 }
 
 /// Stateless UI component representing a single note item.
@@ -205,6 +173,7 @@ class _NoteCard extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     required this.onPin,
+    required this.isSelected,
   });
 
   final NotesSection note;
@@ -212,14 +181,13 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback onPin;
+  final bool isSelected;
 
   /// Shared notifier to indicate export/save progress.
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final screenWidth = MediaQuery.of(context).size.width;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     /// Responsive preview density:
     /// - Smaller screens → fewer lines
@@ -239,9 +207,9 @@ class _NoteCard extends StatelessWidget {
     final previewLines = note.getPreview(maxPreviewLines); //
 
     return Card(
-      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      elevation: note.isSelected ? 8 : UIConstants.elevationLow,
+      margin: EdgeInsets.zero,
+      elevation: isSelected ? 8 : UIConstants.elevationLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(UIConstants.radiusMD),
       ),
@@ -252,16 +220,16 @@ class _NoteCard extends StatelessWidget {
         child: AnimatedContainer(
           duration: UIConstants.animationMedium,
           padding: EdgeInsets.all(
-            note.isSelected ? UIConstants.paddingXLarge : UIConstants.paddingLG,
+            isSelected ? UIConstants.paddingXLarge : UIConstants.paddingLG,
           ),
           decoration: BoxDecoration(
-            color: note.isSelected
-                ? colorScheme.primary.withValues(alpha: 0.05)
+            color: isSelected
+                ? context.colorScheme.primary.withValues(alpha: 0.05)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(UIConstants.radiusMD),
-            border: note.isSelected
+            border: isSelected
                 ? Border.all(
-                    color: colorScheme.primary.withValues(alpha: 0.6),
+                    color: context.colorScheme.primary.withValues(alpha: 0.6),
                     width: UIConstants.selectionBorderWidth,
                   )
                 : null,
@@ -270,25 +238,25 @@ class _NoteCard extends StatelessWidget {
           child: Stack(
             children: [
               // 1. THE NEURAL EDGE INDICATOR (Stretches to match height naturally)
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: AnimatedContainer(
-                    duration: UIConstants.animationMedium,
-                    width: 4,
-                    decoration: BoxDecoration(
-                      color: !isDark
-                          ? note.cardColor
-                          : note.cardColor.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: note.cardColor.withValues(alpha: 0.4),
-                          blurRadius: 6,
-                          offset: const Offset(2, 0),
-                        ),
-                      ],
-                    ),
+              Positioned(
+                left: 0,
+                top: 12, // Matches your card's vertical padding
+                bottom: 12, // Matches your card's vertical padding
+                width: 4, // Fixed width for the indicator line
+                child: AnimatedContainer(
+                  duration: UIConstants.animationMedium,
+                  decoration: BoxDecoration(
+                    color: !context.isDark
+                        ? note.cardColor
+                        : note.cardColor.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: note.cardColor.withValues(alpha: 0.4),
+                        blurRadius: 6,
+                        offset: const Offset(2, 0),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -311,11 +279,13 @@ class _NoteCard extends StatelessWidget {
                               right: UIConstants.paddingMD,
                             ),
                             child: Icon(
-                              note.isSelected
+                              isSelected
                                   ? Icons.check_circle
                                   : Icons.radio_button_unchecked,
-                              color: note.isSelected
-                                  ? colorScheme.primary.withValues(alpha: 0.6)
+                              color: isSelected
+                                  ? context.colorScheme.primary.withValues(
+                                      alpha: 0.6,
+                                    )
                                   : Colors.grey,
                             ),
                           )
@@ -359,7 +329,9 @@ class _NoteCard extends StatelessWidget {
                       icon: Icon(
                         Icons.push_pin,
                         size: UIConstants.iconSM,
-                        color: colorScheme.primary.withValues(alpha: 0.6),
+                        color: context.colorScheme.primary.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                       onPressed: isSelectionMode ? null : onPin,
                     ),
@@ -391,8 +363,6 @@ class _PreviewLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     // Aggressive Regex: Detects bullets, dashes, asterisks, or numbers at start
     final match = _listRegex.firstMatch(line);
 
@@ -431,7 +401,7 @@ class _PreviewLine extends StatelessWidget {
                 height: UIConstants.noteCardBulletSize,
                 decoration: BoxDecoration(
                   // Bumped opacity to 1.0 to ensure it's not "faded" out
-                  color: colorScheme.primary.withValues(alpha: 1.0),
+                  color: context.colorScheme.primary.withValues(alpha: 1.0),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -460,22 +430,22 @@ class _PreviewLine extends StatelessWidget {
 class _SwipeableNoteItem extends StatefulWidget {
   const _SwipeableNoteItem({
     required this.note,
-    required this.isDark,
     required this.isSelectionMode,
     required this.onOpenNote,
     required this.onSelectionToggle,
     required this.onTogglePin,
     required this.onDeleted,
+    required this.isSelected,
     super.key,
   });
 
   final NotesSection note;
-  final bool isDark;
   final bool isSelectionMode;
-  final Future<void> Function(String) onOpenNote; //Callback Delegation
+  final bool isSelected;
   final VoidCallback onSelectionToggle;
-  final Future<void> Function(String) onTogglePin;
-  final void Function(NotesSection) onDeleted;
+  final void Function(String noteId) onTogglePin;
+  final void Function(String noteId) onOpenNote; //Callback Delegation
+  final void Function(String noteId) onDeleted;
 
   @override
   State<_SwipeableNoteItem> createState() => _SwipeableNoteItemState();
@@ -495,10 +465,10 @@ class _SwipeableNoteItemState extends State<_SwipeableNoteItem> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(
-        vertical: widget.note.isSelected
+        vertical: widget.isSelected
             ? UIConstants.paddingMD
             : UIConstants.cardVerticalMargin,
-        horizontal: widget.note.isSelected
+        horizontal: widget.isSelected
             ? UIConstants.paddingXXS
             : UIConstants.paddingSM,
       ),
@@ -506,98 +476,93 @@ class _SwipeableNoteItemState extends State<_SwipeableNoteItem> {
         builder: (context, constraints) {
           final cardWidth = constraints.maxWidth;
           return Stack(
-            //clipBehavior: Clip.none,
             children: [
+              // Location: _SwipeableNoteItemState inside note_list.dart
               Positioned(
                 top: 0.5,
                 bottom: 0.5,
                 left: 0.5,
                 right: 16,
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  elevation: 0,
-                  color: widget.isDark
-                      ? AppColors.deleteDarkBg
-                      : AppColors.deleteLightBg,
-                  //clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.horizontal(
-                      left: Radius.circular(UIConstants.radiusMD - 1.0),
-                      right: Radius.zero,
+                child: RepaintBoundary(
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 0,
+                    color: context.isDark
+                        ? AppColors.deleteDarkBg
+                        : AppColors.deleteLightBg,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.horizontal(
+                        left: Radius.circular(UIConstants.radiusMD - 1.0),
+                        right: Radius.zero,
+                      ),
                     ),
-                  ),
-                  child: Container(
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.only(left: UIConstants.paddingLG),
+                    // OPTIMIZATION: Static Container (Alignment/Padding) stays OUTSIDE the builder
+                    child: Container(
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.only(
+                        left: UIConstants.paddingLG,
+                      ),
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: _dragProgress,
+                        builder: (context, progress, _) {
+                          final draggedPixels = progress * cardWidth;
+                          const iconWidth = UIConstants.iconLG;
+                          const targetPadding = UIConstants.paddingLG;
+                          const lockPoint = (targetPadding * 2) + iconWidth;
 
-                    // 2. THE ANIMATION BUILDER: Listens to the thumb drag
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: _dragProgress,
-                      builder: (context, progress, child) {
-                        final draggedPixels =
-                            progress * cardWidth; // Physical distance
-                        const iconWidth = UIConstants.iconLG; // 28.0
-                        const targetPadding = UIConstants.paddingLG; // 16.0
-                        const lockPoint =
-                            (targetPadding * 2) + iconWidth; // 60.0
+                          // X-Offset Physics
+                          double xOffset =
+                              (draggedPixels / 2) - (iconWidth / 2);
+                          xOffset = xOffset.clamp(
+                            double.negativeInfinity,
+                            targetPadding,
+                          );
 
-                        // PHASE 1: Horizontal Slide (Stays the same)
-                        double xOffset = (draggedPixels / 2) - (iconWidth / 2);
-                        xOffset = xOffset.clamp(
-                          double.negativeInfinity,
-                          targetPadding,
-                        );
+                          // Triangle Wave Lid Math
+                          final double activeRange = cardWidth - lockPoint;
+                          double normalized =
+                              ((draggedPixels - lockPoint) / activeRange).clamp(
+                                0.0,
+                                1.0,
+                              );
+                          final double rawLidProgress =
+                              1.0 - (2.0 * normalized - 1.0).abs();
+                          final double finalLidProgress = Curves.easeIn
+                              .transform(rawLidProgress.clamp(0.0, 1.0));
 
-                        // PHASE 2: The Lid Peak (The Real Change)
-                        // We define the area from the lockPoint (60px) to the edge of the screen.
-                        final double activeRange = cardWidth - lockPoint;
+                          // Dynamic Scaling & Opacity
+                          final scale = (draggedPixels / lockPoint).clamp(
+                            0.5,
+                            1.0,
+                          );
+                          final opacity = (draggedPixels / lockPoint).clamp(
+                            0.0,
+                            1.0,
+                          );
 
-                        // How far are we into that "Trash Zone"? (0.0 at 60px, 1.0 at screen edge)
-                        double normalized =
-                            (draggedPixels - lockPoint) / activeRange;
-                        normalized = normalized.clamp(0.0, 1.0);
-
-                        // TRIANGLE WAVE FORMULA: 1.0 - |2x - 1|
-                        // This forces: 0.0 (Closed) -> 0.5 (Fully Open) -> 1.0 (Closed)
-                        final double rawLidProgress =
-                            1.0 - (2.0 * normalized - 1.0).abs();
-
-                        // THE SLAM: Accelerate the closing motion for a "heavy" feel
-                        final double finalLidProgress = Curves.easeIn.transform(
-                          rawLidProgress.clamp(0.0, 1.0),
-                        );
-
-                        final scale = (draggedPixels / lockPoint).clamp(
-                          0.5,
-                          1.0,
-                        );
-                        final opacity = (draggedPixels / lockPoint).clamp(
-                          0.0,
-                          1.0,
-                        );
-
-                        return Transform.translate(
-                          offset: Offset(xOffset, 0),
-                          child: Transform.scale(
-                            scale: scale,
-                            child: Opacity(
-                              opacity: opacity,
-                              child: _AnimatedTrashIcon(
-                                lidProgress:
-                                    finalLidProgress, // Now uses the peak math!
-                                color: widget.isDark
-                                    ? AppColors.deleteDarkIcon
-                                    : AppColors.deleteLightIcon,
-                                size: UIConstants.iconLG,
+                          return Transform.translate(
+                            offset: Offset(xOffset, 0),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: Opacity(
+                                opacity: opacity,
+                                child: _AnimatedTrashIcon(
+                                  lidProgress: finalLidProgress,
+                                  color: context.isDark
+                                      ? AppColors.deleteDarkIcon
+                                      : AppColors.deleteLightIcon,
+                                  size: UIConstants.iconLG,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
               ),
+              //
               Dismissible(
                 key: ValueKey('dismiss_${widget.note.id}'),
                 direction: widget.isSelectionMode
@@ -612,26 +577,28 @@ class _SwipeableNoteItemState extends State<_SwipeableNoteItem> {
                 },
 
                 onDismissed: (_) {
-                  noteRepository.toggleDeletedStatus(widget.note.id, true);
-                  widget.onDeleted(widget.note);
+                  HapticFeedback.mediumImpact();
+                  widget.onDeleted(widget.note.id);
                 },
-                child: _NoteCard(
-                  note: widget.note,
-                  isSelectionMode: widget.isSelectionMode,
-                  onTap: () async {
-                    if (widget.isSelectionMode) {
-                      noteRepository.toggleSelected(widget.note.id);
-                      return;
-                    }
-                    noteRepository.moveOnTop(widget.note);
-                    await widget.onOpenNote(widget.note.id);
-                  },
-                  onLongPress: () {
-                    HapticFeedback.selectionClick();
-                    widget.onSelectionToggle();
-                    noteRepository.clearSelection();
-                  },
-                  onPin: () => widget.onTogglePin(widget.note.id),
+                child: RepaintBoundary(
+                  child: _NoteCard(
+                    note: widget.note,
+                    isSelectionMode: widget.isSelectionMode,
+                    onTap: () async {
+                      if (widget.isSelectionMode) {
+                        noteRepository.toggleSelected(widget.note.id);
+                        return;
+                      }
+                      widget.onOpenNote(widget.note.id);
+                    },
+                    onLongPress: () {
+                      HapticFeedback.selectionClick();
+                      widget.onSelectionToggle();
+                      noteRepository.clearSelection();
+                    },
+                    onPin: () => widget.onTogglePin(widget.note.id),
+                    isSelected: widget.isSelected,
+                  ),
                 ),
               ),
             ],
@@ -694,34 +661,32 @@ class _AnimatedTrashIcon extends StatelessWidget {
           // --- THE LID (Straight Up & Down) ---
           Positioned(
             top: size * 0.15,
-            child: RepaintBoundary(
-              child: Transform.translate(
-                offset: Offset(0, yOffset),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // The Handle
-                    Container(
-                      width: size * 0.2,
-                      height: 2.0,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(3),
-                        ),
+            child: Transform.translate(
+              offset: Offset(0, yOffset),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The Handle
+                  Container(
+                    width: size * 0.2,
+                    height: 2.0,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3),
                       ),
                     ),
-                    // The Lid Base
-                    Container(
-                      width: size * 0.75,
-                      height: 2.0,
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
+                  ),
+                  // The Lid Base
+                  Container(
+                    width: size * 0.75,
+                    height: 2.0,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(3),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -5,6 +5,7 @@ import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/recycle_page.dart';
 import 'package:notepad/features/search/search_page.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 
 class HomeAppBar extends StatelessWidget {
   const HomeAppBar({
@@ -24,8 +25,8 @@ class HomeAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = context.colorScheme;
+    final isDark = context.isDark;
 
     return SliverAppBar(
       floating: true,

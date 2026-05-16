@@ -6,19 +6,16 @@ class NoteHeader extends StatelessWidget {
     super.key,
     required this.titleController,
     required this.onToggleEdit,
-    required this.isEditing,
     required this.readOnly,
   });
 
   final TextEditingController titleController;
   final VoidCallback onToggleEdit;
-  final bool isEditing;
   final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Removed unused colorScheme variable
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

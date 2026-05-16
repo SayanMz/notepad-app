@@ -18,7 +18,13 @@ class HomeFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color fabColor = isDark
+        ? const Color(0xFFFFCC80) // Soft Amber for Dark Mode
+        : const Color(0xFF4DB6AC);
+    final Color contentColor = isDark
+        ? Colors.black.withValues(alpha: 0.8)
+        : Colors.white;
 
     return SafeArea(
       child: ListenableBuilder(
@@ -65,24 +71,24 @@ class HomeFab extends StatelessWidget {
                         horizontal: isExtended ? 20 : 0,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.primary.withValues(alpha: 0.8),
+                        color: fabColor,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.edit, color: Colors.white),
+                          Icon(Icons.edit, color: contentColor),
                           if (isExtended)
-                            const Flexible(
+                            Flexible(
                               child: Padding(
-                                padding: EdgeInsets.only(left: 10.0),
+                                padding: const EdgeInsets.only(left: 10.0),
                                 child: FittedBox(
                                   child: Text(
                                     'New Note',
                                     maxLines: 1,
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: contentColor,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),

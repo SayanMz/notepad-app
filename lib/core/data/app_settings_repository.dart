@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/services/storage_service.dart';
+import 'package:notepad/core/services/storage_service.dart' as db;
 
 /// ---------------------------------------------------------------------------
 /// APP SETTINGS REPOSITORY (INTERVIEW NOTE)
@@ -21,12 +21,12 @@ import 'package:notepad/core/services/storage_service.dart';
 /// - reactive updates across the app
 ///
 /// Architectural Placement:
-/// UI → Repository → StorageService → Hive
+/// UI → Repository → db → Hive
 ///
 /// Key Decisions:
 /// - Uses ChangeNotifier for reactive UI updates
 /// - Keeps AppSettings immutable for safe state transitions
-/// - Delegates storage logic to StorageService
+/// - Delegates storage logic to db
 ///
 /// Trade-offs:
 /// - Immediate persistence on every update (simpler, but not batched)
@@ -62,8 +62,7 @@ class AppSettingsRepository extends ChangeNotifier {
   /// Loads saved settings when the app starts.
   Future<void> load() async {
     try {
-      _settings = StorageService.loadSettings();
-      notifyListeners();
+      _settings = db.loadSettings();
     } catch (e) {
       // If the data is corrupted or old, reset to defaults automatically
       debugPrint('Settings load failed, resetting to defaults: $e');
@@ -74,13 +73,17 @@ class AppSettingsRepository extends ChangeNotifier {
   }
 
   /// Writes the current settings snapshot to local storage.
-  Future<void> persist() => StorageService.saveSettings(_settings);
+  Future<void> persist() => db.saveSettings(_settings);
 
   /// Replaces the current settings and notifies listeners.
   Future<void> update(AppSettings newSettings) async {
     _settings = newSettings;
     await persist();
     notifyListeners();
+  }
+
+  Future<void> setSeedVersion(int version) async {
+    await update(_settings.copyWith(seedVersion: version));
   }
 }
 

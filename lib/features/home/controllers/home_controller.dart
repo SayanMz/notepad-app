@@ -1,13 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/home/services/auth_controller.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
-import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:flutter/rendering.dart';
 
 class HomeController extends ChangeNotifier {
   List<NotesSection> get activeNotes => noteRepository.activeNotes;
@@ -17,8 +18,10 @@ class HomeController extends ChangeNotifier {
   bool get isAllSelected => noteRepository.areAllActiveNotesSelected;
   // If at least one selected note is NOT pinned, we show the 'Pin' action
   bool get showPinAction => selectedNotes.any((n) => !n.isPinned);
+  bool isNoteSelected(String id) => noteRepository.isNoteSelected(id);
 
   final AuthController authController = AuthController();
+  Timer? _statusTimer;
 
   HomeController() {
     authController.initialize();
@@ -36,6 +39,22 @@ class HomeController extends ChangeNotifier {
   final ValueNotifier<double> fabAlignX = ValueNotifier(0.0);
 
   double _accumulatedDelta = 0.0;
+
+  Future<void> showSingleDeleteSnackbar(String noteId) async {
+    final note = noteRepository.findById(noteId);
+    if (note == null) return;
+
+    await noteRepository.toggleDeletedStatus(noteId, true);
+    showRestorationSnackBar(
+      undoLabel: 'Restore',
+      message:
+          '${note.title.isEmpty ? "Note" : note.title} moved to recycle bin',
+      onUndo: () async {
+        // Use toggleDeletedStatus for consistency
+        await noteRepository.toggleDeletedStatus(noteId, false);
+      },
+    );
+  }
 
   void toggleSelectAll(bool? value) {
     final bool newValue = value ?? false;
@@ -86,8 +105,17 @@ class HomeController extends ChangeNotifier {
     }
   }
 
+  void saveColors() => noteRepository.saveSelectedColors();
+  void restoreColors(Map<String, Color> originalColors) {
+    noteRepository.restoreColors(originalColors);
+  }
+
   Future<void> togglePinBulk() async {
-    noteRepository.togglePinBulk(showPinAction);
+    await noteRepository.togglePinBulk(showPinAction);
+  }
+
+  Future<void> flushPendingPinnedWrites() async {
+    await noteRepository.flushPendingPinnedWrites();
   }
 
   Future<void> deleteSelected(List<NotesSection> notes) async {
@@ -96,33 +124,34 @@ class HomeController extends ChangeNotifier {
     final movedNoteIds = notes.map((n) => n.id).toList();
     noteRepository.toggleDeletedStatusBulk(movedNoteIds, true);
 
-    uiNotifier.showSnackBar(
-      SnackBar(
-        key: UniqueKey(),
-        duration: UIConstants.saveIndicatorDuration,
-        content: Text(
+    showRestorationSnackBar(
+      undoLabel: 'Restore',
+      message:
           '${notes.length} ${notes.length == 1 ? 'note' : 'notes'} moved to recycle bin',
-        ),
-        action: SnackBarAction(
-          label: 'Restore',
-          onPressed: () async {
-            uiNotifier.hideCurrentSnackBar();
-            for (final id in movedNoteIds) {
-              noteRepository.toggleDeletedStatus(id, false);
-            }
-          },
-        ),
-      ),
-      autoHideAfter: UIConstants.saveIndicatorDuration,
+      onUndo: () async {
+        // Use the bulk method instead of a loop!
+        await noteRepository.toggleDeletedStatusBulk(movedNoteIds, false);
+      },
     );
   }
 
+  // 2. BULK DELETE EXECUTION
+  void executeBulkDelete() {
+    if (selectedNotes.isEmpty) return;
+    final selected = selectedNotes;
+
+    noteRepository.clearSelection();
+    deleteSelected(selected);
+    HapticFeedback.heavyImpact(); // Premium feel for deletion
+  }
+
   void updateSyncStatus(String message, {Color? color, bool temporary = true}) {
+    _statusTimer?.cancel();
     syncStatusNotifier.value = message;
     statusColorNotifier.value = color;
 
     if (temporary) {
-      Future.delayed(const Duration(seconds: 3), () {
+      _statusTimer = Timer(const Duration(seconds: 3), () {
         syncStatusNotifier.value = 'Ready to sync';
         statusColorNotifier.value = null;
       });
@@ -135,7 +164,7 @@ class HomeController extends ChangeNotifier {
       await googleDriveService.uploadBackup(jsonString);
       debugPrint('Manual backup completed successfully.');
     } catch (e) {
-      debugPrint('Error during manual backup: $e');
+      showErrorSnackBar('$e');
       rethrow;
     }
   }
@@ -151,7 +180,7 @@ class HomeController extends ChangeNotifier {
       await noteRepository.importNotesFromBackupString(backupJson);
       debugPrint('Manual restore and data merge completed successfully.');
     } catch (e) {
-      debugPrint('Error during manual restore: $e');
+      showErrorSnackBar('$e');
       rethrow;
     }
   }
@@ -209,16 +238,6 @@ class HomeController extends ChangeNotifier {
       _accumulatedDelta = 0.0;
     }
     return true;
-  }
-
-  // 2. BULK DELETE EXECUTION
-  void executeBulkDelete() {
-    final selected = noteRepository.selectedNotes;
-    if (selected.isEmpty) return;
-
-    deleteSelected(selected);
-    HapticFeedback.heavyImpact(); // Premium feel for deletion
-    noteRepository.clearSelection();
   }
 
   // 3. CLOUD ACTION WRAPPER

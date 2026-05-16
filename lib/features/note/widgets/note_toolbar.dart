@@ -1,7 +1,9 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/widgets/toolbar/alignment_menu.dart';
 import 'package:notepad/features/note/widgets/toolbar/color_menu.dart';
 import 'package:notepad/features/note/widgets/toolbar/hyperlink_handler.dart';
@@ -12,6 +14,7 @@ class NoteToolbar extends StatefulWidget {
   const NoteToolbar({
     super.key,
     required this.controller,
+    required this.toolbarController,
     required this.focusNode,
     this.shouldNudge = false,
     this.onNudgeComplete,
@@ -21,6 +24,7 @@ class NoteToolbar extends StatefulWidget {
   final FocusNode focusNode;
   final bool shouldNudge;
   final VoidCallback? onNudgeComplete;
+  final NoteToolbarController toolbarController;
 
   @override
   State<NoteToolbar> createState() => _NoteToolbarState();
@@ -42,6 +46,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
   @override
   void dispose() {
     _scrollController.dispose();
+    uiNotifier.clearSnackBars();
     super.dispose();
   }
 
@@ -88,6 +93,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
         controller: widget.controller,
         focusNode: widget.focusNode,
         isDark: isDark,
+        toolbarController: widget.toolbarController,
       ),
       ListMenu(
         controller: widget.controller,
@@ -229,5 +235,23 @@ class _NoteToolbarState extends State<NoteToolbar> {
         ),
       ),
     );
+  }
+}
+
+// In note_toolbar.dart
+class NoteToolbarController {
+  VoidCallback? _onCloseRequested;
+  bool isLocked = false; // The Safety Lock
+
+  void registerMenu(VoidCallback closeLogic) => _onCloseRequested = closeLogic;
+
+  void closeAllMenus() {
+    isLocked = true; // Lock immediately on teardown
+    _onCloseRequested?.call();
+  }
+
+  void dispose() {
+    isLocked = false;
+    _onCloseRequested = null;
   }
 }

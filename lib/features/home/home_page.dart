@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide SelectionOverlay;
 import 'package:flutter/services.dart';
 import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
@@ -22,6 +23,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool get isDark => context.isDark;
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool isSelectionMode = false;
@@ -85,6 +88,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _exitSelectionMode() async {
+    await _controller.flushPendingPinnedWrites();
+    _setSelectionMode(false);
+  }
+
   Future<void> _shareSelectedNotesAsHTML() async {
     _controller.isSavingNotifier.value = true;
 
@@ -130,14 +138,13 @@ class _HomePageState extends State<HomePage> {
 
     if (shouldDelete != true) return;
 
+    await _controller.flushPendingPinnedWrites();
     _setSelectionMode(false);
     _controller.executeBulkDelete(); // Logic moved to controller
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return PopScope(
       canPop: !isSelectionMode,
       onPopInvokedWithResult: (didPop, result) {
@@ -150,7 +157,7 @@ class _HomePageState extends State<HomePage> {
             HapticFeedback.mediumImpact();
             noteRepository.clearSelection();
           } else {
-            _setSelectionMode(false);
+            _exitSelectionMode();
           }
         }
       },
@@ -204,8 +211,13 @@ class _HomePageState extends State<HomePage> {
                     onShare: _shareSelectedNotesAsHTML,
                     onDeleteSelected: _confirmBulkDelete,
                     onSelectionToggle: () {
-                      _setSelectionMode(!isSelectionMode);
+                      if (isSelectionMode) {
+                        _exitSelectionMode();
+                      } else {
+                        _setSelectionMode(true);
+                      }
                     },
+                    controller: _controller,
                   ),
                   SliverToBoxAdapter(
                     child: SizedBox(height: isSelectionMode ? 140.0 : 100.0),

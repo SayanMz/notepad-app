@@ -11,6 +11,7 @@ import 'package:notepad/core/services/note_timestamp_formatter.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/note_page.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
@@ -20,9 +21,10 @@ class RecyclePage extends StatefulWidget {
 }
 
 class _RecyclePageState extends State<RecyclePage> {
+  bool get isDark => context.isDark;
+
   Future<void> _restoreNoteWithUndo(NotesSection note) async {
     final title = note.displayTitle;
-
     final isRestored = await noteRepository.toggleDeletedStatus(note.id, false);
 
     if (!(mounted && isRestored)) {
@@ -30,18 +32,10 @@ class _RecyclePageState extends State<RecyclePage> {
       return;
     }
 
-    uiNotifier.showSnackBar(
-      SnackBar(
-        content: Text('$title is now restored.'),
-        duration: UIConstants.saveIndicatorDuration,
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () async =>
-              await noteRepository.toggleDeletedStatus(note.id, true),
-        ),
-      ),
-      autoHideAfter: UIConstants.saveIndicatorDuration,
+    showRestorationSnackBar(
+      message: '$title is now restored.',
+      onUndo: () async =>
+          await noteRepository.toggleDeletedStatus(note.id, true),
     );
   }
 
@@ -139,7 +133,6 @@ class _RecyclePageState extends State<RecyclePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final notesEmptyText = "Your trash is squeaky clean.";
     final cardWidth =
         MediaQuery.sizeOf(context).width - (UIConstants.recycleListPadding * 2);
@@ -154,12 +147,6 @@ class _RecyclePageState extends State<RecyclePage> {
           builder: (context, child) {
             // This logic now only runs when the repository notifies
             final deletedNotes = noteRepository.deletedNotes;
-
-            // Identity mapping for O(1) lookups
-            final Map<String, int> idToIndex = {
-              for (int i = 0; i < deletedNotes.length; i++)
-                deletedNotes[i].id: i,
-            };
 
             // Inner conditional: Only the content area swaps
             if (deletedNotes.isEmpty) {
@@ -201,7 +188,7 @@ class _RecyclePageState extends State<RecyclePage> {
                       childCount: deletedNotes.length,
                       findChildIndexCallback: (key) {
                         final valueKey = key as ValueKey<String>;
-                        return idToIndex[valueKey.value];
+                        return noteRepository.getDeletedIndex(valueKey.value);
                       },
                     ),
                   ),
@@ -256,17 +243,22 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
 
   @override
   Widget build(BuildContext context) {
+    final previewLines = widget.note.getPreview(1);
+    final subtitleText = previewLines.isNotEmpty
+        ? previewLines.first
+        : 'No additional text';
+
     return Padding(
       padding: const EdgeInsets.all(UIConstants.recycleCardMargin),
-      child: RepaintBoundary(
-        child: Stack(
-          children: [
-            // --- THE PERMANENT GREEN BACKGROUND ---
-            Positioned(
-              top: 0.5,
-              bottom: 0.5,
-              right: 0.5,
-              left: 16,
+      child: Stack(
+        children: [
+          // --- THE PERMANENT GREEN BACKGROUND ---
+          Positioned(
+            top: 0.5,
+            bottom: 0.5,
+            right: 0.5,
+            left: 16,
+            child: RepaintBoundary(
               child: Card(
                 margin: EdgeInsets.zero,
                 elevation: 0,
@@ -282,105 +274,97 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                 child: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: UIConstants.paddingLG),
-                  child: RepaintBoundary(
-                    // Merging allows us to listen to both notifiers efficiently
-                    child: ListenableBuilder(
-                      listenable: Listenable.merge([
-                        _dragProgress,
-                        _isConfirmed,
-                      ]),
-                      builder: (context, child) {
-                        // Extract the current values
-                        final progress = _dragProgress.value;
-                        final isConfirmed = _isConfirmed.value;
+                  child: ListenableBuilder(
+                    listenable: Listenable.merge([_dragProgress, _isConfirmed]),
+                    builder: (context, child) {
+                      // Extract the current values
+                      final progress = _dragProgress.value;
+                      final isConfirmed = _isConfirmed.value;
 
-                        final draggedPixels = progress * cardWidth;
-                        const iconWidth = UIConstants.recycleIconSize;
-                        const targetPadding = UIConstants.paddingLG;
+                      final draggedPixels = progress * cardWidth;
+                      const iconWidth = UIConstants.recycleIconSize;
+                      const targetPadding = UIConstants.paddingLG;
 
-                        // 1. Define a threshold (The "Dead Zone")
-                        // The icon won't start appearing until we've swiped 30 pixels.
-                        const appearanceThreshold = 30.0;
+                      // 1. Define a threshold (The "Dead Zone")
+                      // The icon won't start appearing until we've swiped 30 pixels.
+                      const appearanceThreshold = 30.0;
 
-                        // 2. Adjust the animation progress to account for the threshold
-                        final animationProgress =
-                            ((draggedPixels - appearanceThreshold) /
-                                    (cardWidth * 0.3))
-                                .clamp(0.0, 1.0);
+                      // 2. Adjust the animation progress to account for the threshold
+                      final animationProgress =
+                          ((draggedPixels - appearanceThreshold) /
+                                  (cardWidth * 0.3))
+                              .clamp(0.0, 1.0);
 
-                        const lockPoint = (targetPadding * 2) + iconWidth;
+                      const lockPoint = (targetPadding * 2) + iconWidth;
 
-                        double xOffset = (lockPoint / 2) - (draggedPixels / 2);
-                        xOffset = xOffset.clamp(0.0, double.infinity);
+                      double xOffset = (lockPoint / 2) - (draggedPixels / 2);
+                      xOffset = xOffset.clamp(0.0, double.infinity);
 
-                        // Use the new animationProgress for scale and opacity
-                        final scale = ui.lerpDouble(
-                          0.5,
-                          1.0,
-                          animationProgress,
-                        )!;
-                        final opacity =
-                            animationProgress; // 0.0 until we hit 30px
+                      // Use the new animationProgress for scale and opacity
+                      final scale = ui.lerpDouble(0.5, 1.0, animationProgress)!;
+                      final opacity =
+                          animationProgress; // 0.0 until we hit 30px
 
-                        final rotationProgress = (draggedPixels / lockPoint)
-                            .clamp(0.0, 2.0);
-                        final angle = rotationProgress * pi;
+                      final rotationProgress = (draggedPixels / lockPoint)
+                          .clamp(0.0, 2.0);
+                      final angle = rotationProgress * pi;
 
-                        final matrix = Matrix4.identity()
-                          ..translateByDouble(xOffset, 0, 0, 1)
-                          ..rotateZ(angle)
-                          ..scaleByDouble(scale, scale, scale, 1);
+                      final matrix = Matrix4.identity()
+                        ..translateByDouble(xOffset, 0, 0, 1)
+                        ..rotateZ(angle)
+                        ..scaleByDouble(scale, scale, scale, 1);
 
-                        final baseColor = widget.isDark
-                            ? const Color(0xFF69F0AE)
-                            : const Color(0xFF2E7D32);
+                      final baseColor = widget.isDark
+                          ? const Color(0xFF69F0AE)
+                          : const Color(0xFF2E7D32);
 
-                        return AnimatedOpacity(
-                          duration: const Duration(milliseconds: 150),
-                          curve: Curves.easeOut,
-                          // Reacts to the merged state instantly
-                          opacity: isConfirmed ? 0.0 : opacity,
-                          child: AnimatedScale(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeInBack,
-                            scale: isConfirmed ? 0.0 : 1.0,
-                            child: Transform(
-                              alignment: Alignment.center,
-                              transform: matrix,
-                              child: Icon(
-                                Icons.restore,
-                                color: baseColor,
-                                size: UIConstants.recycleIconSize,
-                              ),
+                      return AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOut,
+                        // Reacts to the merged state instantly
+                        opacity: isConfirmed ? 0.0 : opacity,
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInBack,
+                          scale: isConfirmed ? 0.0 : 1.0,
+                          child: Transform(
+                            alignment: Alignment.center,
+                            transform: matrix,
+                            child: Icon(
+                              Icons.restore,
+                              color: baseColor,
+                              size: UIConstants.recycleIconSize,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
+          ),
 
-            // --- THE SWIPE MASK ---
-            Dismissible(
-              key: ValueKey('restore_${widget.note.id}'),
-              direction: DismissDirection.endToStart,
-              background: const ColoredBox(color: Colors.transparent),
-              confirmDismiss: (direction) async {
-                _isConfirmed.value = true;
-                return true; // Tell Flutter to proceed with the row collapse
-              },
-              onUpdate: (details) {
-                if (!mounted) return;
-                if ((details.progress - _dragProgress.value).abs() > 0.01) {
-                  _dragProgress.value = details.progress;
-                }
-              },
-              onDismissed: (_) {
-                widget.onRestore(widget.note);
-              },
+          // --- THE SWIPE MASK ---
+          Dismissible(
+            key: ValueKey('restore_${widget.note.id}'),
+            direction: DismissDirection.endToStart,
+            background: const ColoredBox(color: Colors.transparent),
+            confirmDismiss: (direction) async {
+              _isConfirmed.value = true;
+              return true; // Tell Flutter to proceed with the row collapse
+            },
+            onUpdate: (details) {
+              if (!mounted) return;
+              if ((details.progress - _dragProgress.value).abs() > 0.01) {
+                _dragProgress.value = details.progress;
+              }
+            },
+            onDismissed: (_) {
+              widget.onRestore(widget.note);
+            },
 
+            child: RepaintBoundary(
               child: Card(
                 margin: EdgeInsets.zero,
                 elevation: UIConstants.elevationLow,
@@ -407,20 +391,12 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                             : widget.note.title,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        'Edited: ${widget.note.updatedAt.format(showYear: false, showTime: false)}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: UIConstants.noteCardEditedFontSize,
-                        ),
-                      ),
-                      const SizedBox(height: UIConstants.paddingSM),
+
+                      // const SizedBox(height: UIConstants.paddingSM),
                     ],
                   ),
                   subtitle: Text(
-                    widget.note.content.isEmpty
-                        ? 'No additional text'
-                        : widget.note.content,
+                    subtitleText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: Colors.grey[500]),
@@ -447,8 +423,8 @@ class _SwipeableRestoreItemState extends State<_SwipeableRestoreItem> {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

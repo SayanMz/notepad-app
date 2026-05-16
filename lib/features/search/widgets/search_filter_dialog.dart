@@ -21,10 +21,20 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     31,
     (index) => (index + 1).toString().padLeft(2, '0'),
   );
-  static final List<String> _monthItems = List.generate(
-    12,
-    (index) => (index + 1).toString().padLeft(2, '0'),
-  );
+  static final List<String> _monthItems = [
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
   static final List<String> _yearItems = List.generate(
     10,
     (index) => (DateTime.now().year - index).toString(),
@@ -45,20 +55,38 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   }
 
   // Model-to-UI conversion logic
-  int? _parseSelection(String? selectedString) =>
-      selectedString == null ? null : int.tryParse(selectedString);
+  int? _parseSelection(String? selectedString, List<String> items) {
+    if (selectedString == null) return null;
+
+    // If the list is _monthItems, find the index and add 1
+    if (items == _monthItems) {
+      final index = _monthItems.indexOf(selectedString);
+      return index != -1 ? index + 1 : null;
+    }
+
+    return int.tryParse(selectedString);
+  }
 
   String? _getFormattedValue(int? modelValue, List<String> availableItems) {
-    if (modelValue == null || availableItems.isEmpty) return null; //
+    if (modelValue == null || availableItems.isEmpty) return null;
 
-    // Year doesn't need padding; everything else (day, month, time) is 2 digits
+    // Handle Month Names
+    if (availableItems == _monthItems) {
+      return (modelValue >= 1 && modelValue <= 12)
+          ? _monthItems[modelValue - 1]
+          : null;
+    }
+
+    // Handle standard padding for Year (4) and Day/Time (2)
     final padding = (availableItems == _yearItems) ? 4 : 2;
-    final paddedValue = modelValue.toString().padLeft(padding, '0');
-
-    return availableItems.contains(paddedValue) ? paddedValue : null;
+    return modelValue.toString().padLeft(padding, '0');
   }
 
   void _submitFilters() {
+    if (!_filterState.start.hasValues ||
+        (_filterState.isRangeSearch && !_filterState.end.hasValues)) {
+      return;
+    }
     Navigator.pop(context, _filterState);
   }
 
@@ -183,7 +211,6 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                   () =>
                       _filterState = const SearchFilters(isRangeSearch: false),
                 );
-                _submitFilters();
               },
               child: Text(
                 'Clear',
@@ -272,11 +299,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                     : const Color(0xFFF1F5F9),
                 padding: const EdgeInsets.symmetric(horizontal: 10),
               ),
-              onPressed: () => setState(
-                () => _filterState = _filterState.copyWith(
-                  isRangeSearch: !_filterState.isRangeSearch,
-                ),
-              ),
+              onPressed: _toggleRangeSearch,
               icon: Icon(
                 _filterState.isRangeSearch ? Icons.close : Icons.date_range,
                 size: 18,
@@ -306,27 +329,26 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     String? hour,
     String? minute,
   }) {
-    setState(() {
-      final targetSelection = isStart ? _filterState.start : _filterState.end;
-      final updatedSelection = targetSelection.copyWith(
-        day: day != null ? _parseSelection(day) : targetSelection.day,
-        month: month != null ? _parseSelection(month) : targetSelection.month,
-        year: year != null ? _parseSelection(year) : targetSelection.year,
-        hour: hour != null ? _parseSelection(hour) : targetSelection.hour,
-        minute: minute != null
-            ? _parseSelection(minute)
-            : targetSelection.minute,
-      );
-      _filterState = isStart
-          ? _filterState.copyWith(start: updatedSelection)
-          : _filterState.copyWith(end: updatedSelection);
-    });
+    final targetSelection = isStart ? _filterState.start : _filterState.end;
+
+    final updatedSelection = targetSelection.copyWith(
+      day: _parseSelection(day, _dayItems) ?? targetSelection.day,
+      month: _parseSelection(month, _monthItems) ?? targetSelection.month,
+      year: _parseSelection(year, _yearItems) ?? targetSelection.year,
+      hour: _parseSelection(hour, _hourItems) ?? targetSelection.hour,
+      minute: _parseSelection(minute, _minuteItems) ?? targetSelection.minute,
+    );
+
+    _filterState = isStart
+        ? _filterState.copyWith(start: updatedSelection)
+        : _filterState.copyWith(end: updatedSelection);
   }
 
   Widget _buildDateRow({required bool isStartRange}) {
     final currentSelection = isStartRange
         ? _filterState.start
         : _filterState.end;
+
     return Row(
       children: [
         Expanded(
@@ -398,29 +420,50 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: selectedValue,
-          menuMaxHeight: 300,
-          hint: Text(hintText, style: const TextStyle(fontSize: 14)),
-          items: items
-              .map(
-                (item) => DropdownMenuItem(
-                  value: item,
-                  child: Text(item, style: const TextStyle(fontSize: 14)),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
+    String? localValue = selectedValue;
+
+    return StatefulBuilder(
+      // Encapsulate the state logic inside the helper
+      builder: (context, setLocalState) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: localValue,
+              onChanged: (value) {
+                onChanged(value); // Update parent data
+                setLocalState(() {
+                  localValue = value; // Updates the local UI state
+                }); // Refresh this specific dropdown UI
+              },
+              menuMaxHeight: 300,
+              hint: Text(hintText, style: const TextStyle(fontSize: 14)),
+              items: items
+                  .map(
+                    (item) => DropdownMenuItem(
+                      value: item,
+                      child: Text(item, style: const TextStyle(fontSize: 14)),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  void _toggleRangeSearch() {
+    setState(() {
+      // This triggers a full rebuild to show/hide the End Date area
+      _filterState = _filterState.copyWith(
+        isRangeSearch: !_filterState.isRangeSearch,
+      );
+    });
   }
 }

@@ -5,6 +5,7 @@ import 'package:notepad/features/home/services/auth_controller.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
 import 'package:notepad/features/home/widgets/spinning_sync_icon.dart';
 import 'package:notepad/features/home/widgets/storage_progress_bar.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 
 class HomeDrawer extends StatelessWidget {
   final HomeController controller;
@@ -177,7 +178,6 @@ class _HomeDrawerActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final user = googleDriveService.currentUser;
 
     return Padding(
@@ -191,7 +191,6 @@ class _HomeDrawerActions extends StatelessWidget {
               subtitle: 'Save notes to Google Drive',
               onTap: onBackup,
               isDark: isDark,
-              colorScheme: colorScheme,
             ),
             const SizedBox(height: 8),
             _DrawerActionTile(
@@ -200,7 +199,6 @@ class _HomeDrawerActions extends StatelessWidget {
               subtitle: 'Merge notes from Google Drive',
               onTap: onRestore,
               isDark: isDark,
-              colorScheme: colorScheme,
             ),
             const SizedBox(height: 8),
           ],
@@ -221,7 +219,6 @@ class _HomeDrawerActions extends StatelessWidget {
               }
             },
             isDark: isDark,
-            colorScheme: colorScheme,
           ),
         ],
       ),
@@ -236,7 +233,6 @@ class _DrawerActionTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     required this.isDark,
-    required this.colorScheme,
   });
 
   final IconData icon;
@@ -244,13 +240,15 @@ class _DrawerActionTile extends StatelessWidget {
   final String subtitle;
   final Future<void> Function() onTap;
   final bool isDark;
-  final ColorScheme colorScheme;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      leading: Icon(icon, color: isDark ? Colors.white : colorScheme.primary),
+      leading: Icon(
+        icon,
+        color: isDark ? Colors.white : context.colorScheme.primary,
+      ),
       title: Text(title),
       subtitle: Text(subtitle),
       onTap: () async {

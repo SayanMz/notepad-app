@@ -7,6 +7,7 @@ import 'package:notepad/features/search/models/search_date_selection.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/widgets/search_result_card.dart';
 import 'package:notepad/features/search/widgets/smooth_slide_fade.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 
 class SearchResultsPanel extends StatelessWidget {
   const SearchResultsPanel({
@@ -67,8 +68,6 @@ class SearchResultsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -96,7 +95,7 @@ class SearchResultsPanel extends StatelessWidget {
             builder: (context, child) {
               return Column(
                 children: [
-                  _buildMetadataHeader(context, isDark),
+                  _buildMetadataHeader(context, context.isDark),
                   const SizedBox(height: 4),
                   Expanded(
                     child: _SearchResultsList(
@@ -225,7 +224,6 @@ class SearchResultsPanel extends StatelessWidget {
     required VoidCallback onPressed,
     required BuildContext context,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     return ActionChip(
@@ -240,7 +238,7 @@ class SearchResultsPanel extends StatelessWidget {
       onPressed: onPressed,
       backgroundColor: isSelected
           ? colorScheme.primaryContainer.withValues(alpha: 0.8)
-          : (isDark ? Colors.grey[800] : Colors.grey[200]),
+          : (context.isDark ? Colors.grey[800] : Colors.grey[200]),
       visualDensity: VisualDensity.compact,
       side: BorderSide.none,
     );
