@@ -1,34 +1,37 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/note/controllers/note_controller.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
 import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
-import 'package:notepad/features/note/widgets/plain_paste_wrapper.dart';
+import 'package:notepad/features/note/services/plain_paste_wrapper.dart';
 import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
+
+// ⚡ IMPORT YOUR THREE NEW DECOUPLED CONTROLLERS
+import 'package:notepad/features/note/controllers/note_data_controller.dart';
+import 'package:notepad/features/note/controllers/note_voice_controller.dart';
+import 'package:notepad/features/note/controllers/note_ui_controller.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 /// Note editor screen.
 /// Keeps note orchestration in one place while delegates saving, voice input,
 /// and formatting to smaller helpers.
-
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
   final bool readOnly;
 
-  /// Supports:
-  /// - Creating new notes
-  /// - Editing existing notes (via noteId)
-  /// - Restoring unsaved drafts (title/content)
   const NotePage({
     super.key,
     this.noteId,
@@ -49,8 +52,10 @@ class _NotePageState extends State<NotePage>
   /// Listens to app lifecycle (background, pause, etc.)
   late final AppLifecycleListener _lifecycleListener;
 
-  /// Controller layer handling business logic
-  late final NoteController _noteController;
+  /// ⚡ THE REFACTORED BUSINESS LOGIC LAYERS
+  late final NoteDataController _dataController;
+  late final NoteVoiceController _voiceController;
+  late final NoteUIController _uiController;
 
   /// Title input controller
   late final TextEditingController titleController;
@@ -64,12 +69,10 @@ class _NotePageState extends State<NotePage>
   /// Scroll control for editor
   final ScrollController _editorScrollController = ScrollController();
 
-  //For Overlay lifecycle orchestration
+  // For Overlay lifecycle orchestration
   late final NoteToolbarController _toolbarController;
 
-  /// UI-only state that toggles toolbar visibility
-  final ValueNotifier<bool> _isEditingNotifier = ValueNotifier<bool>(false);
-  bool _shouldNudge = true; //Track the Nudge
+  bool _shouldNudge = true;
   bool _isHandlingBackNavigation = false;
 
   @override
@@ -77,14 +80,29 @@ class _NotePageState extends State<NotePage>
     super.initState();
     _isReadOnly = widget.readOnly;
 
-    _noteController = NoteController(
+    // ⚡ INITIALIZE ALL THREE ARCHITECTURAL MODULES SATELLITES
+    _dataController = NoteDataController(
       noteRepository: noteRepository,
       noteId: widget.noteId,
     );
+    _voiceController = NoteVoiceController();
+    _uiController = NoteUIController();
 
     _initializeControllers();
+    contentController.readOnly = _isReadOnly;
+
+    _lottieController = AnimationController(
+      vsync: this,
+      duration: AnimationConstants.snackbarShort,
+    ); //
+    _toolbarController = NoteToolbarController();
+
+    _attachListeners();
+    _lifecycleListener = _createLifecycleListener();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
       if (!_isReadOnly) {
         _editorFocusNode.requestFocus();
       }
@@ -92,19 +110,8 @@ class _NotePageState extends State<NotePage>
         GroqService.warmUp().catchError(
           (e) => debugPrint('AI Warmup skip: $e'),
         ),
-      );
+      ); //
     });
-
-    contentController.readOnly = _isReadOnly;
-
-    _lottieController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    _toolbarController = NoteToolbarController();
-
-    _attachListeners();
-    _lifecycleListener = _createLifecycleListener();
   }
 
   Future<void> _showRestoreDialog() async {
@@ -124,10 +131,9 @@ class _NotePageState extends State<NotePage>
           ),
         ],
       ),
-    );
+    ); //
 
     if (result == true && widget.noteId != null) {
-      // Toggle the status in the repository
       await noteRepository.toggleDeletedStatus(widget.noteId!, false);
       final note = noteRepository.findById(widget.noteId!);
 
@@ -138,7 +144,7 @@ class _NotePageState extends State<NotePage>
 
       uiNotifier.showSnackBar(
         SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
-      );
+      ); //
       _editorFocusNode.requestFocus();
     }
   }
@@ -151,7 +157,8 @@ class _NotePageState extends State<NotePage>
     titleController = TextEditingController(text: note?.title ?? widget.title);
     contentController = _createContentController(note);
 
-    _noteController.setInitialSignature(
+    // ⚡ ROUTE SIGNATURE TO DATA ENGINE
+    _dataController.setInitialSignature(
       titleController.text,
       contentController.document,
     );
@@ -162,7 +169,7 @@ class _NotePageState extends State<NotePage>
       return QuillController(
         document: Document.fromJson(
           NoteDocumentService.decodeRichContent(note.richContent, note.content),
-        ),
+        ), //
         selection: const TextSelection.collapsed(offset: 0),
         keepStyleOnNewLine: false,
       );
@@ -190,44 +197,40 @@ class _NotePageState extends State<NotePage>
 
   AppLifecycleListener _createLifecycleListener() {
     return AppLifecycleListener(
-      onInactive: () => _noteController.saveNote(
-        title: titleController.text,
-        document: contentController.document,
-      ),
-      onPause: () => _noteController.saveNote(
-        title: titleController.text,
-        document: contentController.document,
-      ),
-      onDetach: () => _noteController.saveNote(
-        title: titleController.text,
-        document: contentController.document,
-      ),
+      // ⚡ LAUNCH SAFE NON-DESTRUCTIVE SAVES ON BACKGROUND PIPELINES
+      onInactive: () async {
+        await _dataController.saveNote(
+          title: titleController.text,
+          document: contentController.document,
+        );
+      },
+      onPause: () async {
+        await _dataController.saveNote(
+          title: titleController.text,
+          document: contentController.document,
+        );
+      },
+      onDetach: () async {
+        await _dataController.saveNote(
+          title: titleController.text,
+          document: contentController.document,
+        );
+      },
     );
   }
 
-  /// -------------------------------------------------------------------------
   /// CHANGE HANDLER (AUTO-SAVE TRIGGER)
-  /// -------------------------------------------------------------------------
-  ///
-  /// Delegates:
-  /// - Debouncing
-  /// - Save timing
-  /// to NoteController
   void _handleEditorChanged() {
-    _noteController.handleEditorChanged(
+    // ⚡ COMPOSE EXECUTION PATHS SIDE-BY-SIDE
+    _dataController.handleEditorChanged(
       title: titleController.text,
       document: contentController.document,
     );
-  }
-
-  /// Toggles editing mode (shows/hides toolbar)
-  void _toggleEditMode() {
-    _isEditingNotifier.value = !_isEditingNotifier.value;
+    _uiController.orchestrateButtonVisibility();
   }
 
   @override
   void dispose() {
-    /// Remove listeners to prevent memory leaks
     titleController.removeListener(_handleEditorChanged);
     titleController.dispose();
 
@@ -237,12 +240,14 @@ class _NotePageState extends State<NotePage>
     _editorFocusNode.dispose();
     _editorScrollController.dispose();
 
-    /// Clean lifecycle + controller
     _lifecycleListener.dispose();
-    _noteController.dispose();
-
     _lottieController.dispose();
     _toolbarController.dispose();
+
+    // ⚡ DISPOSE ALL THREE INDEPENDENT STORAGE CONTROLLERS CLEANLY
+    _dataController.dispose();
+    _voiceController.dispose();
+    _uiController.dispose();
 
     super.dispose();
   }
@@ -252,18 +257,22 @@ class _NotePageState extends State<NotePage>
     _isHandlingBackNavigation = true;
 
     _toolbarController.closeAllMenus();
-    await Future.delayed(const Duration(milliseconds: 16));
+    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-    // Use the controller's single source of truth
-    if (_noteController.hasPendingChanges(
-      titleController.text,
-      contentController.document,
-    )) {
-      _noteController.saveAndCleanupOnClose(
-        title: titleController.text,
-        document: contentController.document,
-      );
+    if (isKeyboardOpen) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Future.delayed(NoteConstants.notePageKeyboardDismissDelay);
     }
+
+    // ⚡ RUN THE SANITIZED FILE CLEANUP ROUTINE VIA THE VAULT DATA CONTAINER
+    unawaited(
+      _dataController
+          .saveAndCleanupOnClose(
+            title: titleController.text,
+            document: contentController.document,
+          )
+          .catchError((e) => debugPrint('Background save error: $e')),
+    ); //
 
     try {
       if (!mounted) return;
@@ -289,25 +298,26 @@ class _NotePageState extends State<NotePage>
         child: Scaffold(
           backgroundColor: isDark
               ? AppColors.darkScaffold
-              : AppColors.lightScaffold,
-
+              : AppColors.lightScaffold, //
           // -------------------------------------------------------------------
-          // APP BAR (UNDO / REDO / EDIT TOGGLE)
+          // APP BAR
           // -------------------------------------------------------------------
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
             child: _isReadOnly
                 ? NoteAppBar(
-                    key: const ValueKey('readonly_bar'), // Distinct key 1
-                    saveState: _noteController.saveState,
+                    key: const ValueKey('readonly_bar'),
+                    saveState: _dataController
+                        .saveState, // ⚡ Pointed to data container
                     contentController: contentController,
                     title: titleController,
                     isDark: isDark,
                     readOnly: true,
                   )
                 : NoteAppBar(
-                    key: const ValueKey('editable_bar'), // Distinct key 2
-                    saveState: _noteController.saveState,
+                    key: const ValueKey('editable_bar'),
+                    saveState: _dataController
+                        .saveState, // ⚡ Pointed to data container
                     contentController: contentController,
                     title: titleController,
                     isDark: isDark,
@@ -321,27 +331,21 @@ class _NotePageState extends State<NotePage>
           body: SafeArea(
             child: Stack(
               children: [
-                // -------------------------------------------------------------
-                // MAIN CONTENT LAYER (Header, Editor, Toolbar)
-                // -------------------------------------------------------------
                 Column(
                   children: [
                     NoteHeader(
                       key: ValueKey('header_$_isReadOnly'),
                       titleController: titleController,
-                      onToggleEdit: _toggleEditMode,
+                      onToggleEdit: _uiController.toggleEditMode,
                       readOnly: _isReadOnly == true,
                     ),
 
-                    const SizedBox(height: UIConstants.paddingMD), //
-                    // note_page.dart
+                    const SizedBox(height: UIConstants.paddingMD),
+
                     Expanded(
                       child: PlainPasteWrapper(
                         controller: contentController,
                         child: _isReadOnly
-                            // ---------------------------------------------------------
-                            // READ-ONLY MODE (Recycle Bin)
-                            // ---------------------------------------------------------
                             ? GestureDetector(
                                 onTap: _showRestoreDialog,
                                 behavior: HitTestBehavior.opaque,
@@ -350,44 +354,36 @@ class _NotePageState extends State<NotePage>
                                   physics:
                                       const AlwaysScrollableScrollPhysics(),
                                   child: AbsorbPointer(
-                                    // Blocks the keyboard and typing
                                     child: NoteEditor(
                                       controller: contentController,
                                       focusNode: _editorFocusNode,
                                       scrollController: _editorScrollController,
-                                      // We disable internal scrolling so the parent handles it
                                       scrollable: false,
-                                      // We disable expand so it acts like a long static document
                                       expands: false,
                                       showCursor: false,
                                     ),
                                   ),
                                 ),
                               )
-                            // ---------------------------------------------------------
-                            // NORMAL EDITING MODE
-                            // ---------------------------------------------------------
                             : NoteEditor(
                                 controller: contentController,
                                 focusNode: _editorFocusNode,
-                                scrollController: _editorScrollController,
-                                // Uses the default true/true we set up in the constructor
                               ),
                       ),
                     ),
 
                     ValueListenableBuilder<bool>(
-                      valueListenable: _isEditingNotifier,
+                      valueListenable: _uiController.isEditing,
                       builder: (context, isEditing, child) {
                         return AnimatedSize(
-                          // Smoothly collapses the space when hidden
-                          duration: const Duration(milliseconds: 250),
+                          duration: NoteConstants.notePageToolbarSizeDelay,
                           curve: Curves.easeInOut,
                           child: isEditing
                               ? Container(
                                   key: const ValueKey('note_toolbar'),
                                   padding: const EdgeInsets.only(
-                                    bottom: UIConstants.paddingSM,
+                                    bottom: NoteConstants
+                                        .notePageToolbarPaddingBottom,
                                   ),
                                   child: NoteToolbar(
                                     controller: contentController,
@@ -406,43 +402,44 @@ class _NotePageState extends State<NotePage>
                               : const SizedBox(
                                   key: ValueKey('empty_space'),
                                   width: double.infinity,
-                                  height: 0,
+                                  height: NoteConstants
+                                      .notePageReadonlySpacerHeight,
                                 ),
                         );
                       },
-                    ), //
+                    ),
                   ],
                 ),
               ],
             ),
           ),
 
+          // -------------------------------------------------------------------
+          // FLOATING ACTION BUTTON (VOICE AI ASSISTANT)
+          // -------------------------------------------------------------------
           floatingActionButton: _isReadOnly
               ? null
               : ValueListenableBuilder<bool>(
-                  valueListenable: _isEditingNotifier,
+                  valueListenable: _uiController.isEditing,
                   builder: (context, isEditing, child) {
                     return AnimatedScale(
-                      // Swap Effect: Scale to 0 when toolbar is visible
                       scale: isEditing ? 0.0 : 1.0,
-                      duration: const Duration(milliseconds: 250),
+                      duration: NoteConstants.notePageFabScaleDuration,
                       curve: Curves.bounceInOut,
                       child: AnimatedOpacity(
                         opacity: isEditing ? 0.0 : 1.0,
-                        duration: const Duration(milliseconds: 200),
+                        duration: NoteConstants.notePageFabFadeDuration,
                         child: child!,
                       ),
                     );
                   },
-                  // Down in your floatingActionButton...
                   child: VoiceAssistantButton(
-                    noteController: _noteController,
                     lottieController: _lottieController,
-                    isListeningNotifier: _noteController.isListening,
-                    aiButtonOpacityNotifier: _noteController.aiButtonOpacity,
-                    toggleListening: () {
-                      _noteController.toggleListening(contentController);
-                    },
+                    voiceController:
+                        _voiceController, // ⚡ Pass the module straight down
+                    uiController:
+                        _uiController, // ⚡ Pass the module straight down
+                    contentController: contentController,
                   ),
                 ),
         ),

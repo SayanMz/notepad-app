@@ -2,13 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
-import 'package:notepad/features/note/widgets/toolbar/alignment_menu.dart';
-import 'package:notepad/features/note/widgets/toolbar/color_menu.dart';
-import 'package:notepad/features/note/widgets/toolbar/hyperlink_handler.dart';
-import 'package:notepad/features/note/widgets/toolbar/list_menu.dart';
-import 'package:notepad/features/note/widgets/toolbar/size_menu.dart';
+import 'package:notepad/features/note/widgets/toolbar_items/alignment_menu.dart';
+import 'package:notepad/features/note/widgets/toolbar_items/color_menu.dart';
+import 'package:notepad/features/note/services/hyperlink_handler.dart';
+import 'package:notepad/features/note/widgets/toolbar_items/list_menu.dart';
+import 'package:notepad/features/note/widgets/toolbar_items/size_menu.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 class NoteToolbar extends StatefulWidget {
   const NoteToolbar({
@@ -52,16 +54,16 @@ class _NoteToolbarState extends State<NoteToolbar> {
 
   /// Restoration of the "Nudge" logic to signal scrollability to the user.
   Future<void> _performNudge() async {
-    await Future.delayed(UIConstants.animationExtraSlow);
+    await Future.delayed(AnimationConstants.extraSlow);
     if (!mounted || !_scrollController.hasClients) return;
     await _scrollController.animateTo(
-      100.0,
-      duration: UIConstants.animationMedium,
+      NoteConstants.toolbarNudgeDistance,
+      duration: AnimationConstants.medium,
       curve: Curves.easeOut,
     );
     await _scrollController.animateTo(
       0.0,
-      duration: UIConstants.animationMedium,
+      duration: AnimationConstants.medium,
       curve: Curves.easeIn,
     );
     widget.onNudgeComplete?.call();
@@ -73,7 +75,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           // MATH FIX: Restored the 4.5 divisor to ensure the 5th item is half-visible.
-          final double itemWidth = constraints.maxWidth / 4.5;
+          final double itemWidth =
+              constraints.maxWidth / NoteConstants.toolbarItemWidthDivisor;
           return _buildScrollableRow(itemWidth);
         },
       ),
@@ -112,7 +115,12 @@ class _NoteToolbarState extends State<NoteToolbar> {
           Colors.black,
           Colors.transparent,
         ],
-        stops: [0.0, 0.05, 0.95, 1.0],
+        stops: [
+          NoteConstants.toolbarGradientStopEdge,
+          NoteConstants.toolbarGradientStopStart,
+          NoteConstants.toolbarGradientStopEnd,
+          NoteConstants.toolbarGradientStopOppositeEdge,
+        ],
       ).createShader(rect),
       blendMode: BlendMode.dstIn,
       child: SingleChildScrollView(
@@ -211,47 +219,43 @@ class _NoteToolbarState extends State<NoteToolbar> {
   /// Helper: Wraps the toolbar in the signature Glassmorphism effect and shadow.
   Widget _buildGlassContainer({required Widget child}) {
     return Container(
-      height: 56,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      height: NoteConstants.toolbarHeight,
+      margin: const EdgeInsets.fromLTRB(
+        NoteConstants.toolbarMarginH,
+        NoteConstants.toolbarMarginTop,
+        NoteConstants.toolbarMarginH,
+        NoteConstants.toolbarMarginBottom,
+      ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(NoteConstants.toolbarBorderRadius),
         color: isDark
-            ? Colors.white.withValues(alpha: 0.08)
-            : Colors.white.withValues(alpha: 0.7),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            ? Colors.white.withValues(alpha: NoteConstants.toolbarAlphaDark)
+            : Colors.white.withValues(alpha: NoteConstants.toolbarAlphaLight),
+        border: Border.all(
+          color: Colors.white.withValues(
+            alpha: NoteConstants.toolbarBorderAlpha,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(
+              alpha: NoteConstants.toolbarShadowAlpha,
+            ),
+            blurRadius: NoteConstants.toolbarShadowBlur,
+            offset: Offset(0, NoteConstants.toolbarShadowOffsetY),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(NoteConstants.toolbarBorderRadius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(
+            sigmaX: NoteConstants.toolbarBlurSigma,
+            sigmaY: NoteConstants.toolbarBlurSigma,
+          ),
           child: child,
         ),
       ),
     );
-  }
-}
-
-// In note_toolbar.dart
-class NoteToolbarController {
-  VoidCallback? _onCloseRequested;
-  bool isLocked = false; // The Safety Lock
-
-  void registerMenu(VoidCallback closeLogic) => _onCloseRequested = closeLogic;
-
-  void closeAllMenus() {
-    isLocked = true; // Lock immediately on teardown
-    _onCloseRequested?.call();
-  }
-
-  void dispose() {
-    isLocked = false;
-    _onCloseRequested = null;
   }
 }

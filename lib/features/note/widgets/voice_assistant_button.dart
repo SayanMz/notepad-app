@@ -1,49 +1,51 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-import 'package:notepad/features/note/controllers/note_controller.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+
+// ⚡ IMPORT THE EXACT SATELLITE CONTROLLERS
+import 'package:notepad/features/note/controllers/note_voice_controller.dart';
+import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 
 class VoiceAssistantButton extends StatefulWidget {
   const VoiceAssistantButton({
     super.key,
-    required this.noteController,
     required this.lottieController,
-    required this.isListeningNotifier,
-    required this.aiButtonOpacityNotifier,
-    required this.toggleListening,
+    required this.voiceController, // ⚡ Pass the Voice driver directly
+    required this.uiController, // ⚡ Pass the UI driver directly
+    required this.contentController, // Needed to pass down to toggleListening
   });
 
-  final NoteController noteController;
   final AnimationController lottieController;
-  final ValueListenable<bool> isListeningNotifier;
-  final ValueListenable<double> aiButtonOpacityNotifier;
-  final VoidCallback toggleListening;
+  final NoteVoiceController voiceController;
+  final NoteUIController uiController;
+  final QuillController contentController;
 
   @override
   State<VoiceAssistantButton> createState() => _VoiceAssistantButtonState();
 }
 
 class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
-  // JOB 1: Physical Feedback (The "Reflex")
   final ValueNotifier<bool> _isPressedNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
-    // Move Lottie control to a dedicated listener instead of the build method
-    widget.noteController.isProcessingVoice.addListener(_handleLottieState);
+    // ⚡ Child directly listens to its controller's niche data stream!
+    widget.voiceController.isProcessingVoice.addListener(_handleLottieState);
   }
 
   @override
   void dispose() {
-    widget.noteController.isProcessingVoice.removeListener(_handleLottieState);
+    widget.voiceController.isProcessingVoice.removeListener(_handleLottieState);
     _isPressedNotifier.dispose();
     super.dispose();
   }
 
   void _handleLottieState() {
-    if (widget.noteController.isProcessingVoice.value) {
+    if (widget.voiceController.isProcessingVoice.value) {
       if (!widget.lottieController.isAnimating) {
         widget.lottieController.repeat();
       }
@@ -56,24 +58,25 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
+      // ⚡ Merging the explicit controller streams directly inside the child!
       listenable: Listenable.merge([
-        widget.isListeningNotifier,
-        widget.noteController.isProcessingVoice,
-        widget.aiButtonOpacityNotifier,
+        widget.voiceController.isListening,
+        widget.voiceController.isProcessingVoice,
+        widget.uiController.aiButtonOpacity,
         _isPressedNotifier,
       ]),
       builder: (context, _) {
-        final isListening = widget.isListeningNotifier.value;
-        final isProcessing = widget.noteController.isProcessingVoice.value;
-        final currentOpacity = widget.aiButtonOpacityNotifier.value;
+        final isListening = widget.voiceController.isListening.value;
+        final isProcessing = widget.voiceController.isProcessingVoice.value;
+        final currentOpacity = widget.uiController.aiButtonOpacity.value;
         final isPressed = _isPressedNotifier.value;
 
         return AnimatedOpacity(
           opacity: currentOpacity,
-          duration: const Duration(milliseconds: 250),
+          duration: AnimationConstants.fast,
           curve: Curves.easeInOut,
           child: IgnorePointer(
-            ignoring: currentOpacity <= 0.2,
+            ignoring: currentOpacity <= UIConstants.voiceButtonHiddenThreshold,
             child: Listener(
               onPointerDown: (_) => _isPressedNotifier.value = true,
               onPointerUp: (_) => _isPressedNotifier.value = false,
@@ -83,46 +86,59 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                     ? null
                     : () {
                         HapticFeedback.lightImpact();
-                        widget.toggleListening();
+                        // ⚡ Fire execution directly into the business controller!
+                        widget.voiceController.toggleListening(
+                          widget.contentController,
+                        );
                       },
-                // JOB 2: Physical "Squish" on tap
                 child: AnimatedScale(
-                  scale: isPressed ? 0.92 : 1.0,
-                  duration: const Duration(milliseconds: 100),
+                  scale: isPressed ? UIConstants.voiceButtonPressedScale : 1.0,
+                  duration: AnimationConstants.fast,
                   curve: Curves.easeOut,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    // JOB 3: System "Expansion" when microphone is active
-                    height: isListening ? 80.0 : 72.0,
-                    width: isListening ? 80.0 : 72.0,
+                    duration: AnimationConstants.medium,
+                    height: isListening
+                        ? UIConstants.voiceButtonListeningSize
+                        : UIConstants.voiceButtonIdleSize,
+                    width: isListening
+                        ? UIConstants.voiceButtonListeningSize
+                        : UIConstants.voiceButtonIdleSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? Colors.grey[900] : Colors.white,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey[900]
+                          : Colors.white,
                       boxShadow: [
-                        // Different shadows for different jobs
                         if (isListening)
                           BoxShadow(
                             color: Colors.purpleAccent.withValues(alpha: 0.4),
-                            blurRadius: 30,
-                            spreadRadius: 8,
+                            blurRadius:
+                                UIConstants.voiceButtonListeningShadowBlur,
+                            spreadRadius:
+                                UIConstants.voiceButtonListeningShadowSpread,
                           )
                         else if (isPressed)
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 10,
-                            spreadRadius: 2,
+                            blurRadius:
+                                UIConstants.voiceButtonPressedShadowBlur,
+                            spreadRadius:
+                                UIConstants.voiceButtonPressedShadowSpread,
                           ),
                       ],
                     ),
                     child: Center(
                       child: RepaintBoundary(
-                        // ISOLATE: Keeps the 60fps loop independent
                         child: Lottie.asset(
                           'assets/lotties/Ai_Assistant.json',
                           controller: widget.lottieController,
                           addRepaintBoundary: true,
-                          height: isListening ? 70 : 60,
-                          width: isListening ? 70 : 60,
+                          height: isListening
+                              ? UIConstants.voiceButtonListeningAssetSize
+                              : UIConstants.voiceButtonIdleAssetSize,
+                          width: isListening
+                              ? UIConstants.voiceButtonListeningAssetSize
+                              : UIConstants.voiceButtonIdleAssetSize,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -136,6 +152,4 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
       },
     );
   }
-
-  bool get isDark => Theme.of(context).brightness == Brightness.dark;
 }

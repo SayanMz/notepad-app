@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
@@ -61,14 +63,14 @@ class _NoteAppBarState extends State<NoteAppBar> {
     return AppBar(
       surfaceTintColor: Colors.transparent,
       backgroundColor: widget.isDark
-          ? const Color(0xFF1A1A1A)
-          : const Color(0xFFF8FAFC),
+          ? NoteConstants.appBarBackgroundDark
+          : NoteConstants.appBarBackgroundLight,
 
       actions: [
         /// SAVE INDICATOR (isolated, efficient)
         if (!widget.readOnly) ...[
           Padding(
-            padding: const EdgeInsets.only(right: UIConstants.paddingSM),
+            padding: const EdgeInsets.only(right: NoteConstants.appBarRightPadding),
             child: SaveIndicator(saveState: widget.saveState),
           ),
           ListenableBuilder(
@@ -98,7 +100,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
             },
           ),
           MenuAnchor(
-            alignmentOffset: const Offset(0, 8),
+            alignmentOffset: const Offset(0, NoteConstants.appBarMenuOffsetY),
             builder: (context, menuController, child) {
               return IconButton(
                 icon: Icon(
@@ -135,7 +137,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          duration: UIConstants.snackbarShort,
+                        duration: AnimationConstants.snackbarShort,
                           content: Text('Could not export PDF: $e'),
                         ),
                       );
@@ -169,7 +171,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          duration: UIConstants.snackbarShort,
+                        duration: AnimationConstants.snackbarShort,
                           content: Text('Could not export PDF: $e'),
                         ),
                       );
@@ -185,18 +187,18 @@ class _NoteAppBarState extends State<NoteAppBar> {
       ],
 
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(UIConstants.progressBarHeight),
+        preferredSize: const Size.fromHeight(NoteConstants.progressBarHeight),
         child: ValueListenableBuilder(
           valueListenable: isSavingNotifier,
           builder: (_, isSaving, _) {
             if (!isSaving) {
-              return const SizedBox(height: UIConstants.progressBarHeight);
+              return const SizedBox(height: NoteConstants.progressBarHeight);
             }
 
             return LinearProgressIndicator(
               minHeight: UIConstants.progressBarHeight,
               backgroundColor: context.colorScheme.primary.withValues(
-                alpha: 0.6,
+                alpha: NoteConstants.progressBarBackgroundAlpha,
               ),
               valueColor: AlwaysStoppedAnimation<Color>(
                 context.colorScheme.primary,

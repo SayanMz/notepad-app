@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
 
 /// Friendly wrapper for Groq availability/configuration failures.
@@ -79,7 +80,7 @@ class GroqService {
               'temperature': 0.0,
             }),
           )
-          .timeout(const Duration(seconds: 20));
+          .timeout(AnimationConstants.voiceRequestTimeout);
 
       if (response.statusCode == 200) {
         final content = jsonDecode(

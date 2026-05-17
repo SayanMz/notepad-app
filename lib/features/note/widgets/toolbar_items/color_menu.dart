@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/features/note/widgets/note_toolbar.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 import 'draggable_toolbar_color_picker.dart';
 

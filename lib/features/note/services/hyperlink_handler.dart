@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/note/widgets/toolbar/hyperlink_title_dialog.dart';
+import 'package:notepad/features/note/widgets/toolbar_items/hyperlink_title_dialog.dart';
 
 class HyperlinkHandler {
   /// The exact hyperlink logic from the monolithic file, now decoupled.

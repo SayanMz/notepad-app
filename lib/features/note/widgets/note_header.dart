@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:notepad/features/note/note_constants.dart';
 
 class NoteHeader extends StatelessWidget {
   const NoteHeader({
@@ -25,19 +26,19 @@ class NoteHeader extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(
-                  left: 12.0,
-                  right: 8.0,
-                  bottom: 12.0,
+                  left: NoteConstants.titlePaddingLeft,
+                  right: NoteConstants.titlePaddingRight,
+                  bottom: NoteConstants.titlePaddingBottom,
                 ),
                 child: TextField(
                   controller: titleController,
                   textAlign: TextAlign.start,
                   showCursor: !readOnly,
                   style: GoogleFonts.inter(
-                    fontSize: 32,
-                    height: 1.5,
+                    fontSize: NoteConstants.titleFontSize,
+                    height: NoteConstants.titleLineHeight,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
+                    letterSpacing: NoteConstants.titleLetterSpacing,
                     color: isDark ? Colors.white70 : Colors.black87,
                   ),
                   decoration: const InputDecoration(
@@ -51,7 +52,9 @@ class NoteHeader extends StatelessWidget {
             ),
             if (!readOnly)
               Padding(
-                padding: const EdgeInsets.only(right: 8.0),
+                padding: const EdgeInsets.only(
+                  right: NoteConstants.titleIconPaddingRight,
+                ),
                 child: IconButton(
                   onPressed: onToggleEdit,
                   icon: Icon(
