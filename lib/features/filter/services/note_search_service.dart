@@ -1,7 +1,7 @@
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/features/search/models/search_date_selection.dart';
-import 'package:notepad/features/search/models/search_state.dart';
+import 'package:notepad/features/filter/models/search_date_selection.dart';
+import 'package:notepad/features/filter/models/search_state.dart';
 
 /// Runs a synchronous search on the active notes list using chronological windowing.
 List<NotesSection> searchSync(SearchState searchState) {

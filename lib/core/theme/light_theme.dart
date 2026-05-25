@@ -17,20 +17,27 @@ class LightTheme {
     brightness: Brightness.light,
 
     /// Global shadow styling
-    shadowColor: AppColors.tealDark.withValues(alpha: 0.4),
+    shadowColor: AppColors.tealDark.withValues(
+      alpha: UIConstants.themeShadowAlpha,
+    ),
 
     /// Text selection (cursor + highlight)
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: AppColors.teal,
-      selectionColor: AppColors.teal.withValues(alpha: 0.3),
+      selectionColor: AppColors.teal.withValues(
+        alpha: UIConstants.themeSelectionAlpha,
+      ),
       selectionHandleColor: AppColors.teal,
     ),
 
     /// Input field styling
     inputDecorationTheme: InputDecorationTheme(
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: AppColors.teal, width: 1.5),
+        borderRadius: BorderRadius.circular(UIConstants.themeInputRadius),
+        borderSide: const BorderSide(
+          color: AppColors.teal,
+          width: UIConstants.themeInputBorderWidth,
+        ),
       ),
     ),
 
@@ -56,8 +63,11 @@ class LightTheme {
       color: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.lightBorder, width: 1.5),
+        borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+        side: const BorderSide(
+          color: AppColors.lightBorder,
+          width: UIConstants.themeCardBorderWidth,
+        ),
       ),
     ),
 
@@ -65,14 +75,14 @@ class LightTheme {
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: AppColors.tealDark,
       foregroundColor: Colors.white,
-      elevation: 2,
-      highlightElevation: 4,
+      elevation: UIConstants.themeFabElevation,
+      highlightElevation: UIConstants.themeFabHighlightElevation,
     ),
 
     /// SnackBars
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xFF2F3439),
+      backgroundColor: AppColors.lightSnackBar,
       contentTextStyle: const TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.w500,

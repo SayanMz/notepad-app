@@ -25,12 +25,10 @@ class ColorMenu extends StatefulWidget {
 
 class _ColorMenuState extends State<ColorMenu> {
   OverlayEntry? _overlayEntry;
+  late final MenuController _menuController = MenuController();
 
   // In color_menu.dart
   void _toggleCustomPicker() {
-    // Guard: If the page is already closing, do not allow a new overlay
-    if (widget.toolbarController.isLocked) return;
-
     if (_overlayEntry != null) {
       _closePicker();
     } else {
@@ -42,14 +40,16 @@ class _ColorMenuState extends State<ColorMenu> {
   void initState() {
     super.initState();
     // Register the internal close picker logic with the controller
-    widget.toolbarController.registerMenu(_closePicker);
+    widget.toolbarController.register(_closePicker);
   }
 
   void _closePicker() {
-    if (_overlayEntry == null) return;
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    widget.focusNode.requestFocus(); // Restore focus to editor
+    if (_overlayEntry != null) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    }
+    // Ensure the parent MenuAnchor also closes
+    if (_menuController.isOpen) _menuController.close();
   }
 
   void _openPicker() {
@@ -78,43 +78,46 @@ class _ColorMenuState extends State<ColorMenu> {
 
   @override
   Future<void> dispose() async {
-    _overlayEntry?.remove();
-
+    widget.toolbarController.unregister(_closePicker);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MenuAnchor(
-      alignmentOffset: const Offset(-25, -160),
-      builder: (context, menuController, child) => IconButton(
-        icon: const Icon(Icons.palette, color: Colors.redAccent),
-        onPressed: () => menuController.isOpen
-            ? menuController.close()
-            : menuController.open(),
-      ),
-      menuChildren: [
-        SizedBox(
-          width: UIConstants.toolbarMenuWidth,
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            children: [
-              _buildColorCircle(
-                context,
-                widget.isDark ? Colors.white : Colors.black,
-                isDefault: true,
-              ),
-              _buildColorCircle(context, Colors.red),
-              _buildColorCircle(context, Colors.pinkAccent),
-              _buildColorCircle(context, Colors.amber),
-              _buildColorCircle(context, Colors.green),
-              _buildColorCircle(context, Colors.blue),
-              _buildColorCircle(context, Colors.purple),
-              _buildColorCircle(context, Colors.transparent, isRainbow: true),
-            ],
-          ),
+    return ToolbarMenuWrapper(
+      toolbarController: widget.toolbarController,
+      menuController: _menuController,
+      child: MenuAnchor(
+        controller: _menuController,
+        alignmentOffset: const Offset(-25, -160),
+        builder: (context, controller, child) => IconButton(
+          icon: const Icon(Icons.palette, color: Colors.redAccent),
+          onPressed: () =>
+              controller.isOpen ? controller.close() : controller.open(),
         ),
-      ],
+        menuChildren: [
+          SizedBox(
+            width: UIConstants.toolbarMenuWidth,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                _buildColorCircle(
+                  context,
+                  widget.isDark ? Colors.white : Colors.black,
+                  isDefault: true,
+                ),
+                _buildColorCircle(context, Colors.red),
+                _buildColorCircle(context, Colors.pinkAccent),
+                _buildColorCircle(context, Colors.amber),
+                _buildColorCircle(context, Colors.green),
+                _buildColorCircle(context, Colors.blue),
+                _buildColorCircle(context, Colors.purple),
+                _buildColorCircle(context, Colors.transparent, isRainbow: true),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

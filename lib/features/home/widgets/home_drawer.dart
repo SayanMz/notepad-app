@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/theme/app_colors.dart';
+import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/services/auth_controller.dart';
-import 'package:notepad/features/home/services/google_drive_service.dart';
 import 'package:notepad/features/home/widgets/spinning_sync_icon.dart';
 import 'package:notepad/features/home/widgets/storage_progress_bar.dart';
 import 'package:notepad/core/services/context_extensions.dart';
@@ -10,19 +11,16 @@ import 'package:notepad/core/services/context_extensions.dart';
 class HomeDrawer extends StatelessWidget {
   final HomeController controller;
   final bool isDark;
-  final Future<void> Function(Future<void> Function()) handleCloudAction;
 
-  const HomeDrawer({
-    super.key,
-    required this.controller,
-    required this.isDark,
-    required this.handleCloudAction,
-  });
+  const HomeDrawer({super.key, required this.controller, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 90, right: 16),
+      margin: const EdgeInsets.only(
+        top: HomeConstants.drawerMarginTop,
+        right: HomeConstants.drawerMarginRight,
+      ),
       child: Align(
         alignment: Alignment.topRight,
         child: ListenableBuilder(
@@ -30,14 +28,18 @@ class HomeDrawer extends StatelessWidget {
 
           builder: (context, _) {
             return Material(
-              elevation: 16,
-              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              elevation: HomeConstants.drawerElevation,
+              color: isDark ? AppColors.homeDrawerSurface : Colors.white,
+              borderRadius: BorderRadius.circular(
+                HomeConstants.drawerBorderRadius,
+              ),
               clipBehavior: Clip.antiAlias,
               child: Container(
-                width: MediaQuery.of(context).size.width * 0.65,
+                width: context.screenSize.width * HomeConstants.drawerWidthFactor,
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.7,
+                  maxHeight:
+                      context.screenSize.height *
+                      HomeConstants.drawerMaxHeightFactor,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -49,14 +51,12 @@ class HomeDrawer extends StatelessWidget {
                       _HomeDrawerActions(
                         isDark: isDark,
                         controller: controller.authController,
-                        onBackup: () => handleCloudAction(
-                          () => controller.runManualBackup(),
-                        ),
-                        onRestore: () => handleCloudAction(
-                          () => controller.runManualRestore(),
-                        ),
+                        onBackup: () => controller.executeBackup(),
+                        onRestore: () => controller.executeRestore(),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(
+                        height: HomeConstants.drawerHeaderSectionGap,
+                      ),
                     ],
                   ),
                 ),
@@ -69,9 +69,6 @@ class HomeDrawer extends StatelessWidget {
   }
 }
 
-// controller.syncStatusNotifier,
-//         controller.statusColorNotifier,
-
 class _HomeDrawerHeader extends StatelessWidget {
   const _HomeDrawerHeader({required this.isDark, required this.controller});
   final bool isDark;
@@ -80,9 +77,15 @@ class _HomeDrawerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stats = controller.authController.storageStats;
-    final user = googleDriveService.currentUser;
+    final bool isLoggedIn = controller.authController.isAuthenticated;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.fromLTRB(
+        HomeConstants.drawerHeaderPaddingH,
+        HomeConstants.drawerHeaderPaddingT,
+        HomeConstants.drawerHeaderPaddingH,
+        HomeConstants.drawerHeaderPaddingB,
+      ),
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.04)
@@ -92,15 +95,18 @@ class _HomeDrawerHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            user == null ? Icons.cloud_off_outlined : Icons.cloud_done,
-            size: 28,
+            isLoggedIn ? Icons.cloud_done : Icons.cloud_off_outlined,
+            size: HomeConstants.drawerIconSize,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: HomeConstants.drawerHeaderSectionGap),
           Text(
             controller.authController.displayName ?? 'Not signed in',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: HomeConstants.drawerHeaderTitleFontSize,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: HomeConstants.drawerHeaderTightGap),
           Text(
             controller.authController.displayEmail ??
                 'Connect Google Drive to sync',
@@ -108,17 +114,17 @@ class _HomeDrawerHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: HomeConstants.drawerHeaderBlockGap),
           StorageProgressBar(progress: stats['percent']),
-          const SizedBox(height: 8),
+          const SizedBox(height: HomeConstants.drawerSectionGap),
           Text(
             stats['text'],
             style: TextStyle(
-              fontSize: 12,
+              fontSize: HomeConstants.drawerHeaderStatusFontSize,
               color: isDark ? Colors.white70 : Colors.black54,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: HomeConstants.drawerHeaderSectionGap),
           ListenableBuilder(
             listenable: Listenable.merge([
               controller.syncStatusNotifier,
@@ -128,6 +134,7 @@ class _HomeDrawerHeader extends StatelessWidget {
             builder: (context, _) {
               final isSaving = controller.isSavingNotifier.value;
               final statusColor = controller.statusColorNotifier.value;
+              final statusText = controller.syncStatusNotifier.value;
               return Row(
                 children: [
                   if (isSaving)
@@ -140,13 +147,13 @@ class _HomeDrawerHeader extends StatelessWidget {
                           statusColor ??
                           (isDark ? Colors.white70 : Colors.black54),
                     ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: UIConstants.paddingSM),
                   Text(
-                    user == null
+                    !isLoggedIn
                         ? 'Cloud sync'
                         : isSaving
                         ? 'Working...'
-                        : controller.syncStatusNotifier.value,
+                        : statusText,
                     style: TextStyle(
                       color:
                           statusColor ??
@@ -178,13 +185,15 @@ class _HomeDrawerActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = googleDriveService.currentUser;
+    final bool isLoggedIn = controller.isAuthenticated;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: HomeConstants.drawerActionsPaddingH,
+      ),
       child: Column(
         children: [
-          if (user != null) ...[
+          if (isLoggedIn) ...[
             _DrawerActionTile(
               icon: Icons.backup_rounded,
               title: 'Backup now',
@@ -192,7 +201,7 @@ class _HomeDrawerActions extends StatelessWidget {
               onTap: onBackup,
               isDark: isDark,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: HomeConstants.drawerSectionGap),
             _DrawerActionTile(
               icon: Icons.restore_rounded,
               title: 'Restore backup',
@@ -200,19 +209,19 @@ class _HomeDrawerActions extends StatelessWidget {
               onTap: onRestore,
               isDark: isDark,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: HomeConstants.drawerSectionGap),
           ],
           _DrawerActionTile(
-            icon: user == null
-                ? Icons.account_circle_outlined
-                : Icons.exit_to_app_rounded,
+            icon: isLoggedIn
+                ? Icons.exit_to_app_rounded
+                : Icons.account_circle_outlined,
 
-            title: user != null ? 'Sign out' : 'Sign in',
-            subtitle: user != null
+            title: isLoggedIn ? 'Sign out' : 'Sign in',
+            subtitle: isLoggedIn
                 ? 'Disconnect this Google account'
                 : 'Connect your Google account',
             onTap: () async {
-              if (user != null) {
+              if (isLoggedIn) {
                 await controller.logout();
               } else {
                 await controller.login();
@@ -244,7 +253,9 @@ class _DrawerActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(HomeConstants.drawerActionRadius),
+      ),
       leading: Icon(
         icon,
         color: isDark ? Colors.white : context.colorScheme.primary,

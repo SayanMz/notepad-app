@@ -72,10 +72,16 @@ List<NotesSection> _parseNotesTask(String jsonString) {
 // --- CLOUD EXPORT / IMPORT ---
 Future<String> exportNotesToJSON(List<NotesSection> notes) async {
   try {
-    return await compute(_serializeNotesTask, notes);
+    // If under 200 notes, parse instantly on the main thread.
+    // If massive, pay the 20ms spawn tax to protect the UI frame rate.
+    if (notes.length < 200) {
+      return _serializeNotesTask(notes);
+    } else {
+      return await compute(_serializeNotesTask, notes);
+    }
   } catch (e) {
     debugPrint('StorageService Isolate Error (Export): $e');
-    rethrow; // Let the repository handle the UI feedback
+    rethrow;
   }
 }
 
@@ -152,6 +158,19 @@ Future<void> deleteNote(String id) async {
   } catch (e) {
     debugPrint(
       'StorageService Error (deleteNote): Failed to delete note $id. $e',
+    );
+  }
+}
+
+Future<void> deleteNotesBulk(Set<String> ids) async {
+  if (ids.isEmpty) return;
+  try {
+    _ensureNotesBoxReady();
+    // This is the massive O(1) disk optimization the PDF recommends
+    await _notesBox.deleteAll(ids);
+  } catch (e) {
+    debugPrint(
+      'StorageService Error (deleteNotesBulk): Failed to bulk delete. $e',
     );
   }
 }

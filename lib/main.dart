@@ -4,14 +4,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-
 import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
 import 'package:notepad/core/bootstrap/bootstrap_app.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
+import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
 import 'package:notepad/features/home/home_page.dart';
-import 'package:notepad/core/data/notes_repository.dart';
 
 /// ===========================================================================
 /// APPLICATION ENTRY POINT
@@ -75,28 +75,32 @@ class MyApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: appSettingsRepository,
       builder: (_, settings) {
-        return MaterialApp(
-          title: 'My Notepad',
-          debugShowCheckedModeBanner: false,
-          //showPerformanceOverlay: true,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: appSettingsRepository.themeMode,
-          home: const HomePage(),
-          scaffoldMessengerKey: uiNotifier.scaffoldMessengerKey,
-          supportedLocales: const [Locale('en')],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            FlutterQuillLocalizations.delegate,
-          ],
-          scrollBehavior: const MaterialScrollBehavior().copyWith(
-            dragDevices: {
-              PointerDeviceKind.touch,
-              PointerDeviceKind.mouse,
-              PointerDeviceKind.stylus,
-            },
+        return RepaintBoundary(
+          key: ThemeFader.appBoundaryKey,
+          child: MaterialApp(
+            title: 'My Notepad',
+            debugShowCheckedModeBanner: false,
+            //showPerformanceOverlay: true,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: appSettingsRepository.themeMode,
+            home: const HomePage(),
+            scaffoldMessengerKey: uiNotifier.scaffoldMessengerKey,
+            supportedLocales: const [Locale('en')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              FlutterQuillLocalizations.delegate,
+            ],
+            scrollBehavior: const MaterialScrollBehavior().copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.stylus,
+                PointerDeviceKind.trackpad,
+              },
+            ),
           ),
         );
       },

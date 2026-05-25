@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:notepad/core/constants/editor_constants.dart';
+import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 
 class PremiumColorPicker extends StatefulWidget {
   final Color initialColor;
@@ -42,13 +45,20 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final availableWidth = (screenSize.width * 0.85).clamp(280.0, 360.0);
-    final maxHeight = screenSize.height * 0.85;
+    final screenSize = context.screenSize;
+    final availableWidth =
+        (screenSize.width * EditorConstants.pickerWidthFactor).clamp(
+          EditorConstants.pickerMinWidth,
+          EditorConstants.pickerMaxWidth,
+        );
+    final maxHeight =
+        screenSize.height * EditorConstants.pickerMaxHeightFactor;
     final displayColors = widget.recentColors.take(widget.maxColors).toList();
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = context.colorScheme;
 
-    final surfaceColor = widget.isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final surfaceColor = widget.isDark
+        ? AppColors.darkDialogSurface
+        : Colors.white;
     final borderColor = widget.isDark
         ? Colors.white.withValues(alpha: 0.1)
         : Colors.black.withValues(alpha: 0.05);
@@ -63,7 +73,8 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
           double newX = dialogOffsetNotifier.value.dx + details.delta.dx;
           double newY = dialogOffsetNotifier.value.dy + details.delta.dy;
           final double maxX = (screenSize.width - availableWidth) / 2;
-          final double maxY = (screenSize.height - 350) / 2;
+          final double maxY =
+              (screenSize.height - EditorConstants.pickerDialogHeight) / 2;
 
           dialogOffsetNotifier.value = Offset(
             newX.clamp(-maxX, maxX),
@@ -76,22 +87,39 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
             child: Material(
               type: MaterialType.transparency,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(24.0),
+                borderRadius: BorderRadius.circular(
+                  EditorConstants.pickerRadius,
+                ),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  filter: ImageFilter.blur(
+                    sigmaX: EditorConstants.pickerBlurSigma,
+                    sigmaY: EditorConstants.pickerBlurSigma,
+                  ),
                   child: Container(
                     width: availableWidth,
                     constraints: BoxConstraints(maxHeight: maxHeight),
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.all(
+                      EditorConstants.pickerPadding,
+                    ),
                     decoration: BoxDecoration(
                       color: surfaceColor,
-                      borderRadius: BorderRadius.circular(24.0),
-                      border: Border.all(color: borderColor, width: 1),
+                      borderRadius: BorderRadius.circular(
+                        EditorConstants.pickerRadius,
+                      ),
+                      border: Border.all(
+                        color: borderColor,
+                        width: EditorConstants.pickerBorderWidth,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 32,
-                          offset: const Offset(0, 16),
+                          color: Colors.black.withValues(
+                            alpha: EditorConstants.pickerShadowAlpha,
+                          ),
+                          blurRadius: EditorConstants.pickerShadowBlur,
+                          offset: const Offset(
+                            0,
+                            EditorConstants.pickerShadowOffsetY,
+                          ),
                         ),
                       ],
                     ),
@@ -102,19 +130,23 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                         children: [
                           Center(
                             child: Container(
-                              width: 40,
-                              height: 4,
-                              margin: const EdgeInsets.only(bottom: 16),
+                              width: EditorConstants.pickerHandleWidth,
+                              height: EditorConstants.pickerHandleHeight,
+                              margin: const EdgeInsets.only(
+                                bottom: EditorConstants.pickerHandleBottomMargin,
+                              ),
                               decoration: BoxDecoration(
                                 color: colorScheme.primary,
-                                borderRadius: BorderRadius.circular(2),
+                                borderRadius: BorderRadius.circular(
+                                  EditorConstants.pickerHandleRadius,
+                                ),
                               ),
                             ),
                           ),
                           Text(
                             'Color',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: EditorConstants.pickerTitleFontSize,
                               fontWeight: FontWeight.bold,
                               color: widget.isDark
                                   ? Colors.white
@@ -123,19 +155,24 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                           ),
                           const SizedBox(height: 16),
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(
+                              12.0,
+                            ),
                             child: ColorPicker(
                               pickerColor: temporaryColor,
                               onColorChanged: (color) {
                                 setState(() => temporaryColor = color);
                                 widget.onPreviewChanged(color);
                               },
-                              pickerAreaHeightPercent: 0.25,
+                              pickerAreaHeightPercent:
+                                  EditorConstants.pickerAreaHeightPercent,
                               enableAlpha: false,
                               displayThumbColor: true,
                               labelTypes: const [],
                               portraitOnly: true,
-                              colorPickerWidth: availableWidth - 40,
+                              colorPickerWidth:
+                                  availableWidth -
+                                  EditorConstants.pickerInternalWidthPadding,
                             ),
                           ),
                           _buildActionRow(displayColors),
@@ -161,7 +198,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
             Text(
               "Recent",
               style: TextStyle(
-                fontSize: 13,
+                fontSize: EditorConstants.pickerRecentLabelFontSize,
                 fontWeight: FontWeight.w600,
                 color: widget.isDark ? Colors.white54 : Colors.black45,
               ),
@@ -178,7 +215,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                     'Apply',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2C9C8D),
+                      color: AppColors.colorPickerApply,
                     ),
                   ),
                 ),
@@ -186,10 +223,10 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: EditorConstants.pickerRecentGap),
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: EditorConstants.pickerRecentGap,
+          runSpacing: EditorConstants.pickerRecentGap,
           children: displayColors
               .map(
                 (color) => GestureDetector(
@@ -198,8 +235,8 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                     widget.onPreviewChanged(color);
                   },
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: EditorConstants.pickerSwatchSize,
+                    height: EditorConstants.pickerSwatchSize,
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,

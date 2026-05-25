@@ -1,4 +1,4 @@
-import 'package:notepad/features/search/models/search_date_selection.dart';
+import 'package:notepad/features/filter/models/search_date_selection.dart';
 
 /// Holds the date/time filtering portion of search state.
 class SearchFilters {

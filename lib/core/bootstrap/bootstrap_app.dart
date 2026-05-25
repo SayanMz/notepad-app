@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/ui_constants.dart';
 
 /// ---------------------------------------------------------------------------
 /// BOOTSTRAP LOADING VIEW
@@ -27,7 +28,7 @@ class BootstrapLoadingView extends StatelessWidget {
             /// Loading indicator
             CircularProgressIndicator(),
 
-            SizedBox(height: 16),
+            SizedBox(height: UIConstants.paddingLG),
 
             /// Status message
             Text('Starting Notepad...'),
@@ -70,29 +71,32 @@ class BootstrapErrorView extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(UIConstants.paddingXXL),
 
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               /// Error icon
-              const Icon(Icons.error_outline, size: 48),
+              const Icon(Icons.error_outline, size: UIConstants.iconXL),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: UIConstants.paddingLG),
 
               /// Primary error title
               const Text(
                 'Notepad could not start',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: UIConstants.headerTitleFontSize - 2,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: UIConstants.paddingMD),
 
               /// Detailed error message
               Text(message, textAlign: TextAlign.center),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: UIConstants.paddingXLarge),
 
               /// Retry button to re-trigger bootstrap
               ElevatedButton(onPressed: onRetry, child: const Text('Retry')),

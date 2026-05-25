@@ -19,20 +19,25 @@ class DarkTheme {
     /// Text selection styling
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: AppColors.amber,
-      selectionColor: AppColors.teal.withValues(alpha: 0.3),
+      selectionColor: AppColors.teal.withValues(
+        alpha: UIConstants.themeSelectionAlpha,
+      ),
       selectionHandleColor: AppColors.teal,
     ),
 
     /// Input fields
     inputDecorationTheme: InputDecorationTheme(
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(30),
-        borderSide: const BorderSide(color: AppColors.teal, width: 1.5),
+        borderRadius: BorderRadius.circular(UIConstants.themeInputRadius),
+        borderSide: const BorderSide(
+          color: AppColors.teal,
+          width: UIConstants.themeInputBorderWidth,
+        ),
       ),
     ),
 
     /// Shadows
-    shadowColor: Colors.black.withValues(alpha: 0.4),
+    shadowColor: Colors.black.withValues(alpha: UIConstants.themeShadowAlpha),
 
     /// Background
     scaffoldBackgroundColor: AppColors.darkScaffold,
@@ -49,10 +54,10 @@ class DarkTheme {
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: AppColors.amber,
       foregroundColor: AppColors.darkScaffold,
-      elevation: 2,
-      highlightElevation: 4,
+      elevation: UIConstants.themeFabElevation,
+      highlightElevation: UIConstants.themeFabHighlightElevation,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
       ),
     ),
 
@@ -84,7 +89,7 @@ class DarkTheme {
 
       /// Text colors
       onSurface: AppColors.darkText,
-      onSurfaceVariant: Colors.grey
+      onSurfaceVariant: Colors.grey,
     ),
   );
 }

@@ -52,6 +52,7 @@ class NoteDocumentService {
   static Future<ShareResult> shareNotesAsPdf(
     Iterable<NotesSection> notes, {
     String? text,
+    required String title,
   }) {
     return NotePdfExporter.shareNotesAsPdf(notes, text: text);
   }
@@ -97,6 +98,6 @@ class NoteDocumentService {
     return NoteHtmlExporter.shareNoteAsHtml(
       title: title,
       htmlContent: htmlContent,
-    ).then((_) {});
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
@@ -18,11 +20,16 @@ class AuthController extends ChangeNotifier {
   /// Real authentication state derived from GoogleSignIn.
   bool get isAuthenticated => googleDriveService.currentUser != null;
 
+  // If you need actual user details down the line:
+  // GoogleSignInAccount? get currentUser => googleDriveService.currentUser;
+
   // --- METHODS ---
 
   /// Initializes auth state during app startup.
   Future<void> initialize() async {
-    await googleDriveService.signIn();
+    if (Platform.isAndroid || Platform.isIOS) {
+      await googleDriveService.signIn();
+    }
 
     if (isAuthenticated) {
       await fetchFreshStorageStats();

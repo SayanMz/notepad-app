@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:notepad/features/search/models/search_filters.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
+import 'package:notepad/features/filter/models/search_date_selection.dart';
+import 'package:notepad/features/filter/models/search_filters.dart';
+import 'package:notepad/features/filter/search_constants.dart';
 
 class SearchFilterBottomSheet extends StatefulWidget {
   const SearchFilterBottomSheet({required this.initialFilters, super.key});
@@ -14,11 +19,11 @@ class SearchFilterBottomSheet extends StatefulWidget {
 
 class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   late SearchFilters _filterState;
-  bool get isDarkMode => Theme.of(context).brightness == Brightness.dark;
+  bool get isDarkMode => context.isDark;
 
   // Precomputed values for dropdown menus
   static final List<String> _dayItems = List.generate(
-    31,
+    SearchConstants.filterDayOptionCount,
     (index) => (index + 1).toString().padLeft(2, '0'),
   );
   static final List<String> _monthItems = [
@@ -36,15 +41,15 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     'DEC',
   ];
   static final List<String> _yearItems = List.generate(
-    10,
+    SearchConstants.filterYearOptionCount,
     (index) => (DateTime.now().year - index).toString(),
   );
   static final List<String> _hourItems = List.generate(
-    24,
+    SearchConstants.filterHourOptionCount,
     (index) => index.toString().padLeft(2, '0'),
   );
   static final List<String> _minuteItems = List.generate(
-    60,
+    SearchConstants.filterMinuteOptionCount,
     (index) => index.toString().padLeft(2, '0'),
   );
 
@@ -78,32 +83,48 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     }
 
     // Handle standard padding for Year (4) and Day/Time (2)
-    final padding = (availableItems == _yearItems) ? 4 : 2;
+    final padding = (availableItems == _yearItems)
+        ? SearchConstants.filterYearDisplayPadding
+        : SearchConstants.filterDateTimeDisplayPadding;
     return modelValue.toString().padLeft(padding, '0');
   }
 
   void _submitFilters() {
-    if (!_filterState.start.hasValues ||
-        (_filterState.isRangeSearch && !_filterState.end.hasValues)) {
-      return;
-    }
     Navigator.pop(context, _filterState);
+  }
+
+  bool get _isSubmitEnabled {
+    if (!_filterState.start.hasValues) return false;
+    if (!_filterState.isRangeSearch) return true;
+    if (!_filterState.end.hasValues) return false;
+
+    // Convert selections into a raw, comparable chronological score
+    int score(SearchDateSelection selection) =>
+        (selection.year ?? 0) * 100000000 +
+        (selection.month ?? 0) * 1000000 +
+        (selection.day ?? 0) * 10000 +
+        (selection.hour ?? 0) * 100 +
+        (selection.minute ?? 0);
+
+    return score(_filterState.start) < score(_filterState.end);
   }
 
   @override
   Widget build(BuildContext context) {
-    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardInset = context.viewInsetsBottom;
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        color: isDarkMode ? AppColors.darkDialogSurface : Colors.white,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(SearchConstants.filterSheetRadius),
+        ),
       ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 12,
-        bottom: 24 + keyboardInset,
+        left: SearchConstants.filterSheetPaddingH,
+        right: SearchConstants.filterSheetPaddingH,
+        top: SearchConstants.filterSheetPaddingTop,
+        bottom: SearchConstants.filterSheetPaddingBottom + keyboardInset,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -114,22 +135,22 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             _buildSectionTitle(
               _filterState.isRangeSearch ? 'START DATE' : 'DATE',
             ),
-            const SizedBox(height: 8),
-            _buildDateRow(isStartRange: true),
-            const SizedBox(height: 20),
+            const SizedBox(height: SearchConstants.filterSectionGap),
+            _buildDateRow(),
+            const SizedBox(height: SearchConstants.filterGroupGap),
             _buildSectionTitle(
               _filterState.isRangeSearch ? 'START TIME' : 'TIME',
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: SearchConstants.filterSectionGap),
             _buildTimeAndToggleRow(),
             AnimatedSize(
-              duration: const Duration(milliseconds: 300),
+              duration: AnimationConstants.medium,
               curve: Curves.easeInOutCubic,
               child: !_filterState.isRangeSearch
                   ? const SizedBox.shrink()
                   : _buildEndRangeArea(),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: SearchConstants.filterFooterGap),
             _buildFooterButtons(),
           ],
         ),
@@ -141,13 +162,16 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Divider(height: 40, color: Colors.grey),
+        const Divider(
+          height: SearchConstants.filterDividerHeight,
+          color: Colors.grey,
+        ),
         _buildSectionTitle('END DATE'),
-        const SizedBox(height: 8),
-        _buildDateRow(isStartRange: false),
-        const SizedBox(height: 20),
+        const SizedBox(height: SearchConstants.filterSectionGap),
+        _buildDateRow(isRangeSearch: true),
+        const SizedBox(height: SearchConstants.filterGroupGap),
         _buildSectionTitle('END TIME'),
-        const SizedBox(height: 8),
+        const SizedBox(height: SearchConstants.filterSectionGap),
         Row(
           children: [
             Expanded(
@@ -160,10 +184,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 ),
                 items: _hourItems,
                 onChanged: (value) =>
-                    _updateSelection(isStart: false, hour: value),
+                    _updateSelection(isRangeSearch: true, hour: value),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: SearchConstants.filterSectionGap),
             Expanded(
               flex: 2,
               child: _buildDropdown(
@@ -174,7 +198,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 ),
                 items: _minuteItems,
                 onChanged: (value) =>
-                    _updateSelection(isStart: false, minute: value),
+                    _updateSelection(isRangeSearch: true, minute: value),
               ),
             ),
             const Spacer(flex: 5),
@@ -186,46 +210,52 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
 
   Widget _buildFooterButtons() {
     final squircleShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(SearchConstants.filterButtonRadius),
     );
     return Row(
       children: [
         Expanded(
           flex: 1,
           child: SizedBox(
-            height: 48,
+            height: SearchConstants.filterButtonHeight,
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 shape: squircleShape,
                 backgroundColor: isDarkMode
                     ? Colors.grey[900]
-                    : const Color(0xFFF1F5F9),
+                    : AppColors.searchFilterButtonLight,
                 side: BorderSide(
                   color: isDarkMode
                       ? Colors.grey[700]!
-                      : const Color(0xFF475569),
+                      : AppColors.searchFilterTextLight,
                 ),
               ),
-              onPressed: () {
-                setState(
-                  () =>
-                      _filterState = const SearchFilters(isRangeSearch: false),
-                );
-              },
+              onPressed: _filterState.hasFilters
+                  ? () {
+                      setState(() {
+                        _filterState = SearchFilters(
+                          isRangeSearch: _filterState.isRangeSearch,
+                        );
+                      });
+                    }
+                  : null,
+
               child: Text(
                 'Clear',
                 style: TextStyle(
-                  color: isDarkMode ? Colors.white : const Color(0xFF475569),
+                  color: isDarkMode
+                      ? Colors.white
+                      : AppColors.searchFilterTextLight,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: SearchConstants.filterButtonGap),
         Expanded(
           flex: 2,
           child: SizedBox(
-            height: 48,
+            height: SearchConstants.filterButtonHeight,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 shape: squircleShape,
@@ -233,12 +263,14 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                     ? Theme.of(
                         context,
                       ).colorScheme.primary.withValues(alpha: 0.9)
-                    : const Color(0xFF334155),
+                    : AppColors.searchFilterSubmitLight,
               ),
-              onPressed: () {
-                _submitFilters();
-                HapticFeedback.lightImpact();
-              },
+              onPressed: _isSubmitEnabled
+                  ? () {
+                      _submitFilters();
+                      HapticFeedback.lightImpact();
+                    }
+                  : null,
               child: Text(
                 'Get Search Results',
                 style: TextStyle(
@@ -265,10 +297,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               _hourItems,
             ),
             items: _hourItems,
-            onChanged: (value) => _updateSelection(isStart: true, hour: value),
+            onChanged: (value) => _updateSelection(hour: value),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: SearchConstants.filterSectionGap),
         Expanded(
           flex: 2,
           child: _buildDropdown(
@@ -278,39 +310,46 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               _minuteItems,
             ),
             items: _minuteItems,
-            onChanged: (value) =>
-                _updateSelection(isStart: true, minute: value),
+            onChanged: (value) => _updateSelection(minute: value),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: SearchConstants.filterButtonGap),
         Expanded(
           flex: 4,
           child: SizedBox(
-            height: 48,
+            height: SearchConstants.filterButtonHeight,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(
+                    SearchConstants.filterButtonRadius,
+                  ),
                 ),
                 backgroundColor: isDarkMode
                     ? Theme.of(
                         context,
                       ).colorScheme.primary.withValues(alpha: 0.9)
-                    : const Color(0xFFF1F5F9),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                    : AppColors.searchFilterButtonLight,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: SearchConstants.filterTogglePaddingH,
+                ),
               ),
               onPressed: _toggleRangeSearch,
               icon: Icon(
                 _filterState.isRangeSearch ? Icons.close : Icons.date_range,
-                size: 18,
-                color: isDarkMode ? Colors.black : const Color(0xFF475569),
+                size: SearchConstants.chipIconSize,
+                color: isDarkMode
+                    ? Colors.black
+                    : AppColors.searchFilterTextLight,
               ),
               label: Text(
                 'Search range',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: SearchConstants.filterLabelFontSize,
                   fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.black : const Color(0xFF475569),
+                  color: isDarkMode
+                      ? Colors.black
+                      : AppColors.searchFilterTextLight,
                 ),
               ),
             ),
@@ -322,14 +361,16 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
 
   // Refined update logic with named parameters to match calls
   void _updateSelection({
-    required bool isStart,
+    bool isRangeSearch = false,
     String? day,
     String? month,
     String? year,
     String? hour,
     String? minute,
   }) {
-    final targetSelection = isStart ? _filterState.start : _filterState.end;
+    final targetSelection = !isRangeSearch
+        ? _filterState.start
+        : _filterState.end;
 
     final updatedSelection = targetSelection.copyWith(
       day: _parseSelection(day, _dayItems) ?? targetSelection.day,
@@ -339,13 +380,13 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
       minute: _parseSelection(minute, _minuteItems) ?? targetSelection.minute,
     );
 
-    _filterState = isStart
+    _filterState = !isRangeSearch
         ? _filterState.copyWith(start: updatedSelection)
         : _filterState.copyWith(end: updatedSelection);
   }
 
-  Widget _buildDateRow({required bool isStartRange}) {
-    final currentSelection = isStartRange
+  Widget _buildDateRow({bool isRangeSearch = false}) {
+    final currentSelection = !isRangeSearch
         ? _filterState.start
         : _filterState.end;
 
@@ -357,10 +398,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             selectedValue: _getFormattedValue(currentSelection.day, _dayItems),
             items: _dayItems,
             onChanged: (value) =>
-                _updateSelection(isStart: isStartRange, day: value),
+                _updateSelection(isRangeSearch: isRangeSearch, day: value),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: SearchConstants.filterSectionGap),
         Expanded(
           child: _buildDropdown(
             hintText: 'MM',
@@ -370,10 +411,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             ),
             items: _monthItems,
             onChanged: (value) =>
-                _updateSelection(isStart: isStartRange, month: value),
+                _updateSelection(isRangeSearch: isRangeSearch, month: value),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: SearchConstants.filterSectionGap),
         Expanded(
           flex: 2,
           child: _buildDropdown(
@@ -384,7 +425,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
             ),
             items: _yearItems,
             onChanged: (value) =>
-                _updateSelection(isStart: isStartRange, year: value),
+                _updateSelection(isRangeSearch: isRangeSearch, year: value),
           ),
         ),
       ],
@@ -400,15 +441,23 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onVerticalDragUpdate: (dragDetails) {
-        if (dragDetails.primaryDelta! > 10) Navigator.pop(context);
+        if (dragDetails.primaryDelta! >
+            SearchConstants.filterDragDismissDistance) {
+          Navigator.pop(context);
+        }
       },
       child: Container(
-        height: 4,
-        width: 40,
-        margin: const EdgeInsets.only(top: 10, bottom: 24),
+        height: SearchConstants.filterSheetHandleHeight,
+        width: SearchConstants.filterSheetHandleWidth,
+        margin: const EdgeInsets.only(
+          top: SearchConstants.filterSheetHandleTopMargin,
+          bottom: SearchConstants.filterSheetHandleBottomMargin,
+        ),
         decoration: BoxDecoration(
           color: Colors.grey.shade400,
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: BorderRadius.circular(
+            SearchConstants.filterSheetHandleRadius,
+          ),
         ),
       ),
     ),
@@ -422,39 +471,47 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   }) {
     String? localValue = selectedValue;
 
-    return StatefulBuilder(
-      // Encapsulate the state logic inside the helper
-      builder: (context, setLocalState) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade400),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: localValue,
-              onChanged: (value) {
-                onChanged(value); // Update parent data
-                setLocalState(() {
-                  localValue = value; // Updates the local UI state
-                }); // Refresh this specific dropdown UI
-              },
-              menuMaxHeight: 300,
-              hint: Text(hintText, style: const TextStyle(fontSize: 14)),
-              items: items
-                  .map(
-                    (item) => DropdownMenuItem(
-                      value: item,
-                      child: Text(item, style: const TextStyle(fontSize: 14)),
-                    ),
-                  )
-                  .toList(),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SearchConstants.filterDropdownPaddingH,
+        vertical: SearchConstants.filterDropdownPaddingV,
+      ),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(SearchConstants.filterButtonRadius),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          value: localValue,
+          onChanged: (value) {
+            onChanged(value); // Update parent data
+            setState(() {
+              localValue = value; // Updates the local UI state
+            }); // Refresh this specific dropdown UI
+          },
+          menuMaxHeight: SearchConstants.filterDropdownMaxHeight,
+          hint: Text(
+            hintText,
+            style: const TextStyle(
+              fontSize: SearchConstants.filterDropdownFontSize,
             ),
           ),
-        );
-      },
+          items: items
+              .map(
+                (item) => DropdownMenuItem(
+                  value: item,
+                  child: Text(
+                    item,
+                    style: const TextStyle(
+                      fontSize: SearchConstants.filterDropdownFontSize,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 

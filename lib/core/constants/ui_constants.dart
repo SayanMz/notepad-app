@@ -31,6 +31,15 @@ class UIConstants {
   /// Standard duration for brief snackbar notifications.
   static const Duration snackbarShort = Duration(seconds: 2);
 
+  /// Standard duration for longer error snackbar notifications.
+  static const Duration snackbarLong = Duration(seconds: 4);
+
+  /// Continuous ambient spin duration used by decorative color affordances.
+  static const Duration colorWheelSpinDuration = Duration(seconds: 10);
+
+  /// Voice request timeout for the remote formatting assistant.
+  static const Duration voiceRequestTimeout = Duration(seconds: 20);
+
   // ======================
   // Spacing
   // ======================
@@ -117,96 +126,52 @@ class UIConstants {
   /// Height of the top linear progress indicator during saves/exports.
   static const double progressBarHeight = 2.0;
 
-  // --- Editor Toolbar Styling ---
-  static const double toolbarMarginHorizontal = 15.0;
-  static const double toolbarMarginTop = 8.0;
-  static const double toolbarVerticalPadding = 4.0;
-  static const double toolbarBlurSigma = 12.0; // Glassmorphism blur intensity
-  static const double toolbarShadowBlur = 10.0;
-  static const double toolbarShadowOffsetY = 4.0;
-  static const double toolbarBorderWidth = 1.0;
+  // --- Theme Defaults ---
+  static const double themeInputRadius = 30.0;
+  static const double themeInputBorderWidth = 1.5;
+  static const double themeCardBorderWidth = 1.5;
+  static const double themeSelectionAlpha = 0.3;
+  static const double themeShadowAlpha = 0.4;
+  static const double themeFabElevation = 2.0;
+  static const double themeFabHighlightElevation = 4.0;
 
-  // --- Editor Toolbar Menus ---
-  static const double toolbarSizeMenuOffsetX = 35.0;
-  static const double toolbarColorMenuOffsetX = 60.0;
-  static const double toolbarMenuWidth = 150.0 + 40;
-  static const double toolbarSizeMenuHorizontalPadding = 7.0;
+  // --- Shared Widget Tokens ---
+  // These are used across multiple features and represent app-wide design decisions.
+  static const double toolbarBorderWidth = 1.0;
+  static const double toolbarMenuWidth = 190.0;
   static const double toolbarColorCircleSize = 30.0;
   static const double toolbarColorCircleMargin = 6.0;
   static const double toolbarColorCircleBorderWidth = 2.0;
-  static const double toolbarDividerWidth = 20.0;
-  static const double toolbarDividerHeight = 24.0;
-  static const double toolbarDividerThickness = 1.0;
 
-  // --- Note Header (Title Area) ---
-  static const double headerSideSpacer = 60.0;
-  static const double headerTitlePaddingHorizontal = 15.0;
   static const double headerTitleFontSize = 22.0;
-  static const double headerUnderlineThickness = 2.0;
-  static const double headerWidthRatio = 0.5; // Takes up 50% of screen width
 
-  // --- Save Indicator ---
   static const double saveIndicatorSpinnerSize = 14.0;
   static const double saveIndicatorIconSize = 16.0;
   static const double saveIndicatorTextFontSize = 12.0;
   static const double saveIndicatorSpacingTiny = 4.0;
   static const double saveIndicatorSpacingSmall = 6.0;
-  static const double saveIndicatorTop = 10.0;
-  static const double saveIndicatorRight = 16.0;
 
-  // --- Search Page ---
-  static const double searchFieldPadding = 20.0;
-  static const double searchFieldContentPaddingV = 12.0;
-  static const double searchFieldContentPaddingH = 20.0;
-  static const double searchFieldBorderWidth = 1.5;
-  static const double searchResultCardMargin = 12.0;
-  static const double searchResultListPadding = 16.0;
-  static const double searchResultSnippetFontSize = 16.0;
-  static const double searchResultSnippetHeight = 1.25;
-  static const double searchEmptyHorizontalPadding = 32.0;
-  static const double searchEmptyIconSize = 48.0;
-  static const double searchEmptyTitleFontSize = 18.0;
-  static const double searchEmptyTitleGap = 12.0;
-  static const double searchEmptySubtitleGap = 6.0;
-
-  // --- Recycle Bin ---
-  static const double recycleSheetRadius = 20.0;
-  static const double recycleEmptyLottieHeight = 200.0;
-  static const double recycleListPadding = 12.0;
-  static const double recycleCardMargin = 4.0;
-  static const double recycleCardRadius = 12.0;
-  static const double recycleCardPadding = 16.0;
-  static const double recycleIconSize = 28.0;
-  static const double recycleEmptyTextFontSize = 18.0;
-
-  // --- Home Note Cards ---
   static const double noteCardPreviewHeight = 250.0;
   static const double noteCardPreviewTitleFontSize = 20.0;
   static const double noteCardTitleFontSize = 16.0;
   static const double noteCardEditedFontSize = 12.0;
-  static const double noteCardBulletSize = 5.0;
-  static const double noteCardBulletRightPadding = 10.0;
-  static const double noteCardBulletTopPadding = 7.0;
-  static const double selectionBorderWidth = 2.0;
   static const double noteCardPreviewFontSize = 13.0;
-  static const double noteCardPreviewLineHeightCompact = 1.2;
-  static const double noteCardPreviewLineHeightExpanded = 1.5;
-
-  // --- Responsive Breakpoints (Note Card Previews) ---
-  static const double noteCardPreviewMaxWidthBreakpoint = 600.0;
-  static const double noteCardPreviewDesktopBreakpoint = 1200.0;
-  static const double noteCardPreviewTabletBreakpoint = 900.0;
-
-  // --- Responsive Line Limits (Note Card Previews) ---
   static const int noteCardPreviewLargeDesktopLines = 12;
   static const int noteCardPreviewTabletLines = 8;
   static const int noteCardPreviewSmallTabletLines = 5;
   static const int noteCardPreviewPhoneLines = 2;
+  static const double selectionBorderWidth = 2.0;
 
-  // --- Main Note Editor ---
-  static const double editorHorizontalPadding = 12.0;
-  static const double editorFontSize = 18.0;
-  static const double noteHeaderTitleSpacing = 60.0;
+  static const double voiceButtonHiddenThreshold = 0.2;
+  static const double voiceButtonPressedScale = 0.92;
+  static const double voiceButtonListeningSize = 80.0;
+  static const double voiceButtonIdleSize = 72.0;
+  static const double voiceButtonListeningAssetSize = 70.0;
+  static const double voiceButtonIdleAssetSize = 60.0;
+  static const double voiceButtonListeningShadowBlur = 30.0;
+  static const double voiceButtonListeningShadowSpread = 8.0;
+  static const double voiceButtonPressedShadowBlur = 10.0;
+  static const double voiceButtonPressedShadowSpread = 2.0;
 
   // --- App Router Transitions ---
   /// Starting X offset for the incoming page (Slide transition).

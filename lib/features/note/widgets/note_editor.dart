@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class NoteEditor extends StatefulWidget {
   const NoteEditor({
@@ -27,6 +28,7 @@ class NoteEditor extends StatefulWidget {
 }
 
 class _NoteEditorState extends State<NoteEditor> {
+  bool get isDark => context.isDark;
   // ⚡ Internal standalone backup controller for normal editing mode
   ScrollController? _internalScrollController;
 
@@ -36,9 +38,20 @@ class _NoteEditorState extends State<NoteEditor> {
         (_internalScrollController ??= ScrollController());
   }
 
+  late final baseTextStyle = GoogleFonts.sourceSans3(
+    fontSize: NoteConstants.editorFontSize,
+    fontWeight: FontWeight.w400,
+    height: NoteConstants.editorLineHeight,
+    color: isDark
+        ? const Color(
+            0xFF94A3B8,
+          ) // ⚡ Premium, comfortable dark mode secondary text
+        : NoteConstants
+              .editorTextColor, // ☀️ Keeps your crisp light mode text color
+  );
+
   @override
   void dispose() {
-    // Clean up our internal controller allocation safely if it was instantiated
     _internalScrollController?.dispose();
     super.dispose();
   }
@@ -61,18 +74,10 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final baseTextStyle = GoogleFonts.sourceSans3(
-      fontSize: NoteConstants.editorFontSize,
-      fontWeight: FontWeight.w400,
-      height: NoteConstants.editorLineHeight,
-      color: NoteConstants.editorTextColor,
-    );
-
     return QuillEditor(
       controller: widget.controller,
       focusNode: widget.focusNode,
-      scrollController:
-          _effectiveScrollController, // ⚡ Resolves to the correct controller instantly
+      scrollController: _effectiveScrollController,
       config: QuillEditorConfig(
         scrollable: widget.scrollable,
         expands: widget.expands,

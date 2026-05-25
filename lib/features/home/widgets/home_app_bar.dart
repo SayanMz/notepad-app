@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
-import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/recycle_page.dart';
-import 'package:notepad/features/search/search_page.dart';
 import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/theme_fader.dart';
+import 'package:notepad/core/theme/app_colors.dart';
+import 'package:notepad/features/filter/search_page.dart';
+import 'package:notepad/features/home/home_constants.dart';
+import 'package:notepad/features/trash/recycle_page.dart';
 
 class HomeAppBar extends StatelessWidget {
   const HomeAppBar({
@@ -30,133 +33,163 @@ class HomeAppBar extends StatelessWidget {
 
     return SliverAppBar(
       floating: true,
-      pinned: false,
-      snap: false,
-      stretch: true,
+      stretch:
+          true, // ⚡ This allows the overscroll bounce to physically stretch the height
       automaticallyImplyLeading: false,
       actions: const [SizedBox.shrink()],
-      scrolledUnderElevation: 1.5,
-      shadowColor: Colors.transparent,
-      surfaceTintColor: const Color(0xFFB8E6DD),
+      scrolledUnderElevation: HomeConstants.appBarScrolledUnderElevation,
+      surfaceTintColor: HomeConstants.appBarSurfaceTint,
       backgroundColor: isDark
           ? AppColors.darkScaffold
           : Theme.of(context).scaffoldBackgroundColor,
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
-          final topPadding = MediaQuery.of(context).padding.top;
+          final topPadding = context.topPadding;
           final standardHeight = kToolbarHeight + topPadding;
-          final isOverscrolled = constraints.maxHeight > standardHeight + 15;
 
-          return FlexibleSpaceBar(
-            background: Stack(
-              children: [
-                AnimatedOpacity(
-                  opacity: isOverscrolled ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: IgnorePointer(
-                    ignoring: isOverscrolled,
-                    child: SafeArea(
-                      child: SizedBox(
-                        height: kToolbarHeight,
-                        child: Row(
-                          children: [
-                            IconButton(
-                              onPressed: () async {
-                                final currentIsDark =
-                                    appSettingsRepository.settings.isDarkMode;
-                                await appSettingsRepository.update(
-                                  appSettingsRepository.settings.copyWith(
-                                    isDarkMode: !currentIsDark,
-                                  ),
-                                );
-                              },
-                              icon: Icon(
-                                Icons.light,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Notepad',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 30,
-                                color: isDark ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: Icon(
-                                Icons.search,
-                                size: UIConstants.iconMD,
-                                color: isDark
-                                    ? Colors.white
-                                    : colorScheme.onSurfaceVariant,
-                              ),
-                              onPressed: () async {
-                                uiNotifier.clearSnackBars();
-                                await Navigator.push(
-                                  context,
-                                  fadeRoute(const SearchPage()),
-                                );
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.restore_from_trash,
-                                size: UIConstants.iconMD,
-                                color: isDark
-                                    ? Colors.white
-                                    : colorScheme.onSurfaceVariant,
-                              ),
-                              onPressed: () async {
-                                uiNotifier.clearSnackBars();
-                                await Navigator.push(
-                                  context,
-                                  slideRoute(const RecyclePage()),
-                                );
-                              },
-                            ),
-                            Builder(
-                              builder: (context) {
-                                return IconButton(
-                                  icon: const Icon(Icons.sort),
-                                  color: isDark
-                                      ? Colors.white
-                                      : colorScheme.onSurfaceVariant,
-                                  onPressed: onOpenDrawer,
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                AnimatedOpacity(
-                  opacity: isOverscrolled ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 250),
+          // 1. Calculate how many pixels we've pulled past the normal resting height
+          final double overscrollDelta = constraints.maxHeight - standardHeight;
+
+          // 2. Calculate the base stretch fraction (0.0 to 1.0)
+          final double stretchProgress =
+              (overscrollDelta / HomeConstants.appBarOverscrollThreshold).clamp(
+                0.0,
+                1.0,
+              );
+
+          // 3. ⚡ STAGGER THE OPACITIES SO THEY NEVER OVERLAP
+          // Toolbar fades out completely in the first half of the pull (stretchProgress from 0.0 -> 0.5)
+          final double toolbarOpacity = (1.0 - (stretchProgress * 2.0)).clamp(
+            0.0,
+            1.0,
+          );
+          // Large title fades in only during the second half of the pull (stretchProgress from 0.5 -> 1.0)
+          final double largeTitleOpacity = ((stretchProgress - 0.5) * 2.0)
+              .clamp(0.0, 1.0);
+
+          return Stack(
+            children: [
+              // --- STANDARD TOOLBAR ---
+              Opacity(
+                opacity: toolbarOpacity, // ⚡ Uses the staggered toolbar phase
+                child: IgnorePointer(
+                  ignoring:
+                      toolbarOpacity ==
+                      0.0, // Disables touches when fully hidden
                   child: SafeArea(
-                    child: RepaintBoundary(
-                      child: Container(
-                        alignment: Alignment.bottomCenter,
-                        padding: const EdgeInsets.only(bottom: 56.0),
-                        child: Text(
-                          'Notepad',
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -1.5,
-                            color: isDark ? Colors.white : Colors.black87,
+                    child: SizedBox(
+                      height: kToolbarHeight,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              HapticFeedback.lightImpact();
+                              ThemeFader.captureAndFade(
+                                context: context,
+                                executeThemeSwap: () async {
+                                  final currentIsDark =
+                                      appSettingsRepository.settings.isDarkMode;
+                                  await appSettingsRepository.update(
+                                    appSettingsRepository.settings.copyWith(
+                                      isDarkMode: !currentIsDark,
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                            icon: Icon(
+                              Icons.light,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
                           ),
+                          const SizedBox(width: UIConstants.paddingSM),
+                          Text(
+                            'Notepad',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: HomeConstants.appBarTitleFontSize,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: Icon(
+                              Icons.search,
+                              size: UIConstants.iconMD,
+                              color: isDark
+                                  ? Colors.white
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            onPressed: () async {
+                              uiNotifier.clearSnackBars();
+                              await Navigator.push(
+                                context,
+                                fadeRoute(const SearchPage()),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.restore_from_trash,
+                              size: UIConstants.iconMD,
+                              color: isDark
+                                  ? Colors.white
+                                  : colorScheme.onSurfaceVariant,
+                            ),
+                            onPressed: () async {
+                              uiNotifier.clearSnackBars();
+                              await Navigator.push(
+                                context,
+                                slideRoute(const RecyclePage()),
+                              );
+                            },
+                          ),
+                          Builder(
+                            builder: (context) {
+                              return IconButton(
+                                icon: const Icon(Icons.sort),
+                                color: isDark
+                                    ? Colors.white
+                                    : colorScheme.onSurfaceVariant,
+                                onPressed: onOpenDrawer,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // --- HIDDEN LARGE TITLE ---
+              Opacity(
+                opacity:
+                    largeTitleOpacity, // ⚡ Uses the staggered large title phase
+                child: IgnorePointer(
+                  ignoring:
+                      largeTitleOpacity ==
+                      0.0, // Disables touches when fully hidden
+                  child: SafeArea(
+                    child: Container(
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(
+                        bottom: HomeConstants.appBarExpandedBottomPadding,
+                      ),
+                      child: Text(
+                        'Notepad',
+                        style: TextStyle(
+                          fontSize: HomeConstants.appBarExpandedTitleFontSize,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.5,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),

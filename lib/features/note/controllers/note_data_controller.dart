@@ -61,6 +61,7 @@ class NoteDataController {
   Future<void> saveNote({
     required String title,
     required Document document,
+    final bool notify = false,
   }) async {
     _autosaveDebounce?.cancel();
     final plainText = document.toPlainText().trim();
@@ -89,6 +90,7 @@ class NoteDataController {
         title: resolvedTitle,
         content: plainText,
         richContent: jsonEncode(document.toDelta().toJson()),
+        notify: notify,
       );
 
       if (saved != null) {
@@ -134,7 +136,7 @@ class NoteDataController {
       return;
     }
 
-    await saveNote(title: cleanTitle, document: document);
+    await saveNote(title: cleanTitle, document: document, notify: true);
   }
 
   void dispose() {

@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/features/search/models/search_filters.dart';
-import 'package:notepad/features/search/models/search_state.dart';
-import 'package:notepad/features/search/services/note_search_service.dart';
+import 'package:notepad/features/filter/models/search_filters.dart';
+import 'package:notepad/features/filter/models/search_state.dart';
+import 'package:notepad/features/filter/services/note_search_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// SEARCH CONTROLLER (INTERVIEW NOTE)

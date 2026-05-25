@@ -1,28 +1,27 @@
 import 'dart:async';
 
+// ignore_for_file: experimental_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
+import 'package:notepad/features/note/controllers/note_data_controller.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
+import 'package:notepad/features/note/controllers/note_ui_controller.dart';
+import 'package:notepad/features/note/controllers/note_voice_controller.dart';
+import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
 import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
-import 'package:notepad/features/note/services/plain_paste_wrapper.dart';
 import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
-
-// ⚡ IMPORT YOUR THREE NEW DECOUPLED CONTROLLERS
-import 'package:notepad/features/note/controllers/note_data_controller.dart';
-import 'package:notepad/features/note/controllers/note_voice_controller.dart';
-import 'package:notepad/features/note/controllers/note_ui_controller.dart';
-import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 /// Note editor screen.
 /// Keeps note orchestration in one place while delegates saving, voice input,
@@ -52,7 +51,6 @@ class _NotePageState extends State<NotePage>
   /// Listens to app lifecycle (background, pause, etc.)
   late final AppLifecycleListener _lifecycleListener;
 
-  /// ⚡ THE REFACTORED BUSINESS LOGIC LAYERS
   late final NoteDataController _dataController;
   late final NoteVoiceController _voiceController;
   late final NoteUIController _uiController;
@@ -80,7 +78,6 @@ class _NotePageState extends State<NotePage>
     super.initState();
     _isReadOnly = widget.readOnly;
 
-    // ⚡ INITIALIZE ALL THREE ARCHITECTURAL MODULES SATELLITES
     _dataController = NoteDataController(
       noteRepository: noteRepository,
       noteId: widget.noteId,
@@ -169,9 +166,12 @@ class _NotePageState extends State<NotePage>
       return QuillController(
         document: Document.fromJson(
           NoteDocumentService.decodeRichContent(note.richContent, note.content),
-        ), //
+        ),
         selection: const TextSelection.collapsed(offset: 0),
         keepStyleOnNewLine: false,
+        config: const QuillControllerConfig(
+          clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
+        ),
       );
     }
 
@@ -180,12 +180,18 @@ class _NotePageState extends State<NotePage>
         document: Document()..insert(0, widget.content),
         selection: const TextSelection.collapsed(offset: 0),
         keepStyleOnNewLine: false,
+        config: const QuillControllerConfig(
+          clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
+        ),
       );
     }
 
     return QuillController(
       document: Document(),
       selection: const TextSelection.collapsed(offset: 0),
+      config: const QuillControllerConfig(
+        clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
+      ),
       keepStyleOnNewLine: false,
     );
   }
@@ -244,7 +250,6 @@ class _NotePageState extends State<NotePage>
     _lottieController.dispose();
     _toolbarController.dispose();
 
-    // ⚡ DISPOSE ALL THREE INDEPENDENT STORAGE CONTROLLERS CLEANLY
     _dataController.dispose();
     _voiceController.dispose();
     _uiController.dispose();
@@ -256,8 +261,10 @@ class _NotePageState extends State<NotePage>
     if (_isHandlingBackNavigation) return;
     _isHandlingBackNavigation = true;
 
+    _voiceController.stopHardwareListening();
     _toolbarController.closeAllMenus();
-    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final isKeyboardOpen = context.viewInsetsBottom > 0;
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (isKeyboardOpen) {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -285,7 +292,7 @@ class _NotePageState extends State<NotePage>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = context.isDark;
 
     return PopScope(
       canPop: false,
@@ -343,33 +350,29 @@ class _NotePageState extends State<NotePage>
                     const SizedBox(height: UIConstants.paddingMD),
 
                     Expanded(
-                      child: PlainPasteWrapper(
-                        controller: contentController,
-                        child: _isReadOnly
-                            ? GestureDetector(
-                                onTap: _showRestoreDialog,
-                                behavior: HitTestBehavior.opaque,
-                                child: SingleChildScrollView(
-                                  controller: _editorScrollController,
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  child: AbsorbPointer(
-                                    child: NoteEditor(
-                                      controller: contentController,
-                                      focusNode: _editorFocusNode,
-                                      scrollController: _editorScrollController,
-                                      scrollable: false,
-                                      expands: false,
-                                      showCursor: false,
-                                    ),
+                      child: _isReadOnly
+                          ? GestureDetector(
+                              onTap: _showRestoreDialog,
+                              behavior: HitTestBehavior.opaque,
+                              child: SingleChildScrollView(
+                                controller: _editorScrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: AbsorbPointer(
+                                  child: NoteEditor(
+                                    controller: contentController,
+                                    focusNode: _editorFocusNode,
+                                    scrollController: _editorScrollController,
+                                    scrollable: false,
+                                    expands: false,
+                                    showCursor: false,
                                   ),
                                 ),
-                              )
-                            : NoteEditor(
-                                controller: contentController,
-                                focusNode: _editorFocusNode,
                               ),
-                      ),
+                            )
+                          : NoteEditor(
+                              controller: contentController,
+                              focusNode: _editorFocusNode,
+                            ),
                     ),
 
                     ValueListenableBuilder<bool>(

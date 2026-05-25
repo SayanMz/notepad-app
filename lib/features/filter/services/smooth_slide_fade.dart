@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
 
 class SmoothSlideFade extends StatelessWidget {
   final Widget child;
@@ -14,8 +15,8 @@ class SmoothSlideFade extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
       // Standardized values for your BCA project
-      duration: const Duration(milliseconds: 800),
-      reverseDuration: const Duration(milliseconds: 600),
+      duration: AnimationConstants.extraLong,
+      reverseDuration: AnimationConstants.long,
       switchInCurve: Curves.easeInOutCubic,
       switchOutCurve: Curves.easeInOutCubic,
       transitionBuilder: (Widget child, Animation<double> animation) {

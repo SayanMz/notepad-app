@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class NoteConstants {
   NoteConstants._();
 
+  // Toolbar shell
   static const double toolbarNudgeDistance = 100.0;
   static const double toolbarItemWidthDivisor = 4.5;
   static const double toolbarHeight = 56.0;
@@ -22,6 +23,7 @@ class NoteConstants {
   static const double toolbarGradientStopEdge = 0.0;
   static const double toolbarGradientStopOppositeEdge = 1.0;
 
+  // Note header
   static const double titlePaddingLeft = 12.0;
   static const double titlePaddingRight = 8.0;
   static const double titlePaddingBottom = 12.0;
@@ -31,6 +33,7 @@ class NoteConstants {
   static const double titleIconPaddingRight = 8.0;
   static const double titleIconSize = 24.0;
 
+  // Main editor
   static const double editorFontSize = 18.0;
   static const double editorLineHeight = 1.6;
   static const Color editorTextColor = Color(0xFF515151);
@@ -41,10 +44,14 @@ class NoteConstants {
   static const double appBarRightPadding = 8.0;
   static const double appBarMenuOffsetY = 8.0;
 
+  // App bar progress bar
   static const double progressBarHeight = 2.0;
   static const double progressBarBackgroundAlpha = 0.6;
 
-  static const Duration notePageKeyboardDismissDelay = Duration(milliseconds: 200);
+  // Note page transitions and actions
+  static const Duration notePageKeyboardDismissDelay = Duration(
+    milliseconds: 200,
+  );
   static const Duration notePageToolbarSizeDelay = Duration(milliseconds: 250);
   static const Duration notePageFabScaleDuration = Duration(milliseconds: 250);
   static const Duration notePageFabFadeDuration = Duration(milliseconds: 200);

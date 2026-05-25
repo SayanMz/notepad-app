@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 
 abstract class UiNotifier {
@@ -73,7 +74,7 @@ void showRestorationSnackBar({
   String undoLabel = 'Undo',
   Duration? duration,
 }) {
-  final snackDuration = duration ?? UIConstants.saveIndicatorDuration;
+  final snackDuration = duration ?? AnimationConstants.saveIndicator;
 
   uiNotifier.showSnackBar(
     SnackBar(
@@ -98,18 +99,25 @@ Widget _buildElevatedAction(String label, VoidCallback onTap) {
         uiNotifier.hideCurrentSnackBar();
         onTap();
       },
-      borderRadius: BorderRadius.circular(20), // Must match the container
-      splashColor: Colors.white.withValues(alpha: 0.3), // The "Splash" color
+      borderRadius: BorderRadius.circular(EditorConstants.snackbarActionRadius),
+      splashColor: Colors.white.withValues(
+        alpha: EditorConstants.snackbarActionSplashAlpha,
+      ),
       child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: EditorConstants.snackbarActionPaddingH,
+          vertical: EditorConstants.snackbarActionPaddingV,
+        ),
         decoration: BoxDecoration(
           color: Colors.deepPurpleAccent,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(EditorConstants.snackbarActionRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(
+                alpha: EditorConstants.snackbarActionShadowAlpha,
+              ),
+              blurRadius: EditorConstants.snackbarActionShadowBlur,
+              offset: Offset(0, EditorConstants.snackbarActionShadowOffsetY),
             ),
           ],
         ),
@@ -118,7 +126,7 @@ Widget _buildElevatedAction(String label, VoidCallback onTap) {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 12,
+            fontSize: EditorConstants.snackbarActionFontSize,
           ),
         ),
       ),
@@ -127,7 +135,7 @@ Widget _buildElevatedAction(String label, VoidCallback onTap) {
 }
 
 void showSuccessSnackBar(String message, {Duration? duration}) {
-  final d = duration ?? const Duration(seconds: 2);
+  final d = duration ?? AnimationConstants.snackbarShort;
   uiNotifier.showSnackBar(
     SnackBar(
       content: Text(
@@ -143,7 +151,7 @@ void showSuccessSnackBar(String message, {Duration? duration}) {
 }
 
 void showErrorSnackBar(String message, {Duration? duration}) {
-  final d = duration ?? const Duration(seconds: 4);
+  final d = duration ?? AnimationConstants.snackbarLong;
   uiNotifier.showSnackBar(
     SnackBar(
       content: Text(

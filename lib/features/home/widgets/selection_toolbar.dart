@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/premium_color_picker.dart';
 
@@ -38,8 +40,8 @@ class SelectionToolbar extends StatefulWidget {
 
 class _SelectionToolbarState extends State<SelectionToolbar>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  ColorScheme get colorScheme => Theme.of(context).colorScheme;
-  bool get isDark => Theme.of(context).brightness == Brightness.dark;
+  ColorScheme get colorScheme => context.colorScheme;
+  bool get isDark => context.isDark;
 
   List<Color> recentColors = [];
 
@@ -58,7 +60,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
     recentColors = savedvalues.map((val) => Color(val)).toList();
 
     _rotationController = AnimationController(
-      duration: const Duration(seconds: 10),
+      duration: AnimationConstants.colorWheelSpin,
       vsync: this,
     )..repeat();
   }
@@ -82,11 +84,15 @@ class _SelectionToolbarState extends State<SelectionToolbar>
 
   void _ensureDialogIsVisible() {
     // We need to access the latest screen size
-    final screenSize = MediaQuery.of(context).size;
+    final screenSize = context.screenSize;
 
     // These should match the math used in your onPanUpdate
-    final double dWidth = (screenSize.width * 0.85).clamp(280.0, 360.0);
-    const double dHeight = 350;
+    final double dWidth =
+        (screenSize.width * EditorConstants.pickerWidthFactor).clamp(
+          EditorConstants.pickerMinWidth,
+          EditorConstants.pickerMaxWidth,
+        );
+    const double dHeight = EditorConstants.pickerDialogHeight;
 
     final double maxX = (screenSize.width - dWidth) / 2;
     final double maxY = (screenSize.height - dHeight) / 2;
@@ -105,7 +111,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
 
     return Container(
-      height: 56.0, // Enforce a strict, sleek height[cite: 12]
+      height: EditorConstants.toolbarHeight,
       padding: const EdgeInsets.symmetric(
         horizontal: 16.0,
       ), // Align with note cards[cite: 12]
@@ -113,17 +119,17 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         children: [
           // Constrain checkbox size to prevent it from pushing margins
           SizedBox(
-            width: 32,
+            width: EditorConstants.toolbarCheckboxWidth,
             child: Checkbox(
               side: BorderSide(
                 color: iconColor,
-                width: 1.5, // Thinner border[cite: 12]
+                width: EditorConstants.toolbarBorderWidth,
               ),
               value: widget.allSelected,
               onChanged: (value) => widget.onSelectAll(value ?? false),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(
-                  4,
+                  EditorConstants.toolbarCheckboxRadius,
                 ), // Subtle rounding[cite: 12]
               ),
             ),
@@ -133,11 +139,11 @@ class _SelectionToolbarState extends State<SelectionToolbar>
             'Select All',
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 15, // Slightly smaller, crisper font
+              fontSize: EditorConstants.toolbarLabelFontSize,
               color: iconColor,
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: EditorConstants.toolbarCountGap),
           Text(
             '${widget.selectedCount}', // Use the passed count here
             style: TextStyle(fontWeight: FontWeight.bold, color: iconColor),
@@ -151,22 +157,30 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                   ? Icons.push_pin_rounded
                   : Icons.push_pin_outlined,
 
-              size: 22,
+              size: EditorConstants.toolbarIconSize,
               color: iconColor,
             ),
             onPressed: widget.onPin,
-            splashRadius: 20,
+            splashRadius: EditorConstants.toolbarSplashRadius,
           ),
           IconButton(
             // Use outlined icons for a lighter visual footprint[cite: 12]
-            icon: Icon(Icons.share_outlined, size: 22, color: iconColor),
+            icon: Icon(
+              Icons.share_outlined,
+              size: EditorConstants.toolbarIconSize,
+              color: iconColor,
+            ),
             onPressed: widget.onShare,
-            splashRadius: 20,
+            splashRadius: EditorConstants.toolbarSplashRadius,
           ),
           IconButton(
-            icon: Icon(Icons.delete_outline, size: 22, color: iconColor),
+            icon: Icon(
+              Icons.delete_outline,
+              size: EditorConstants.toolbarIconSize,
+              color: iconColor,
+            ),
             onPressed: widget.onDelete,
-            splashRadius: 20,
+            splashRadius: EditorConstants.toolbarSplashRadius,
           ),
         ],
       ),
@@ -182,10 +196,10 @@ class _SelectionToolbarState extends State<SelectionToolbar>
           builder: (context, child) {
             return Container(
               margin: const EdgeInsets.symmetric(
-                horizontal: UIConstants.toolbarColorCircleMargin,
+                horizontal: EditorConstants.toolbarColorCircleMargin,
               ),
-              width: UIConstants.iconMD,
-              height: UIConstants.iconMD,
+              width: EditorConstants.toolbarColorCircleSize,
+              height: EditorConstants.toolbarColorCircleSize,
               decoration: BoxDecoration(
                 gradient: SweepGradient(
                   transform: GradientRotation(
@@ -224,8 +238,11 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         note.id: note.cardColor,
     };
 
-    final screenSize = MediaQuery.of(context).size;
-    final maxColors = screenSize.width > 600 ? 8 : 6;
+    final screenSize = context.screenSize;
+    final maxColors =
+        screenSize.width > EditorConstants.pickerRecentDesktopBreakpoint
+        ? EditorConstants.pickerRecentDesktopCount
+        : EditorConstants.pickerRecentPhoneCount;
     final Color initialColor = recentColors.isEmpty
         ? Colors.red
         : recentColors[0];

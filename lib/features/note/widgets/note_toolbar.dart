@@ -3,14 +3,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/features/note/note_constants.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
+import 'package:notepad/features/note/note_constants.dart';
+import 'package:notepad/features/note/services/hyperlink_handler.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/alignment_menu.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/color_menu.dart';
-import 'package:notepad/features/note/services/hyperlink_handler.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/list_menu.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/size_menu.dart';
-import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 class NoteToolbar extends StatefulWidget {
   const NoteToolbar({
@@ -34,7 +35,10 @@ class NoteToolbar extends StatefulWidget {
 
 class _NoteToolbarState extends State<NoteToolbar> {
   late final ScrollController _scrollController;
-  bool get isDark => Theme.of(context).brightness == Brightness.dark;
+  bool get isDark => context.isDark;
+
+  final MenuController _alignMenuCtrl = MenuController();
+  final MenuController _listMenuCtrl = MenuController();
 
   @override
   void initState() {
@@ -74,7 +78,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
     return _buildGlassContainer(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // MATH FIX: Restored the 4.5 divisor to ensure the 5th item is half-visible.
           final double itemWidth =
               constraints.maxWidth / NoteConstants.toolbarItemWidthDivisor;
           return _buildScrollableRow(itemWidth);
@@ -91,7 +94,12 @@ class _NoteToolbarState extends State<NoteToolbar> {
       _buildToggle(Icons.format_underlined, Attribute.underline),
       _buildToggle(Icons.format_strikethrough, Attribute.strikeThrough),
       _buildCheckbox(),
-      SizeMenu(controller: widget.controller, isDark: isDark),
+      SizeMenu(
+        controller: widget.controller,
+        isDark: isDark,
+        focusNode: widget.focusNode,
+        toolbarController: widget.toolbarController,
+      ),
       ColorMenu(
         controller: widget.controller,
         focusNode: widget.focusNode,
@@ -102,8 +110,15 @@ class _NoteToolbarState extends State<NoteToolbar> {
         controller: widget.controller,
         isDark: isDark,
         focusNode: widget.focusNode,
+        toolbarController: widget.toolbarController,
+        menuController: _listMenuCtrl,
       ),
-      AlignmentMenu(controller: widget.controller, isDark: isDark),
+      AlignmentMenu(
+        controller: widget.controller,
+        isDark: isDark,
+        toolbarController: widget.toolbarController,
+        menuController: _alignMenuCtrl,
+      ),
       _buildLinkButton(),
     ];
 
@@ -140,21 +155,21 @@ class _NoteToolbarState extends State<NoteToolbar> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final isSel = widget.controller
+        final isSelected = widget.controller
             .getSelectionStyle()
             .attributes
             .containsKey(attr.key);
         return IconButton(
           icon: Icon(
             icon,
-            color: isSel
+            color: isSelected
                 ? Colors.blueAccent
                 : (isDark ? Colors.white : Colors.black54),
           ),
           onPressed: () {
             widget.focusNode.requestFocus();
             widget.controller.formatSelection(
-              isSel ? Attribute.clone(attr, null) : attr,
+              isSelected ? Attribute.clone(attr, null) : attr,
             );
           },
         );
@@ -170,18 +185,17 @@ class _NoteToolbarState extends State<NoteToolbar> {
             .getSelectionStyle()
             .attributes['list']
             ?.value;
-        final isSel = (val == 'unchecked' || val == 'checked');
+        final isSelected = (val == 'unchecked' || val == 'checked');
         return IconButton(
           icon: Icon(
             Icons.check_box_outlined,
-            color: isSel
+            color: isSelected
                 ? Colors.blueAccent
                 : (isDark ? Colors.white : Colors.black54),
           ),
           onPressed: () {
-            widget.focusNode.requestFocus();
             widget.controller.formatSelection(
-              isSel
+              isSelected
                   ? Attribute.clone(Attribute.list, null)
                   : Attribute.unchecked,
             );
@@ -209,7 +223,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
           onPressed: () => HyperlinkHandler.convertToHyperlink(
             context: context,
             controller: widget.controller,
-            focusNode: widget.focusNode,
           ),
         );
       },
@@ -218,42 +231,50 @@ class _NoteToolbarState extends State<NoteToolbar> {
 
   /// Helper: Wraps the toolbar in the signature Glassmorphism effect and shadow.
   Widget _buildGlassContainer({required Widget child}) {
-    return Container(
-      height: NoteConstants.toolbarHeight,
-      margin: const EdgeInsets.fromLTRB(
-        NoteConstants.toolbarMarginH,
-        NoteConstants.toolbarMarginTop,
-        NoteConstants.toolbarMarginH,
-        NoteConstants.toolbarMarginBottom,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(NoteConstants.toolbarBorderRadius),
-        color: isDark
-            ? Colors.white.withValues(alpha: NoteConstants.toolbarAlphaDark)
-            : Colors.white.withValues(alpha: NoteConstants.toolbarAlphaLight),
-        border: Border.all(
-          color: Colors.white.withValues(
-            alpha: NoteConstants.toolbarBorderAlpha,
-          ),
+    return ConstrainedBox(
+      // ⚡ Limit the toolbar width on large screens
+      constraints: const BoxConstraints(maxWidth: 800),
+      child: Container(
+        height: NoteConstants.toolbarHeight,
+        margin: const EdgeInsets.fromLTRB(
+          NoteConstants.toolbarMarginH,
+          NoteConstants.toolbarMarginTop,
+          NoteConstants.toolbarMarginH,
+          NoteConstants.toolbarMarginBottom,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: NoteConstants.toolbarShadowAlpha,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(
+            NoteConstants.toolbarBorderRadius,
+          ),
+          color: isDark
+              ? Colors.white.withValues(alpha: NoteConstants.toolbarAlphaDark)
+              : Colors.white.withValues(alpha: NoteConstants.toolbarAlphaLight),
+          border: Border.all(
+            color: Colors.white.withValues(
+              alpha: NoteConstants.toolbarBorderAlpha,
             ),
-            blurRadius: NoteConstants.toolbarShadowBlur,
-            offset: Offset(0, NoteConstants.toolbarShadowOffsetY),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(NoteConstants.toolbarBorderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: NoteConstants.toolbarBlurSigma,
-            sigmaY: NoteConstants.toolbarBlurSigma,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: NoteConstants.toolbarShadowAlpha,
+              ),
+              blurRadius: NoteConstants.toolbarShadowBlur,
+              offset: Offset(0, NoteConstants.toolbarShadowOffsetY),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            NoteConstants.toolbarBorderRadius,
           ),
-          child: child,
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: NoteConstants.toolbarBlurSigma,
+              sigmaY: NoteConstants.toolbarBlurSigma,
+            ),
+            child: child,
+          ),
         ),
       ),
     );

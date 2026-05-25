@@ -85,6 +85,10 @@ class AppSettingsRepository extends ChangeNotifier {
   Future<void> setSeedVersion(int version) async {
     await update(_settings.copyWith(seedVersion: version));
   }
+
+  Future<void> recordMaintenanceCompleted() async {
+    await update(_settings.copyWith(lastMaintenanceDate: DateTime.now()));
+  }
 }
 
 /// Shared instance used by the app root and settings UI.

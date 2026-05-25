@@ -9,7 +9,6 @@ class HyperlinkHandler {
   static Future<void> convertToHyperlink({
     required BuildContext context,
     required QuillController controller,
-    required FocusNode focusNode,
   }) async {
     final selection = controller.selection;
     int startIndex = selection.baseOffset;
@@ -21,13 +20,25 @@ class HyperlinkHandler {
     if (textLength > 0) {
       targetUrl = controller.document.getPlainText(startIndex, textLength);
     } else {
-      final textBefore = controller.document.getPlainText(0, startIndex);
-      final lastSpace = textBefore.lastIndexOf(RegExp(r'\s'));
-      startIndex = lastSpace == -1 ? 0 : lastSpace + 1;
-      textLength = selection.baseOffset - startIndex;
+      final fullText = controller.document.toPlainText();
+      final int cursor = selection.baseOffset;
+
+      int start = cursor;
+      while (start > 0 && fullText[start - 1].trim().isNotEmpty) {
+        start--;
+      }
+
+      int end = cursor;
+      while (end < fullText.length && fullText[end].trim().isNotEmpty) {
+        end++;
+      }
+
+      // ⚡ FIX: Update these so 'replaceText' uses the correct range
+      startIndex = start;
+      textLength = end - start;
 
       if (textLength <= 0) return;
-      targetUrl = controller.document.getPlainText(startIndex, textLength);
+      targetUrl = fullText.substring(start, end);
     }
 
     // 2. Validate the extracted URL
@@ -74,9 +85,7 @@ class HyperlinkHandler {
         TextSelection.collapsed(offset: startIndex + insertedText.length),
         ChangeSource.local,
       );
-
       controller.forceToggledStyle(const Style());
-      focusNode.requestFocus();
     }
   }
 

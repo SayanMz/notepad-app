@@ -31,6 +31,23 @@ class AppColors {
 
   // Borders
   static const lightBorder = Color(0xFFE4E4E7);
+  static const lightSnackBar = Color(0xFF2F3439);
+  static const darkDialogSurface = Color(0xFF1E1E1E);
+  static const searchFilterButtonLight = Color(0xFFF1F5F9);
+  static const searchFilterTextLight = Color(0xFF475569);
+  static const searchFilterSubmitLight = Color(0xFF334155);
+  static const recycleSwipeDark = Color(0xFF003D33);
+  static const recycleSwipeLight = Color(0xFFC8E6C9);
+  static const recycleRestoreDark = Color(0xFF69F0AE);
+  static const recycleRestoreLight = Color(0xFF2E7D32);
+  static const colorPickerApply = Color(0xFF2C9C8D);
+  static const noteAppBarDark = Color(0xFF1A1A1A);
+  static const noteAppBarLight = Color(0xFFF8FAFC);
+  static const homeFabDark = Color(0xFFFFCC80);
+  static const homeFabLight = Color(0xFF4DB6AC);
+  static const homeDrawerSurface = Color(0xFF1E1E1E);
+  static const storageProgress = Color(0xFF64B5F6);
+  static const noteEditorText = Color(0xFF515151);
 
   // Accent colors
   static const amber = Colors.amberAccent;

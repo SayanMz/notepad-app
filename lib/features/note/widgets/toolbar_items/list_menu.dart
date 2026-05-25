@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 class ListMenu extends StatelessWidget {
   const ListMenu({
@@ -7,9 +8,13 @@ class ListMenu extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.isDark,
+    required this.toolbarController,
+    required this.menuController,
   });
 
   final QuillController controller;
+  final NoteToolbarController toolbarController;
+  final MenuController menuController;
   final FocusNode focusNode;
   final bool isDark;
 
@@ -26,33 +31,37 @@ class ListMenu extends StatelessWidget {
             currentList == Attribute.ul.value ||
             currentList == Attribute.ol.value;
 
-        return MenuAnchor(
-          alignmentOffset: const Offset(0, -170),
-          builder: (context, menuController, child) => IconButton(
-            icon: Icon(
-              Icons.format_list_bulleted,
-              color: (menuController.isOpen || isListActive)
-                  ? Colors.blueAccent
-                  : (isDark ? Colors.white : Colors.black54),
+        return ToolbarMenuWrapper(
+          toolbarController: toolbarController,
+          menuController: menuController,
+          child: MenuAnchor(
+            controller: menuController,
+            alignmentOffset: const Offset(0, -170),
+            builder: (context, controller, child) => IconButton(
+              icon: Icon(
+                Icons.format_list_bulleted,
+                color: (controller.isOpen || isListActive)
+                    ? Colors.blueAccent
+                    : (isDark ? Colors.white : Colors.black54),
+              ),
+              onPressed: () =>
+                  controller.isOpen ? controller.close() : controller.open(),
             ),
-            onPressed: () => menuController.isOpen
-                ? menuController.close()
-                : menuController.open(),
+            menuChildren: [
+              _buildListItem(
+                Icons.format_list_bulleted,
+                'Bullets',
+                currentList,
+                Attribute.ul,
+              ),
+              _buildListItem(
+                Icons.format_list_numbered,
+                'Numbers',
+                currentList,
+                Attribute.ol,
+              ),
+            ],
           ),
-          menuChildren: [
-            _buildListItem(
-              Icons.format_list_bulleted,
-              'Bullets',
-              currentList,
-              Attribute.ul,
-            ),
-            _buildListItem(
-              Icons.format_list_numbered,
-              'Numbers',
-              currentList,
-              Attribute.ol,
-            ),
-          ],
         );
       },
     );

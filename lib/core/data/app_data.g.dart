@@ -18,6 +18,7 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
     };
     return NotesSection(
       id: fields[0] as String?,
+      positionIndex: fields[9] == null ? 0 : fields[9] as int,
       title: fields[1] as String,
       content: fields[2] as String,
       richContent: fields[3] as String,
@@ -32,7 +33,7 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
   @override
   void write(BinaryWriter writer, NotesSection obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
       ..writeByte(7)
       ..write(obj.isPinned)
       ..writeByte(8)
-      ..write(obj.cardColorValue);
+      ..write(obj.cardColorValue)
+      ..writeByte(9)
+      ..write(obj.positionIndex);
   }
 
   @override
@@ -80,6 +83,7 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       userEmail: fields[2] as String?,
       userAvatarUrl: fields[3] as String?,
       seedVersion: fields[5] == null ? -1 : fields[5] as int,
+      lastMaintenanceDate: fields[6] as DateTime?,
       recentColorValues: (fields[4] as List).cast<int>(),
     );
   }
@@ -87,7 +91,7 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.isDarkMode)
       ..writeByte(1)
@@ -99,7 +103,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(4)
       ..write(obj.recentColorValues)
       ..writeByte(5)
-      ..write(obj.seedVersion);
+      ..write(obj.seedVersion)
+      ..writeByte(6)
+      ..write(obj.lastMaintenanceDate);
   }
 
   @override

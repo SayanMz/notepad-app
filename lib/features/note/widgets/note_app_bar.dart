@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
@@ -13,11 +14,6 @@ import 'package:notepad/core/services/context_extensions.dart';
 /// - Display title
 /// - Provide edit mode toggle
 /// - Expose undo/redo actions
-///
-/// DESIGN:
-/// - Stateless (no internal state)
-/// - Does NOT depend on editor/controller directly
-/// - Uses callbacks → keeps separation clean
 class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {
   const NoteAppBar({
     super.key,
@@ -54,8 +50,65 @@ class _NoteAppBarState extends State<NoteAppBar> {
 
   @override
   void dispose() {
-    super.dispose();
     isSavingNotifier.dispose();
+    super.dispose();
+  }
+
+  /// Helper to encapsulate menu logic and avoid repeating the 'isNotEmpty' check
+  MenuItemButton _buildPdfMenuItem({
+    required String label,
+    required Future<void> Function(String, dynamic) action,
+  }) {
+    return MenuItemButton(
+      child: Text(label, style: TextStyle(color: iconColor)),
+      onPressed: () async {
+        final isEmpty =
+            widget.title.text.isEmpty &&
+            widget.contentController.document.toPlainText().trim().isEmpty;
+
+        if (isEmpty) return;
+
+        isSavingNotifier.value = true;
+        try {
+          final richData = widget.contentController.document.toDelta().toJson();
+          await action(widget.title.text, richData);
+        } catch (e) {
+          if (!context.mounted) return;
+          showErrorSnackBar(
+            duration: AnimationConstants.snackbarShort,
+            'Could not export: $e',
+          );
+        } finally {
+          isSavingNotifier.value = false;
+        }
+      },
+    );
+  }
+
+  /// Helper to build the undo/redo row
+  Widget _buildHistoryControls() {
+    return ListenableBuilder(
+      listenable: widget.contentController,
+      builder: (context, child) {
+        final bool hasRedo = widget.contentController.hasRedo;
+        final bool hasUndo = widget.contentController.hasUndo;
+
+        return Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.undo),
+              onPressed: hasUndo ? () => widget.contentController.undo() : null,
+              color: hasUndo ? iconColor : Colors.grey,
+            ),
+            IconButton(
+              icon: const Icon(Icons.redo),
+              onPressed: hasRedo ? () => widget.contentController.redo() : null,
+              color: hasRedo ? iconColor : Colors.grey,
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -65,40 +118,15 @@ class _NoteAppBarState extends State<NoteAppBar> {
       backgroundColor: widget.isDark
           ? NoteConstants.appBarBackgroundDark
           : NoteConstants.appBarBackgroundLight,
-
       actions: [
-        /// SAVE INDICATOR (isolated, efficient)
         if (!widget.readOnly) ...[
           Padding(
-            padding: const EdgeInsets.only(right: NoteConstants.appBarRightPadding),
+            padding: const EdgeInsets.only(
+              right: NoteConstants.appBarRightPadding,
+            ),
             child: SaveIndicator(saveState: widget.saveState),
           ),
-          ListenableBuilder(
-            listenable: widget.contentController,
-            builder: (context, child) {
-              final bool hasRedo = widget.contentController.hasRedo;
-              final bool hasUndo = widget.contentController.hasUndo;
-
-              return Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.undo),
-                    onPressed: hasUndo
-                        ? () => widget.contentController.undo()
-                        : null,
-                    color: hasUndo ? iconColor : Colors.grey, // Reactive color
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.redo),
-                    onPressed: hasRedo
-                        ? () => widget.contentController.redo()
-                        : null,
-                    color: hasRedo ? iconColor : Colors.grey, // Reactive color
-                  ),
-                ],
-              );
-            },
-          ),
+          _buildHistoryControls(),
           MenuAnchor(
             alignmentOffset: const Offset(0, NoteConstants.appBarMenuOffsetY),
             builder: (context, menuController, child) {
@@ -113,79 +141,25 @@ class _NoteAppBarState extends State<NoteAppBar> {
               );
             },
             menuChildren: [
-              MenuItemButton(
-                child: Text('Save as PDF', style: TextStyle(color: iconColor)),
-                onPressed: () async {
-                  final isNotEmpty =
-                      widget.title.text.isNotEmpty &&
-                      widget.contentController.document
-                          .toPlainText()
-                          .isNotEmpty;
-
-                  if (isNotEmpty) {
-                    isSavingNotifier.value = true;
-                    try {
-                      final richData = widget.contentController.document
-                          .toDelta()
-                          .toJson();
-
-                      await NoteDocumentService.saveNoteAsPdf(
-                        title: widget.title.text,
-                        richContent: richData,
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                        duration: AnimationConstants.snackbarShort,
-                          content: Text('Could not export PDF: $e'),
-                        ),
-                      );
-                    } finally {
-                      isSavingNotifier.value = false;
-                    }
-                  }
-                },
+              _buildPdfMenuItem(
+                label: 'Save as PDF',
+                action: (title, data) => NoteDocumentService.saveNoteAsPdf(
+                  title: title,
+                  richContent: data,
+                ),
               ),
-              MenuItemButton(
-                child: Text('Share Note', style: TextStyle(color: iconColor)),
-                onPressed: () async {
-                  final isNotEmpty =
-                      widget.title.text.isNotEmpty &&
-                      widget.contentController.document
-                          .toPlainText()
-                          .isNotEmpty;
-
-                  if (isNotEmpty) {
-                    isSavingNotifier.value = true;
-                    try {
-                      final richData = widget.contentController.document
-                          .toDelta()
-                          .toJson();
-
-                      await NoteDocumentService.shareSingleNoteAsPdf(
-                        title: widget.title.text,
-                        richContent: richData,
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                        duration: AnimationConstants.snackbarShort,
-                          content: Text('Could not export PDF: $e'),
-                        ),
-                      );
-                    } finally {
-                      isSavingNotifier.value = false;
-                    }
-                  }
-                },
+              _buildPdfMenuItem(
+                label: 'Share Note',
+                action: (title, data) =>
+                    NoteDocumentService.shareSingleNoteAsPdf(
+                      title: title,
+                      richContent: data,
+                    ),
               ),
             ],
           ),
         ],
       ],
-
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(NoteConstants.progressBarHeight),
         child: ValueListenableBuilder(

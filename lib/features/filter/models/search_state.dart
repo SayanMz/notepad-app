@@ -1,4 +1,4 @@
-import 'package:notepad/features/search/models/search_filters.dart';
+import 'package:notepad/features/filter/models/search_filters.dart';
 
 /// Holds the full search state: query text plus filters.
 class SearchState {

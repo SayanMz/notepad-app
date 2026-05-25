@@ -53,7 +53,7 @@ class NoteVoiceController {
 
   void toggleListening(QuillController contentController) async {
     if (isListening.value) {
-      _cleanupListening(cancelRobot: true);
+      _cleanupListening(cancelLottie: true);
       return;
     }
 
@@ -73,7 +73,7 @@ class NoteVoiceController {
     _speechTimer = Timer(NoteConstants.aiSpeechSilenceTimeout, () {
       if (_lastWords.isEmpty) {
         // ⚡ trim() removed for efficiency
-        _cleanupListening(cancelRobot: true);
+        _cleanupListening(cancelLottie: true);
       }
     });
 
@@ -93,11 +93,11 @@ class NoteVoiceController {
     );
   }
 
-  void _cleanupListening({bool cancelRobot = false}) {
+  void _cleanupListening({bool cancelLottie = false}) {
     _speechTimer?.cancel();
     _speech.stop();
     isListening.value = false;
-    if (cancelRobot) isProcessingVoice.value = false;
+    if (cancelLottie) isProcessingVoice.value = false;
   }
 
   Future<void> _processVoiceCommandAndFeedback(
@@ -140,6 +140,12 @@ class NoteVoiceController {
       isProcessingVoice.value = false;
       showErrorSnackBar('AI service error. Try again.');
     }
+  }
+
+  void stopHardwareListening() {
+    _cleanupListening(
+      cancelLottie: true,
+    ); // ⚡ Shuts down the mic hardware instantly
   }
 
   void dispose() {

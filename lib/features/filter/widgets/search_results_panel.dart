@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/features/search/controllers/search_controller.dart'
-    as search_ctrl;
-import 'package:notepad/features/search/models/search_date_selection.dart';
-import 'package:notepad/features/search/models/search_filters.dart';
-import 'package:notepad/features/search/widgets/search_result_card.dart';
-import 'package:notepad/features/search/widgets/smooth_slide_fade.dart';
 import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/features/filter/controllers/search_controller.dart'
+    as search_ctrl;
+import 'package:notepad/features/filter/models/search_date_selection.dart';
+import 'package:notepad/features/filter/models/search_filters.dart';
+import 'package:notepad/features/filter/search_constants.dart';
+import 'package:notepad/features/filter/services/smooth_slide_fade.dart';
+import 'package:notepad/features/filter/widgets/search_results_list.dart';
+import 'package:notepad/features/trash/recycle_constants.dart';
 
 class SearchResultsPanel extends StatelessWidget {
   const SearchResultsPanel({
@@ -15,6 +17,7 @@ class SearchResultsPanel extends StatelessWidget {
     required this.onNoteTap,
     required this.showChips,
     required this.onClearFilter,
+    required this.scrollController,
     super.key,
   });
 
@@ -22,6 +25,7 @@ class SearchResultsPanel extends StatelessWidget {
   final Future<void> Function(NotesSection note) onNoteTap;
   final ValueNotifier<bool> showChips;
   final VoidCallback onClearFilter;
+  final ScrollController scrollController;
 
   SearchDateSelection _midnightSelection(DateTime value) {
     return SearchDateSelection(
@@ -98,9 +102,10 @@ class SearchResultsPanel extends StatelessWidget {
                   _buildMetadataHeader(context, context.isDark),
                   const SizedBox(height: 4),
                   Expanded(
-                    child: _SearchResultsList(
+                    child: SearchResultsList(
                       controller: controller,
                       onNoteTap: onNoteTap,
+                      scrollController: scrollController,
                     ),
                   ),
                 ],
@@ -117,43 +122,43 @@ class SearchResultsPanel extends StatelessWidget {
     final hasCriteria = controller.hasAnyCriteria;
     final hasActiveFilters = controller.hasFilters;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Condition is strong enough: only builds if there is data to show
-        if (hasCriteria || hasActiveFilters)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Text(
+    return Padding(
+      padding: EdgeInsets.only(
+        // ⚡ MATCH THE GRID: This should use the exact same padding value as your list padding
+        // to ensure it perfectly aligns vertically with the note card contents.
+        left: hasActiveFilters ? 8.0 : RecycleConstants.listPadding,
+        right: RecycleConstants.listPadding,
+        top: SearchConstants.metadataPaddingV,
+        bottom: SearchConstants.metadataPaddingV,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (hasActiveFilters) ...[
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                controller.clearFilter();
+                onClearFilter();
+              },
+              icon: const Icon(Icons.filter_alt_off, size: 18),
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+              tooltip: 'Clear filter',
+            ),
+            const SizedBox(width: 20), // Clean, natural spacing token
+          ],
+          if (hasCriteria || hasActiveFilters)
+            Text(
               resultsCount == 1 ? '1 result' : '$resultsCount results',
               style: TextStyle(
                 color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
                 fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-
-        const Spacer(),
-
-        if (hasActiveFilters)
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: TextButton.icon(
-              onPressed: () {
-                controller.clearFilter();
-                onClearFilter();
-              },
-              icon: const Icon(Icons.filter_alt_off, size: 18),
-              label: const Text('Clear Filter'),
-              style: TextButton.styleFrom(
-                foregroundColor: isDarkMode
-                    ? Colors.grey[400]
-                    : Colors.grey[700],
-                textStyle: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -168,7 +173,10 @@ class SearchResultsPanel extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 10, left: 5),
+        padding: const EdgeInsets.only(
+          bottom: SearchConstants.chipBottomPadding,
+          left: SearchConstants.chipLeftPadding,
+        ),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -176,12 +184,12 @@ class SearchResultsPanel extends StatelessWidget {
             children: [
               Icon(
                 Icons.bolt_rounded,
-                size: 18,
+                size: SearchConstants.chipIconSize,
                 color: isAnyQuickChipActive
-                    ? Theme.of(context).colorScheme.primary
+                    ? context.colorScheme.primary
                     : Theme.of(context).disabledColor,
               ),
-              const SizedBox(width: 22.5),
+              const SizedBox(width: SearchConstants.chipBoltGap),
               _buildActionChip(
                 label: 'Yesterday',
                 isSelected: is1DayActive,
@@ -191,7 +199,7 @@ class SearchResultsPanel extends StatelessWidget {
                 },
                 context: context,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: SearchConstants.chipGap),
               _buildActionChip(
                 label: 'Past 7 days',
                 isSelected: is7DaysActive,
@@ -201,7 +209,7 @@ class SearchResultsPanel extends StatelessWidget {
                 },
                 context: context,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: SearchConstants.chipGap),
               _buildActionChip(
                 label: 'Past 30 days',
                 isSelected: is30DaysActive,
@@ -224,7 +232,7 @@ class SearchResultsPanel extends StatelessWidget {
     required VoidCallback onPressed,
     required BuildContext context,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = context.colorScheme;
 
     return ActionChip(
       label: Text(
@@ -237,91 +245,12 @@ class SearchResultsPanel extends StatelessWidget {
       ),
       onPressed: onPressed,
       backgroundColor: isSelected
-          ? colorScheme.primaryContainer.withValues(alpha: 0.8)
+          ? colorScheme.primaryContainer.withValues(
+              alpha: SearchConstants.selectedChipAlpha,
+            )
           : (context.isDark ? Colors.grey[800] : Colors.grey[200]),
       visualDensity: VisualDensity.compact,
       side: BorderSide.none,
-    );
-  }
-}
-
-class _SearchResultsList extends StatelessWidget {
-  const _SearchResultsList({required this.controller, required this.onNoteTap});
-
-  final search_ctrl.SearchController controller;
-  final Future<void> Function(NotesSection note) onNoteTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      transitionBuilder: (child, animation) {
-        return FadeTransition(opacity: animation, child: child);
-      },
-      child: _buildCurrentContent(),
-    );
-  }
-
-  Widget _buildCurrentContent() {
-    final results = controller.results;
-    final query = controller.query;
-    final hasCriteria = controller.hasAnyCriteria;
-
-    // IMPORTANT: Keys are required for AnimatedSwitcher to recognize changes
-    if (!hasCriteria) {
-      return const _SearchInitialState(key: ValueKey('initial'));
-    }
-    if (results.isEmpty) {
-      return _SearchEmptyState(key: const ValueKey('empty'), query: query);
-    }
-
-    return ListView.builder(
-      key: const ValueKey('results_list'), // Key ensures the list fades in
-      padding: const EdgeInsets.only(left: 8, right: 15, bottom: 20),
-      itemCount: results.length,
-      addRepaintBoundaries: true,
-      physics: const BouncingScrollPhysics(),
-      itemBuilder: (context, index) {
-        final note = results[index];
-        return SearchResultCard(
-          key: ValueKey(note.id),
-          note: note,
-          query: query,
-          onTap: () => onNoteTap(note),
-        );
-      },
-    );
-  }
-}
-
-class _SearchInitialState extends StatelessWidget {
-  const _SearchInitialState({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const SearchMessage(
-      title: 'Search your notes by title or content',
-      subtitle: 'Type a keyword or use the filter to find notes.',
-      icon: Icons.manage_search_rounded,
-    );
-  }
-}
-
-class _SearchEmptyState extends StatelessWidget {
-  const _SearchEmptyState({required this.query, super.key});
-
-  final String query;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = query.isNotEmpty
-        ? 'No notes matched "$query"'
-        : 'No notes matched your filters';
-
-    return SearchMessage(
-      title: title,
-      subtitle: 'Try a shorter phrase or adjust your selection.',
-      icon: Icons.search_off_rounded,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:notepad/core/services/context_extensions.dart';
 
 /// Consolidated interaction state for the picker
 class DraggablePickerState {
@@ -84,7 +85,7 @@ class _DraggableToolbarColorPickerState
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
+    final screenSize = context.screenSize;
     final availableWidth = (screenSize.width * 0.8).clamp(260.0, 300.0);
     const double dHeight = 240;
     bool isClosing = false;
@@ -158,9 +159,16 @@ class _DraggableToolbarColorPickerState
                         setState(() => isClosing = true);
                         final currentState = _pickerNotifier.value;
 
-                        // 1. Calculate basic movement
+                        // 1. Calculate raw movement
                         double newX = currentState.offset.dx + details.delta.dx;
                         double newY = currentState.offset.dy + details.delta.dy;
+
+                        // This calculates how far the widget is allowed to move from the center
+                        final maxX = (screenSize.width - availableWidth) / 2;
+                        final maxY = (screenSize.height - dHeight) / 2;
+
+                        newX = newX.clamp(-maxX, maxX);
+                        newY = newY.clamp(-maxY, maxY);
 
                         // 2. Perform math once per update in the callback
                         const targetX = 0.0;
@@ -207,13 +215,12 @@ class _DraggableToolbarColorPickerState
                         if (currentState.isOverTarget) {
                           HapticFeedback.heavyImpact();
                           widget.onDismissRequested();
+                          return;
                         }
                         _pickerNotifier.value = currentState.copyWith(
                           isDragging: false,
                           isOverTarget: false,
-                          offset: currentState.isOverTarget
-                              ? currentState.offset
-                              : Offset.zero,
+                          offset: currentState.offset,
                           scale: 1.0,
                           opacity: 1.0,
                         );

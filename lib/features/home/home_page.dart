@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide SelectionOverlay;
 import 'package:flutter/services.dart';
-import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/home/services/app_router.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/home_drawer.dart';
@@ -33,13 +33,12 @@ class _HomePageState extends State<HomePage> {
   Timer? _debounce;
 
   // REPLACE the old _handleScroll with this
+  // Location: home_page.dart
   bool _handleScroll(Notification notification) {
     if (!mounted) return false;
-    return _controller.handleFabScroll(
-      notification,
-      MediaQuery.of(context).size,
-      isSelectionMode,
-    );
+
+    // Updated to match the new signature
+    return _controller.handleFabScroll(notification, isSelectionMode);
   }
 
   @override
@@ -55,31 +54,6 @@ class _HomePageState extends State<HomePage> {
     _scrollController.dispose();
     _debounce?.cancel();
     super.dispose();
-  }
-
-  // REWRITE to use the controller wrapper
-  Future<void> _handleCloudAction(Future<void> Function() action) async {
-    await _controller
-        .runCloudOperation(
-          action: action,
-          loadingNotifier: _controller.isSavingNotifier,
-          onStatusUpdate: (text, color) {
-            _controller.syncStatusNotifier.value = text;
-            _controller.statusColorNotifier.value = color;
-
-            if (text == 'All saved') {
-              Future.delayed(const Duration(seconds: 3), () {
-                if (mounted) {
-                  _controller.syncStatusNotifier.value = 'Ready to sync';
-                  _controller.statusColorNotifier.value = null;
-                }
-              });
-            }
-          },
-        )
-        .catchError((e) {
-          showErrorSnackBar('Operation failed: $e');
-        });
   }
 
   void _setSelectionMode(bool enabled) {
@@ -109,7 +83,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _confirmBulkDelete() async {
-    final selectedNotes = noteRepository.selectedNotes;
+    final selectedNotes = _controller.selectedNotes;
     final selectedCount = selectedNotes.length;
 
     if (selectedNotes.isEmpty) return;
@@ -139,8 +113,9 @@ class _HomePageState extends State<HomePage> {
     if (shouldDelete != true) return;
 
     await _controller.flushPendingPinnedWrites();
-    _setSelectionMode(false);
+
     _controller.executeBulkDelete(); // Logic moved to controller
+    _setSelectionMode(false);
   }
 
   @override
@@ -155,7 +130,7 @@ class _HomePageState extends State<HomePage> {
 
           if (selectedCount > 0) {
             HapticFeedback.mediumImpact();
-            noteRepository.clearSelection();
+            _controller.clearSelection();
           } else {
             _exitSelectionMode();
           }
@@ -169,60 +144,68 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: isDark
               ? AppColors.darkScaffold
               : AppColors.lightScaffold,
-          endDrawer: HomeDrawer(
-            controller: _controller,
-            isDark: isDark,
-            handleCloudAction: _handleCloudAction,
-          ),
+          endDrawer: HomeDrawer(controller: _controller, isDark: isDark),
           body: Stack(
             children: [
-              CustomScrollView(
-                controller: _scrollController,
-                cacheExtent: 400.0,
-                physics: _controller.activeNotes.isEmpty
-                    ? const NeverScrollableScrollPhysics()
-                    : const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
-                      ),
-                slivers: [
-                  HomeAppBar(
-                    isDark: isDark,
-                    isSavingNotifier: _controller.isSavingNotifier,
-                    fadeRoute: AppRouter.fade,
-                    slideRoute: AppRouter.slide,
-                    onOpenDrawer: () =>
-                        _scaffoldKey.currentState?.openEndDrawer(),
-                  ),
-
-                  NoteList(
-                    isSelectionMode: isSelectionMode,
-                    // Inside CustomScrollView -> slivers -> NoteList
-                    onOpenNote: (noteId) => _controller.openNote(
-                      noteId: noteId,
-                      onNavigate: (id) async {
-                        await Navigator.push(
-                          context,
-                          AppRouter.slide(NotePage(noteId: id)),
-                        );
-                      },
+              ListenableBuilder(
+                listenable: _controller,
+                builder: (context, child) {
+                  return CustomScrollView(
+                    controller: _scrollController,
+                    key: ValueKey(
+                      'home_scroll_view_empty_${_controller.activeNotes.isEmpty}',
                     ),
-                    onTogglePin: (noteId) async =>
-                        _controller.togglePin(noteId),
-                    onShare: _shareSelectedNotesAsHTML,
-                    onDeleteSelected: _confirmBulkDelete,
-                    onSelectionToggle: () {
-                      if (isSelectionMode) {
-                        _exitSelectionMode();
-                      } else {
-                        _setSelectionMode(true);
-                      }
-                    },
-                    controller: _controller,
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: isSelectionMode ? 140.0 : 100.0),
-                  ),
-                ],
+                    cacheExtent: HomeConstants.homeScrollCacheExtent,
+                    physics: _controller.activeNotes.isEmpty
+                        ? const NeverScrollableScrollPhysics()
+                        : _controller.isSelectionMode
+                        ? const AlwaysScrollableScrollPhysics()
+                        : const BouncingScrollPhysics(),
+                    slivers: [
+                      HomeAppBar(
+                        isDark: isDark,
+                        isSavingNotifier: _controller.isSavingNotifier,
+                        fadeRoute: AppRouter.fade,
+                        slideRoute: AppRouter.slide,
+                        onOpenDrawer: () =>
+                            _scaffoldKey.currentState?.openEndDrawer(),
+                      ),
+
+                      NoteList(
+                        isSelectionMode: isSelectionMode,
+                        // Inside CustomScrollView -> slivers -> NoteList
+                        onOpenNote: (noteId) => _controller.openNote(
+                          noteId: noteId,
+                          onNavigate: (id) async {
+                            await Navigator.push(
+                              context,
+                              AppRouter.slide(NotePage(noteId: id)),
+                            );
+                          },
+                        ),
+                        onTogglePin: (noteId) async =>
+                            _controller.togglePin(noteId),
+                        onShare: _shareSelectedNotesAsHTML,
+                        onDeleteSelected: _confirmBulkDelete,
+                        onSelectionToggle: () {
+                          if (isSelectionMode) {
+                            _exitSelectionMode();
+                          } else {
+                            _setSelectionMode(true);
+                          }
+                        },
+                        controller: _controller,
+                      ),
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: isSelectionMode
+                              ? HomeConstants.homeSelectionSpacerExpanded
+                              : HomeConstants.homeSelectionSpacerCollapsed,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               SelectionOverlay(
                 controller: _controller,

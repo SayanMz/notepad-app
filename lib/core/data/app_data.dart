@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:uuid/uuid.dart';
+
 part 'app_data.g.dart';
 
 final _uuid = Uuid();
@@ -15,6 +16,7 @@ class NotesSection {
   /// Creates a note and fills in safe defaults when fields are omitted.
   NotesSection({
     String? id,
+    this.positionIndex = 0,
     required this.title,
     this.content = '',
     this.richContent = '',
@@ -46,21 +48,22 @@ class NotesSection {
   List<String>? _cachedPreview;
   String? _lastProcessedContent;
 
-  // Inside NotesSection class in app_data.dart
+  List<String> getPreview(int maxLines, {String? normalizedContent}) {
+    // Use the passed-in content if provided, otherwise fallback to the class fields
+    final String sourcedData =
+        normalizedContent ?? (richContent.isNotEmpty ? richContent : content);
 
-  List<String> getPreview(int maxLines) {
-    final String sourceData = richContent.isNotEmpty ? richContent : content;
-
-    if (_cachedPreview != null && _lastProcessedContent == sourceData) {
-      return _cachedPreview!.take(maxLines).toList(); // ⚡ CACHE HIT
+    // ⚡ CACHE HIT
+    if (_cachedPreview != null && _lastProcessedContent == sourcedData) {
+      return _cachedPreview!.take(maxLines).toList();
     }
 
-    _lastProcessedContent = sourceData;
-    // Pass the raw JSON to extractor
+    // ⚡ CACHE MISS: Process and update
+    _lastProcessedContent = sourcedData;
     _cachedPreview = extractPreviewLines(
-      sourceData,
-      maxLines: 12,
-    ); // 🐌 CACHE MISS
+      sourcedData,
+      maxLines: 12, // Consider making this dynamic if needed
+    );
 
     return _cachedPreview!.take(maxLines).toList();
   }
@@ -79,6 +82,9 @@ class NotesSection {
 
   @HiveField(8)
   int cardColorValue;
+
+  @HiveField(9, defaultValue: 0)
+  int positionIndex;
 
   // Helper getter/setter to work with Color objects in UI, but it doesn't handle the "Save" or "Notify"
   Color get cardColor => Color(cardColorValue);
@@ -150,6 +156,9 @@ class AppSettings {
   @HiveField(5, defaultValue: -1)
   final int seedVersion;
 
+  @HiveField(6)
+  final DateTime? lastMaintenanceDate;
+
   /// Creates settings with a light-theme default.
   const AppSettings({
     this.isDarkMode = false,
@@ -157,6 +166,7 @@ class AppSettings {
     this.userEmail,
     this.userAvatarUrl,
     this.seedVersion = -1,
+    this.lastMaintenanceDate,
     this.recentColorValues = const [
       0xFFFFF59D, // Pastel Yellow
       0xFFFFCC80, // Soft Peach
@@ -177,6 +187,7 @@ class AppSettings {
     List<int>? recentColorValues,
     bool clearUser = false, // Helper to wipe data on logout
     int? seedVersion,
+    DateTime? lastMaintenanceDate,
   }) {
     return AppSettings(
       isDarkMode: isDarkMode ?? this.isDarkMode,
@@ -185,6 +196,7 @@ class AppSettings {
       userAvatarUrl: clearUser ? null : (userAvatarUrl ?? this.userAvatarUrl),
       recentColorValues: recentColorValues ?? this.recentColorValues,
       seedVersion: seedVersion ?? this.seedVersion,
+      lastMaintenanceDate: lastMaintenanceDate ?? this.lastMaintenanceDate,
     );
   }
 }

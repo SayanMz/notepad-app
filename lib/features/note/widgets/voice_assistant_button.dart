@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:flutter_quill/flutter_quill.dart';
-
+import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 // ⚡ IMPORT THE EXACT SATELLITE CONTROLLERS
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
-import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 
 class VoiceAssistantButton extends StatefulWidget {
   const VoiceAssistantButton({
     super.key,
     required this.lottieController,
-    required this.voiceController, // ⚡ Pass the Voice driver directly
-    required this.uiController, // ⚡ Pass the UI driver directly
-    required this.contentController, // Needed to pass down to toggleListening
+    required this.voiceController,
+    required this.uiController,
+    required this.contentController,
   });
 
   final AnimationController lottieController;
@@ -29,6 +29,7 @@ class VoiceAssistantButton extends StatefulWidget {
 
 class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
   final ValueNotifier<bool> _isPressedNotifier = ValueNotifier<bool>(false);
+  bool get isDark => context.isDark;
 
   @override
   void initState() {
@@ -86,7 +87,6 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                     ? null
                     : () {
                         HapticFeedback.lightImpact();
-                        // ⚡ Fire execution directly into the business controller!
                         widget.voiceController.toggleListening(
                           widget.contentController,
                         );
@@ -105,9 +105,7 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                         : UIConstants.voiceButtonIdleSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[900]
-                          : Colors.white,
+                      color: isDark ? Colors.grey[900] : Colors.white,
                       boxShadow: [
                         if (isListening)
                           BoxShadow(
@@ -119,11 +117,22 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                           )
                         else if (isPressed)
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius:
-                                UIConstants.voiceButtonPressedShadowBlur,
-                            spreadRadius:
-                                UIConstants.voiceButtonPressedShadowSpread,
+                            // ⚡ Crisp radiant white glow for dark mode, subtle clean drop for light mode
+                            color: isDark
+                                ? Colors.white.withValues(
+                                    alpha: 0.65,
+                                  ) // High opacity makes it look like it's emitting light
+                                : Colors.black.withValues(
+                                    alpha: 0.15,
+                                  ), // Clean depth for light mode
+                            blurRadius: isDark
+                                ? UIConstants.voiceButtonPressedShadowBlur +
+                                      6.0 // Extra blur softens the neon edge
+                                : UIConstants.voiceButtonPressedShadowBlur,
+                            spreadRadius: isDark
+                                ? UIConstants.voiceButtonPressedShadowSpread +
+                                      2.0 // Extra spread pushes the light outward
+                                : UIConstants.voiceButtonPressedShadowSpread,
                           ),
                       ],
                     ),
@@ -132,14 +141,15 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                         child: Lottie.asset(
                           'assets/lotties/Ai_Assistant.json',
                           controller: widget.lottieController,
-                          addRepaintBoundary: true,
                           height: isListening
                               ? UIConstants.voiceButtonListeningAssetSize
                               : UIConstants.voiceButtonIdleAssetSize,
                           width: isListening
                               ? UIConstants.voiceButtonListeningAssetSize
                               : UIConstants.voiceButtonIdleAssetSize,
+
                           fit: BoxFit.contain,
+                          renderCache: RenderCache.drawingCommands,
                         ),
                       ),
                     ),

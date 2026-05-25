@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
 
 class SpinningSyncIcon extends StatefulWidget {
   const SpinningSyncIcon({super.key});
@@ -16,7 +17,7 @@ class _SpinningSyncIconState extends State<SpinningSyncIcon>
     super.initState();
     // Controls the speed of the spin. Smaller duration = faster spin!
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: AnimationConstants.snackbarShort,
       vsync: this,
     )..repeat(); // The .repeat() makes it loop infinitely
   }

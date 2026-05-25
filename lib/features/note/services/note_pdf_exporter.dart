@@ -118,8 +118,10 @@ class NotePdfExporter {
     return SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
-        text: 'Check out my note!',
-        subject: title.trim().isEmpty ? 'Shared note' : title.trim(),
+        text:
+            'Check out my note: $title'
+            '.pdf',
+        subject: title.trim().isEmpty ? 'Shared note' : 'Note: $title',
       ),
     );
   }
@@ -168,9 +170,13 @@ class NotePdfExporter {
     required pw.Font fontBoldItalic,
     required pw.Font? emojiFont,
   }) async {
-    final directory = await _shareDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${directory.path}/${fileNameBase}_$timestamp.pdf');
+    final baseDir = await _shareDirectory();
+
+    final uniqueDir = await Directory(
+      '${baseDir.path}/${DateTime.now().microsecondsSinceEpoch}',
+    ).create(recursive: true);
+
+    final file = File('${uniqueDir.path}/$fileNameBase.pdf');
 
     await file.writeAsBytes(
       await buildPdfDocument(
