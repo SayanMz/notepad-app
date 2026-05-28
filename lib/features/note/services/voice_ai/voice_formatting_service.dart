@@ -26,6 +26,34 @@ class VoiceFormattingService {
       } else if (k.contains('bullet') || k == 'ul') {
         k = 'list';
         v = 'bullet';
+      } else if (k.contains('list')) {
+        // 🌟 FIX: Catch "list item" or "make a list" and force it to work!
+        k = 'list';
+        if (v == null || v == true || v.toString() == 'true') {
+          v = 'bullet';
+        }
+      } else if (k.contains('align') ||
+          ['left', 'right', 'center', 'middle', 'justify'].contains(k) ||
+          [
+            'left',
+            'right',
+            'center',
+            'middle',
+            'justify',
+          ].contains(v?.toString().toLowerCase())) {
+        final combinedStr = '${k}_${v}'.toLowerCase();
+        k = 'align'; // Force the key to be align
+
+        if (combinedStr.contains('right')) {
+          v = 'right'; // Force the value to strictly be right
+        } else if (combinedStr.contains('center') ||
+            combinedStr.contains('middle')) {
+          v = 'center';
+        } else if (combinedStr.contains('justify')) {
+          v = 'justify';
+        } else {
+          v = 'left'; // Default fallback
+        }
       }
 
       if (k.isEmpty) continue;
@@ -130,60 +158,87 @@ class VoiceFormattingService {
             }
           }
 
+          int startPos = s;
           int blockLen = l;
+
+          // Strip the trailing newline character if the range contains one.
+          // This keeps the block format completely isolated and stops ALL bleeding.
           if (blockLen > 0 &&
-              s + blockLen <= pt.length &&
-              pt.substring(s, s + blockLen).endsWith('\n')) {
+              startPos + blockLen <= pt.length &&
+              pt.substring(startPos, startPos + blockLen).endsWith('\n')) {
             blockLen -= 1;
           }
-          controller.formatText(s, blockLen, Attribute.fromKeyValue(k, val));
+
+          // 🌟 THE ALIGNMENT CORE FIX:
+          // 1. Left alignment in Quill is applied by clearing the attribute (passing null).
+          // 2. Right/Center are block attributes, which work perfectly now because blockLen
+          //    targets the text inside the block boundaries precisely.
+          if (k == 'align' && val == 'left') {
+            val = null;
+          }
+
+          // Apply the formatting directly on the resolver's range
+          controller.formatText(
+            startPos,
+            blockLen,
+            Attribute.fromKeyValue(k, val),
+          );
+          // 📍 Location: voice_formatting_service.dart -> Inside applyInstructions()
         } else {
+          // --- Inline block modifier (Bold, Italic, Color, Size, Links) ---
           if (s >= pt.length && !hasSelection) {
             skippedInlineOnEmpty = true;
             continue;
           }
 
+          // 🌟 STEP 1: Process size changes using index 's' to find current size
           if (k == 'size_change' ||
               (k == 'size' &&
                   v.toString().toLowerCase().contains(
                     RegExp(r'big|small|large|tiny'),
                   ))) {
-            final sAttr = controller.document
-                .collectStyle(s, 1)
-                .attributes['size'];
+            // Query style from exactly position 's' (length 1) to avoid mixed style null values
+            final currentStyle = controller.document.collectStyle(s, 1);
+            final sAttr = currentStyle.attributes['size'];
+
             double cur = (sAttr != null && sAttr.value is num)
                 ? (sAttr.value as num).toDouble()
                 : 16.0;
+
             double change =
                 v.toString().contains('small') || v.toString().startsWith('-')
                 ? -5.0
                 : 5.0;
-            controller.formatText(
-              s,
-              l,
-              Attribute.fromKeyValue('size', (cur + change).clamp(8.0, 100.0)),
-            );
-          } else if (k == 'link') {
-            String finalUrl = v.toString().trim();
-            if (!finalUrl.toLowerCase().startsWith('http')) {
-              finalUrl = 'https://$finalUrl';
-            }
-            controller.formatText(
-              s,
-              l,
-              Attribute.fromKeyValue('link', finalUrl),
-            );
-            controller.formatText(
-              s,
-              l,
-              Attribute.fromKeyValue('color', '#1E88E5'),
-            );
-            controller.formatText(s, l, Attribute.underline);
+
+            v = (cur + change).clamp(8.0, 100.0);
+            k = 'size';
+          } else if (k == 'size') {
+            v = (double.tryParse(v.toString()) ?? 16.0).clamp(8.0, 100.0);
+          }
+
+          // 🌟 STEP 2: Apply directly to active selection or text range
+          if (hasSelection && isSelectionTarget) {
+            controller.formatSelection(Attribute.fromKeyValue(k, v));
           } else {
-            if (k == 'size') {
-              v = (double.tryParse(v.toString()) ?? 16.0).clamp(8.0, 100.0);
+            if (k == 'link') {
+              String finalUrl = v.toString().trim();
+              if (!finalUrl.toLowerCase().startsWith('http')) {
+                finalUrl = 'https://$finalUrl';
+              }
+              controller.formatText(
+                s,
+                l,
+                Attribute.fromKeyValue('link', finalUrl),
+              );
+              controller.formatText(
+                s,
+                l,
+                Attribute.fromKeyValue('color', '#1E88E5'),
+              );
+              controller.formatText(s, l, Attribute.underline);
+            } else {
+              controller.formatText(s, l, Attribute.fromKeyValue(k, v));
             }
-            controller.formatText(s, l, Attribute.fromKeyValue(k, v));
           }
         }
         if (l > 0 || hasSelection || ['list', 'align'].contains(k)) {
@@ -191,6 +246,7 @@ class VoiceFormattingService {
         }
       }
     }
+
     if (!didApplyFormat && skippedInlineOnEmpty) {
       return 'Line is empty; cannot apply style.';
     }

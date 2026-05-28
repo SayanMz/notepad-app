@@ -60,7 +60,7 @@ class NotesSection {
     // ⚡ CACHE MISS: Process and update
     _lastProcessedContent = sourcedData;
     // We will rename the structured method to extractPreviewLines next
-    _cachedPreview = extractPreviewLines(sourcedData, maxLines: 12);
+    _cachedPreview = extractPreviewLines(sourcedData, maxLines: maxLines);
 
     return _cachedPreview!.take(maxLines).toList();
   }

@@ -39,18 +39,27 @@ class VoiceFormattingTargetResolver {
           ),
         );
 
-    final isSelectionTarget = [
-      'selection',
-      'this',
-      'it',
-      'this line',
-      'this paragraph',
-      'this sentence',
-      'that',
-      'selected text',
-      'paragraph:this',
-      'line:this',
-    ].contains(normalizedTarget);
+    final isSelectionTarget =
+        [
+          'selection',
+          'this',
+          'these',
+          'those',
+          'it',
+          'this line',
+          'these lines',
+          'this paragraph',
+          'this sentence',
+          'that',
+          'selected text',
+          'paragraph:this',
+          'line:this',
+          'all this',
+          'all of this',
+        ].contains(normalizedTarget) ||
+        // 🌟 FIX: Catch LLM fluff leakage like "all this text entirely"
+        normalizedTarget.contains('this text') ||
+        normalizedTarget.contains('selected');
 
     final ranges = <Map<String, int>>[];
     var skippedInlineOnEmpty = false;

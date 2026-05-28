@@ -56,36 +56,37 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isDark = context.isDark;
 
-    return PopScope(
-      canPop: _controller.selectionController.isSelectionMode,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, child) {
+        return PopScope(
+          canPop: !_controller.selectionController.isSelectionMode,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
 
-        if (_controller.selectionController.isSelectionMode) {
-          final selectedCount = _controller.selectionController.selectionCount;
+            if (_controller.selectionController.isSelectionMode) {
+              final selectedCount =
+                  _controller.selectionController.selectionCount;
 
-          if (selectedCount > 0) {
-            HapticFeedback.mediumImpact();
-            _controller.selectionController.clearSelection();
-          } else {
-            _controller.selectionController.exitSelectionMode();
-          }
-        }
-      },
-      child: NotificationListener<Notification>(
-        onNotification: _handleScroll,
-        child: Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: isDark
-              ? AppColors.darkScaffold
-              : AppColors.lightScaffold,
-          endDrawer: HomeDrawer(controller: _controller),
-          body: Stack(
-            children: [
-              ListenableBuilder(
-                listenable: _controller,
-                builder: (context, child) {
-                  return SafeArea(
+              if (selectedCount > 0) {
+                HapticFeedback.mediumImpact();
+                _controller.selectionController.clearSelection();
+              } else {
+                _controller.selectionController.exitSelectionMode();
+              }
+            }
+          },
+          child: NotificationListener<Notification>(
+            onNotification: _handleScroll,
+            child: Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: isDark
+                  ? AppColors.darkScaffold
+                  : AppColors.lightScaffold,
+              endDrawer: HomeDrawer(controller: _controller),
+              body: Stack(
+                children: [
+                  SafeArea(
                     child: CustomScrollView(
                       controller: _scrollController,
                       key: ValueKey(_controller.activeNotes.isEmpty),
@@ -107,21 +108,22 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-                  );
-                },
+                  ),
+
+                  SelectionOverlay(
+                    controller: _controller,
+                    selectionController: _controller.selectionController,
+                  ),
+                  HomeFab(
+                    controller: _controller,
+                    selectionController: _controller.selectionController,
+                  ),
+                ],
               ),
-              SelectionOverlay(
-                controller: _controller,
-                selectionController: _controller.selectionController,
-              ),
-              HomeFab(
-                controller: _controller,
-                selectionController: _controller.selectionController,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -37,143 +37,36 @@ class SeedDataService {
             'Pizza\n'
             'Burger\n\n'
             'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
+            '- "Make the first line italic"\n'
+            '- "Make golden retriever huge,"\n'
+            '- "Make the word bold look large"\n'
             '- "Underline the second instance of dog"\n'
             '- "Make menu items a checklist"\n'
             '- "Center the last paragraph"',
         cardColorValue: 0xFFEBCB8B,
       ),
       NotesSection(
-        title: 'AI Playground',
+        title: 'AI tested/working Commands by me',
         content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
+            "List items: \n"
+            "A\n"
+            "B\n"
+            "C\n"
+            "D\n"
+            "\n"
+            "Now say: \n"
+            "Make list items a list\n"
+            "Make b brown\n"
+            "Make the 2nd line blue\n"
+            "Make the bottom line bold\n"
+            "Make the starting line bold\n"
+            "Shift the first line to middle\n"
+            "Selection highlighter: \n"
+            "Select any porion text and say:\n"
+            "make these look gold\n"
+            "select entire list items and say 'make this sentence a list item'"
+            "only keep the list item section for this test to work properly, remove everything else",
       ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      NotesSection(
-        title: 'AI Playground',
-        content:
-            'Test out the engine\'s precision right here.\n\n'
-            'The golden retriever is a very intelligent dog. Because it is loyal, the dog makes a great pet.\n\n'
-            'Menu items:\n'
-            'Pizza\n'
-            'Burger\n\n'
-            'Try saying these exact commands:\n'
-            '- "Make the first sentence italic"\n'
-            '- "Make golden retriever huge"\n'
-            '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
-            '- "Center the last paragraph"',
-        cardColorValue: 0xFFEBCB8B,
-      ),
-      // (The repository originally had 6 duplicate AI playground notes here.
-      // I am keeping one for cleanliness, but you can copy/paste more if needed!)
     ];
   }
 

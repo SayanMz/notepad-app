@@ -32,7 +32,6 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
           currentLineBuffer.clear();
 
           if (attrs != null) {
-            // Return structured data instead of injecting string bullets
             if (attrs['list'] == 'bullet') {
               extractedLines.add(
                 PreviewLine(lineText, isList: true, listMarker: '•'),
@@ -106,59 +105,97 @@ void _parsePlainTextLines(
 ) {
   int start = 0;
   int nextNewline = rawText.indexOf('\n');
+  final listPattern = RegExp(r'^\s*([-•·]|\d+\.)\s+(.*)'); //
 
-  // We use the existing Regex here ONLY for plain text parsing to maintain parity,
-  // but we do it once during extraction, not repeatedly in the UI build method.
-  final listPattern = RegExp(r'^\s*([-•·]|\d+\.)\s+(.*)');
+  int regularTextCount = 0;
+  int checklistCount = 0;
 
+  // Explicitly allocate a high threshold limit to collect every trailing item row
+  final int maxChecklistsToFind = maxLines ?? 6;
+
+  // 🌟 THE UNBROKEN LOOP:
+  // Iterate all the way to the end of the text stream to locate every single checklist node,
+  // while applying maxLines strictly to text blocks only.
   while (nextNewline != -1) {
-    final String rawLine = rawText.substring(start, nextNewline).trim();
+    final String rawLine = rawText.substring(start, nextNewline).trim(); //
+
     if (rawLine.isNotEmpty) {
-      final match = listPattern.firstMatch(rawLine);
+      //
+      final match = listPattern.firstMatch(rawLine); //
+
       if (match != null) {
-        targetList.add(
-          PreviewLine((match.group(2) ?? '').trim(), isList: true),
-        );
+        // List item discovered: Capture it safely up to your 6-item capacity limit
+        if (checklistCount < maxChecklistsToFind) {
+          targetList.add(
+            PreviewLine(
+              (match.group(2) ?? '').trim(), //
+              isList: true, //
+              listMarker: match.group(1), //
+            ),
+          );
+          checklistCount++;
+        }
       } else {
-        targetList.add(PreviewLine(rawLine));
+        // Regular text paragraph: Freeze collection the exact moment you hit maxLines
+        if (maxLines == null || regularTextCount < maxLines) {
+          targetList.add(PreviewLine(rawLine)); //
+          regularTextCount++;
+        }
       }
 
-      if (maxLines != null && targetList.length >= maxLines) return;
+      // ⚡ FAST TRASH/MINIMAL PATH EXIT GATE:
+      // We only short-circuit the loop early if we found our max text lines AND
+      // the remaining raw file substring does not contain any list markers whatsoever.
+      if (maxLines != null &&
+          regularTextCount >= maxLines &&
+          (checklistCount >= maxChecklistsToFind ||
+              !rawText.contains('-', start))) {
+        return;
+      }
     }
-    start = nextNewline + 1;
-    nextNewline = rawText.indexOf('\n', start);
+
+    start = nextNewline + 1; //
+    nextNewline = rawText.indexOf('\n', start); //
   }
 
+  // Handle final trailing item line at the absolute bottom of the document file
   if (start < rawText.length) {
-    final String lastLine = rawText.substring(start).trim();
+    final String lastLine = rawText.substring(start).trim(); //
     if (lastLine.isNotEmpty) {
-      final match = listPattern.firstMatch(lastLine);
+      //
+      final match = listPattern.firstMatch(lastLine); //
       if (match != null) {
-        targetList.add(
-          PreviewLine((match.group(2) ?? '').trim(), isList: true),
-        );
+        if (checklistCount < maxChecklistsToFind) {
+          targetList.add(
+            PreviewLine(
+              (match.group(2) ?? '').trim(),
+              isList: true,
+              listMarker: match.group(1),
+            ),
+          ); //
+        }
       } else {
-        targetList.add(PreviewLine(lastLine));
+        if (maxLines == null || regularTextCount < maxLines) {
+          targetList.add(PreviewLine(lastLine)); //
+        }
       }
     }
   }
 }
 
-/// Finds multiple separate match blocks across a document.
-/// Returns a list of blocks, where each block contains a slice of lines.
+/// Finds multiple separate match blocks across a document using word tokens.
 List<List<String>> extractMultiSearchSnippets(
   String content,
   String query, {
-  int maxBlocks = 3, //
+  int maxBlocks = 3,
 }) {
-  final normalizedQuery = query.trim().toLowerCase(); //
-  final lines = extractPreviewLines(content).map((p) => p.text).toList(); //
+  final normalizedQuery = query.trim().toLowerCase();
+  final lines = extractPreviewLines(content).map((p) => p.text).toList();
 
   if (normalizedQuery.isEmpty) {
-    return [lines.take(2).toList()]; //
+    return [lines.take(2).toList()];
   }
 
-  // Split query into tokens to find line matches for ANY keyword component
   final List<String> tokens = normalizedQuery
       .split(RegExp(r'\s+'))
       .where((t) => t.isNotEmpty)
@@ -166,71 +203,57 @@ List<List<String>> extractMultiSearchSnippets(
 
   if (tokens.isEmpty) return [lines.take(2).toList()];
 
-  // 1. Gather all unique line indices where ANY search token hits
-  final List<int> matchIndices = []; //
+  final List<int> matchIndices = [];
   for (int i = 0; i < lines.length; i++) {
-    //
     final lineLower = lines[i].toLowerCase();
     final bool isMatch = tokens.any((token) => lineLower.contains(token));
     if (isMatch) {
-      matchIndices.add(i); //
+      matchIndices.add(i);
     }
   }
 
   if (matchIndices.isEmpty) {
-    return [lines.take(2).toList()]; //
+    return [lines.take(2).toList()];
   }
 
-  final List<List<String>> blocks = []; //
-  int pointer = 0; //
+  final List<List<String>> blocks = [];
+  int pointer = 0;
 
-  // 🌟 Define configuration thresholds for dynamic block separation
-  const int contextPadding = 2; // Lines of context to pull below a match block
-  const int maxGapAllowed =
-      3; // Max distance between matches before forcing a split
+  const int contextPadding = 2;
+  const int maxGapAllowed = 3;
 
-  // 2. Advanced Cluster Extraction Loop
   while (pointer < matchIndices.length && blocks.length < maxBlocks) {
-    //
-    int startIdx = matchIndices[pointer]; //
-    int endIdx = startIdx; //
+    int startIdx = matchIndices[pointer];
+    int endIdx = startIdx;
 
-    // 🌟 THE FIX: Group matches together ONLY if they fall within our maximum gap buffer
     while (pointer + 1 < matchIndices.length &&
         matchIndices[pointer + 1] - endIdx <= maxGapAllowed) {
-      pointer++; //
-      endIdx = matchIndices[pointer]; //
+      pointer++;
+      endIdx = matchIndices[pointer];
     }
 
-    // 3. Slice out the clean, non-overlapping snippet window configuration
-    final int startWindow = startIdx.clamp(0, lines.length - 1); //
-    final int endWindow = (endIdx + contextPadding + 1).clamp(
-      0,
-      lines.length,
-    ); //
+    final int startWindow = startIdx.clamp(0, lines.length - 1);
+    final int endWindow = (endIdx + contextPadding + 1).clamp(0, lines.length);
 
-    blocks.add(lines.sublist(startWindow, endWindow)); //
-    pointer++; //
+    blocks.add(lines.sublist(startWindow, endWindow));
+    pointer++;
   }
 
-  return blocks; //
+  return blocks;
 }
 
-/// Splits text into multiple highlighted and normal spans by evaluating
-/// queries as individual matching word tokens.
+/// Splits text into highlighted spans via tokenized regex alternation rules.
 List<TextSpan> buildHighlightedTextSpans({
   required String text,
   required String query,
   required TextStyle baseStyle,
   required TextStyle highlightStyle,
 }) {
-  final normalizedQuery = query.trim(); //
+  final normalizedQuery = query.trim();
   if (normalizedQuery.isEmpty) {
-    return [TextSpan(text: text, style: baseStyle)]; //
+    return [TextSpan(text: text, style: baseStyle)];
   }
 
-  // 🌟 STEP 1: Split the query string into separate words and filter out empty items.
-  // This turns "AI Meeting" into ['ai', 'meeting'] so we match both tokens separately.
   final List<String> tokens = normalizedQuery
       .toLowerCase()
       .split(RegExp(r'\s+'))
@@ -241,17 +264,13 @@ List<TextSpan> buildHighlightedTextSpans({
     return [TextSpan(text: text, style: baseStyle)];
   }
 
-  // 🌟 STEP 2: Escape words for safe regex consumption, then build an alternation pattern.
-  // Resulting regex matches: (ai|meeting)
   final String pattern = tokens.map((t) => RegExp.escape(t)).join('|');
   final RegExp regex = RegExp(pattern, caseSensitive: false);
 
   final List<TextSpan> spans = [];
   int lastMatchEnd = 0;
 
-  // 🌟 STEP 3: Iterate through all matching token locations found inside the text slice
   for (final Match match in regex.allMatches(text)) {
-    // Append the unhighlighted text prefix leading up to this match hit
     if (match.start > lastMatchEnd) {
       spans.add(
         TextSpan(
@@ -261,7 +280,6 @@ List<TextSpan> buildHighlightedTextSpans({
       );
     }
 
-    // Append the highlighted text span for the matched word token
     spans.add(
       TextSpan(
         text: text.substring(match.start, match.end),
@@ -272,7 +290,6 @@ List<TextSpan> buildHighlightedTextSpans({
     lastMatchEnd = match.end;
   }
 
-  // Append any trailing leftover text remaining after the final loop match
   if (lastMatchEnd < text.length) {
     spans.add(TextSpan(text: text.substring(lastMatchEnd), style: baseStyle));
   }
