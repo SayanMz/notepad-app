@@ -9,16 +9,14 @@ class NoteVoiceFeedbackService {
   final Random _random = Random();
 
   final List<String> _successPhrases = [
-    'Awesome! Here it is.',
-    'All set, there you go!',
-    'That\'s cool, let me handle it.',
-    'You have great artistic instincts! Done.',
-    'Looking good! Formatting applied.',
-    'Consider it done!',
-    'Perfect, applying that right now.',
-    'Got it! Your changes are live.',
+    'Awesome, here it is.',
+    'All set! There you go.',
+    'That\'s cool. Let me handle it.',
+    'Looking good! Formatting applied.', //
+    'Consider it done!', //
+    'Perfect! Applying that right now.',
+    'Got it! Your changes are live.', //
   ];
-
   final List<String> _failurePhrases = [
     'Sorry, I couldn\'t find that word in the text.',
     'I don\'t support that specific feature just yet!',
@@ -63,8 +61,8 @@ class NoteVoiceFeedbackService {
         await _tts.setLanguage('en-US');
       }
 
-      await _tts.setSpeechRate(0.45);
-      await _tts.setPitch(0.85);
+      await _tts.setSpeechRate(0.42);
+      await _tts.setPitch(1.0);
       await _tts.setVolume(1.0);
     } catch (e) {
       debugPrint('Speech init error: $e');

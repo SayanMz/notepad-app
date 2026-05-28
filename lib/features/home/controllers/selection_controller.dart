@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/services/repo_services/selection_service.dart';
 
 /// ------------------------------------------------------------
 /// SELECTION CONTROLLER (UI State)
-/// Tracks active selections. Completely decoupled from the DB.
+/// Tracks active selections. Merged with all legacy SelectionService methods.
 /// ------------------------------------------------------------
 class SelectionController extends ChangeNotifier {
   Set<String> _selectedIds = {};
+  bool _isSelectionMode = false;
 
   Set<String> get selectedIds => _selectedIds;
+
+  bool get isSelectionMode => _isSelectionMode;
   bool get hasSelection => _selectedIds.isNotEmpty;
   int get selectionCount => _selectedIds.length;
 
@@ -20,15 +22,39 @@ class SelectionController extends ChangeNotifier {
         activeNotes.every((note) => _selectedIds.contains(note.id));
   }
 
+  void enterSelectionMode() {
+    if (!_isSelectionMode) {
+      _isSelectionMode = true;
+      notifyListeners();
+    }
+  }
+
+  void exitSelectionMode() {
+    _isSelectionMode = false;
+    _selectedIds.clear();
+    notifyListeners();
+  }
+
   void toggleSelected(String noteId) {
-    // Modifies the _selectedIds set in-place instantly
-    SelectionService.toggleSelection(_selectedIds, noteId);
+    if (_selectedIds.contains(noteId)) {
+      _selectedIds.remove(noteId);
+    } else {
+      _selectedIds.add(noteId);
+    }
+
+    if (_selectedIds.isNotEmpty) {
+      _isSelectionMode = true;
+    } else {
+      _isSelectionMode = false;
+    }
     notifyListeners();
   }
 
   void setSelectAll(List<NotesSection> activeNotes, bool selected) {
     if (selected) {
-      _selectedIds = SelectionService.selectAll(activeNotes);
+      _isSelectionMode = true;
+      // 🌟 Restored logic from SelectionService.selectAll
+      _selectedIds = activeNotes.map((note) => note.id).toSet();
     } else {
       _selectedIds.clear();
     }
@@ -41,9 +67,11 @@ class SelectionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Called after bulk operations to remove processed items from selection
   void removeIds(Iterable<String> idsToRemove) {
     _selectedIds.removeAll(idsToRemove);
-    if (_selectedIds.isEmpty) notifyListeners();
+    if (_selectedIds.isEmpty) {
+      _isSelectionMode = false;
+    }
+    notifyListeners();
   }
 }

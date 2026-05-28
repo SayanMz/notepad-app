@@ -4,18 +4,18 @@ import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/services/auth_controller.dart';
-import 'package:notepad/features/home/widgets/spinning_sync_icon.dart';
-import 'package:notepad/features/home/widgets/storage_progress_bar.dart';
+import 'package:notepad/features/home/widgets/drawer_items/spinning_sync_icon.dart';
+import 'package:notepad/features/home/widgets/drawer_items/storage_progress_bar.dart';
 import 'package:notepad/core/services/context_extensions.dart';
 
 class HomeDrawer extends StatelessWidget {
   final HomeController controller;
-  final bool isDark;
-
-  const HomeDrawer({super.key, required this.controller, required this.isDark});
+  const HomeDrawer({super.key, required this.controller});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDark;
+
     return Container(
       margin: const EdgeInsets.only(
         top: HomeConstants.drawerMarginTop,
@@ -35,29 +35,38 @@ class HomeDrawer extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: Container(
-                width: context.screenSize.width * HomeConstants.drawerWidthFactor,
+                width:
+                    context.screenSize.width * HomeConstants.drawerWidthFactor,
                 constraints: BoxConstraints(
                   maxHeight:
                       context.screenSize.height *
                       HomeConstants.drawerMaxHeightFactor,
                 ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize:
-                        MainAxisSize.min, // This makes it grow with content
-                    children: [
-                      _HomeDrawerHeader(isDark: isDark, controller: controller),
-                      const SizedBox(height: UIConstants.paddingSM),
-                      _HomeDrawerActions(
-                        isDark: isDark,
-                        controller: controller.authController,
-                        onBackup: () => controller.executeBackup(),
-                        onRestore: () => controller.executeRestore(),
-                      ),
-                      const SizedBox(
-                        height: HomeConstants.drawerHeaderSectionGap,
-                      ),
-                    ],
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (ScrollNotification notification) {
+                    return true;
+                  },
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize:
+                          MainAxisSize.min, // This makes it grow with content
+                      children: [
+                        _HomeDrawerHeader(
+                          isDark: isDark,
+                          controller: controller,
+                        ),
+                        const SizedBox(height: UIConstants.paddingSM),
+                        _HomeDrawerActions(
+                          isDark: isDark,
+                          controller: controller.authController,
+                          onBackup: () => controller.executeBackup(),
+                          onRestore: () => controller.executeRestore(),
+                        ),
+                        const SizedBox(
+                          height: HomeConstants.drawerHeaderSectionGap,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -7,6 +7,7 @@ import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/core/widgets/scroll_to_top_fab.dart';
+import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/trash/controller/recycle_controller.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 import 'package:notepad/features/trash/widgets/recycle_empty_state.dart';
@@ -24,7 +25,6 @@ class _RecyclePageState extends State<RecyclePage> {
   bool get isDark => context.isDark;
 
   late final RecycleController _controller;
-  // ⚡ ADD THIS: The missing controller instance needed to trigger the scroll reset
   final ScrollController _scrollController = ScrollController();
 
   final ValueNotifier<bool> _showScrollToTopBtn = ValueNotifier<bool>(false);
@@ -42,10 +42,6 @@ class _RecyclePageState extends State<RecyclePage> {
     _showScrollToTopBtn.dispose();
     super.dispose();
   }
-
-  // --- UI INTERACTION HANDLERS ---
-  // Notice how these methods now only handle UI elements (Dialogs, Snackbars),
-  // and delegate the actual data changes to _controller.
 
   Future<void> _handleRestoreNote(NotesSection note) async {
     final title = note.displayTitle; //
@@ -179,12 +175,12 @@ class _RecyclePageState extends State<RecyclePage> {
   Widget build(BuildContext context) {
     const notesEmptyText = "Your trash is beautifully empty.";
     final cardWidth =
-        context.screenSize.width - (RecycleConstants.listPadding * 2); //[cite: 3]
+        context.screenSize.width - (RecycleConstants.listPadding * 2);
 
     return Scaffold(
       backgroundColor: isDark
           ? AppColors.darkScaffold
-          : AppColors.lightScaffold, //[cite: 3]
+          : AppColors.lightScaffold,
       body: SafeArea(
         child: ListenableBuilder(
           listenable: _controller,
@@ -204,27 +200,27 @@ class _RecyclePageState extends State<RecyclePage> {
                     return false;
                   },
                   child: CustomScrollView(
-                    controller:
-                        _scrollController, // ⚡ Bound missing reference mapping
+                    controller: _scrollController,
                     physics: isEmpty
-                        ? const NeverScrollableScrollPhysics() //[cite: 3]
+                        ? const NeverScrollableScrollPhysics()
                         : const BouncingScrollPhysics(
                             decelerationRate: ScrollDecelerationRate.fast,
                             parent: ClampingScrollPhysics(),
-                          ), //[cite: 3]
+                          ),
+                    cacheExtent: HomeConstants.homeScrollCacheExtent,
                     slivers: [
                       SliverPersistentHeader(
-                        pinned: true, //[cite: 3]
+                        pinned: true,
                         delegate: SmoothHeaderDelegate(
-                          title: 'Recycle Bin', //[cite: 3]
-                          isDark: isDark, //[cite: 3]
+                          title: 'Recycle Bin',
+                          isDark: isDark,
                           forceCentered: isEmpty,
                           onEmptyBin: _handleEmptyRecycleBin,
                         ),
                       ),
                       if (isEmpty)
                         SliverFillRemaining(
-                          hasScrollBody: false, //[cite: 3]
+                          hasScrollBody: false,
                           child: RecycleEmptyState(
                             text: notesEmptyText,
                             isDark: isDark,
@@ -237,7 +233,7 @@ class _RecyclePageState extends State<RecyclePage> {
                           cardWidth: cardWidth,
                           onRestore: _handleRestoreNote,
                           onShowActionSheet: _showNoteActionSheet,
-                        ), // ⚡ Fixed truncated signature closing
+                        ),
                     ],
                   ),
                 ),

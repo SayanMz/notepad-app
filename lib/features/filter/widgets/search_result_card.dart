@@ -145,11 +145,6 @@ class _SearchResultCardState extends State<SearchResultCard> {
 
                         // Map out the targeted preview lines within this specific block loop
                         ...blockLines.map((line) {
-                          final isListLine = isListStyledPreviewLine(line);
-                          final previewText = isListLine
-                              ? stripListMarker(line)
-                              : line;
-
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 3.0),
                             child: Row(
@@ -159,7 +154,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
                                   child: Text.rich(
                                     TextSpan(
                                       children: buildHighlightedTextSpans(
-                                        text: previewText,
+                                        text: line,
                                         query: widget.query,
                                         baseStyle: previewStyle,
                                         highlightStyle: previewStyle.merge(

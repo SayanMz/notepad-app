@@ -3,12 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/features/note/services/document_delta_parser.dart'
     as doc_delta;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class NoteHtmlExporter {
   static String buildHtmlDocument({
@@ -106,16 +105,20 @@ class NoteHtmlExporter {
     required String title,
     required List<dynamic> richContent,
   }) async {
-    final directory = await _shareDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${directory.path}/${fileNameBase}_$timestamp.html');
+    final baseDir = await _shareDirectory(); //
+    final uniqueDir = await Directory(
+      '${baseDir.path}/${DateTime.now().microsecondsSinceEpoch}',
+    ).create(recursive: true);
+
+    // Build the final file path inside your newly isolated safe folder
+    final file = File('${uniqueDir.path}/$fileNameBase.html');
 
     await file.writeAsString(
       buildHtmlDocument(title: title, richContent: richContent),
-      flush: true,
+      flush: true, //
     );
 
-    return file;
+    return file; //
   }
 
   static Future<Directory> _shareDirectory() async {

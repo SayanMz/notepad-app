@@ -10,14 +10,12 @@ class AnimationControllerState extends ChangeNotifier {
 
   bool isVaporizing(String id) => _vaporizingIds.contains(id);
 
-  Future<void> triggerVaporizeAnimation(List<String> noteIds) async {
+  Future<void> triggerVaporizeAnimation(Set<String> noteIds) async {
     if (noteIds.isEmpty) return;
 
     _vaporizingIds.addAll(noteIds);
     notifyListeners();
 
-    // Safe delay strictly for UI painting.
-    // Data layer is no longer blocked by this!
     await Future.delayed(AnimationConstants.medium);
 
     _vaporizingIds.removeAll(noteIds);

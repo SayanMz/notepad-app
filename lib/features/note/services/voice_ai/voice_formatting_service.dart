@@ -186,7 +186,9 @@ class VoiceFormattingService {
             controller.formatText(s, l, Attribute.fromKeyValue(k, v));
           }
         }
-        didApplyFormat = true;
+        if (l > 0 || hasSelection || ['list', 'align'].contains(k)) {
+          didApplyFormat = true;
+        }
       }
     }
     if (!didApplyFormat && skippedInlineOnEmpty) {

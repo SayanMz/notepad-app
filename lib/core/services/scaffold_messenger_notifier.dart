@@ -80,6 +80,7 @@ void showRestorationSnackBar({
     SnackBar(
       behavior: SnackBarBehavior.floating,
       duration: snackDuration,
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 90.0),
       content: Row(
         children: [
           Expanded(child: Text(message)),
@@ -110,7 +111,9 @@ Widget _buildElevatedAction(String label, VoidCallback onTap) {
         ),
         decoration: BoxDecoration(
           color: Colors.deepPurpleAccent,
-          borderRadius: BorderRadius.circular(EditorConstants.snackbarActionRadius),
+          borderRadius: BorderRadius.circular(
+            EditorConstants.snackbarActionRadius,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(

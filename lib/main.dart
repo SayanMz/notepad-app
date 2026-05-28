@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
@@ -23,6 +24,11 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
 
       /// Handles Flutter framework errors.
       /// Maintains default error presentation while ensuring structured logging.
@@ -80,7 +86,6 @@ class MyApp extends StatelessWidget {
           child: MaterialApp(
             title: 'My Notepad',
             debugShowCheckedModeBanner: false,
-            //showPerformanceOverlay: true,
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: appSettingsRepository.themeMode,
@@ -101,6 +106,7 @@ class MyApp extends StatelessWidget {
                 PointerDeviceKind.trackpad,
               },
             ),
+            //showPerformanceOverlay: true,
           ),
         );
       },

@@ -14,11 +14,13 @@ class RecycleOperationsService {
   }) {
     final idSet = targetIds;
     final Map<String, NotesSection> updates = {};
+    final now = DateTime.now();
 
     if (toDelete) {
       currentActive.removeWhere((note) {
         if (idSet.contains(note.id)) {
           note.isDeleted = true;
+          note.updatedAt = now;
           updates[note.id] = note;
           currentDeleted.add(note); // Move pointer to Trash
           return true;
@@ -29,6 +31,7 @@ class RecycleOperationsService {
       currentDeleted.removeWhere((note) {
         if (idSet.contains(note.id)) {
           note.isDeleted = false;
+          note.updatedAt = now;
           updates[note.id] = note;
           currentActive.add(note); // Move pointer back to Home
           return true;

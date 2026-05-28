@@ -70,8 +70,8 @@ class HomeConstants {
 
   // Home shell behavior
   static const double homeScrollCacheExtent = 400.0;
-  static const double homeSelectionSpacerCollapsed = 30.0;
-  static const double homeSelectionSpacerExpanded = 30.0;
+  static const double homeFABExpanded = 130.0;
+  static const double homeSelectionExpanded = 140.0;
   static const double homeBulkDeleteThreshold = 25.0;
   static const double homeTopSnapThreshold = 10.0;
 }

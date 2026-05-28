@@ -8,22 +8,11 @@ import 'package:notepad/core/services/theme_fader.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/filter/search_page.dart';
 import 'package:notepad/features/home/home_constants.dart';
+import 'package:notepad/features/home/services/app_router.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
 
 class HomeAppBar extends StatelessWidget {
-  const HomeAppBar({
-    super.key,
-    required this.isDark,
-    required this.isSavingNotifier,
-    required this.fadeRoute,
-    required this.slideRoute,
-    required this.onOpenDrawer,
-  });
-
-  final bool isDark;
-  final ValueNotifier<bool> isSavingNotifier;
-  final Route Function(Widget) fadeRoute;
-  final Route Function(Widget) slideRoute;
+  const HomeAppBar({super.key, required this.onOpenDrawer});
   final VoidCallback onOpenDrawer;
 
   @override
@@ -76,87 +65,85 @@ class HomeAppBar extends StatelessWidget {
                   ignoring:
                       toolbarOpacity ==
                       0.0, // Disables touches when fully hidden
-                  child: SafeArea(
-                    child: SizedBox(
-                      height: kToolbarHeight,
-                      child: Row(
-                        children: [
-                          IconButton(
-                            onPressed: () async {
-                              HapticFeedback.lightImpact();
-                              ThemeFader.captureAndFade(
-                                context: context,
-                                executeThemeSwap: () async {
-                                  final currentIsDark =
-                                      appSettingsRepository.settings.isDarkMode;
-                                  await appSettingsRepository.update(
-                                    appSettingsRepository.settings.copyWith(
-                                      isDarkMode: !currentIsDark,
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                            icon: Icon(
-                              Icons.light,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
+                  child: SizedBox(
+                    height: kToolbarHeight,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () async {
+                            HapticFeedback.lightImpact();
+                            ThemeFader.captureAndFade(
+                              context: context,
+                              executeThemeSwap: () async {
+                                final currentIsDark =
+                                    appSettingsRepository.settings.isDarkMode;
+                                await appSettingsRepository.update(
+                                  appSettingsRepository.settings.copyWith(
+                                    isDarkMode: !currentIsDark,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                          icon: Icon(
+                            Icons.light,
+                            color: isDark ? Colors.white : Colors.black,
                           ),
-                          const SizedBox(width: UIConstants.paddingSM),
-                          Text(
-                            'Notepad',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: HomeConstants.appBarTitleFontSize,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
+                        ),
+                        const SizedBox(width: UIConstants.paddingSM),
+                        Text(
+                          'Notepad',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: HomeConstants.appBarTitleFontSize,
+                            color: isDark ? Colors.white : Colors.black,
                           ),
-                          const Spacer(),
-                          IconButton(
-                            icon: Icon(
-                              Icons.search,
-                              size: UIConstants.iconMD,
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(
+                            Icons.search,
+                            size: UIConstants.iconMD,
+                            color: isDark
+                                ? Colors.white
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () async {
+                            uiNotifier.clearSnackBars();
+                            await Navigator.push(
+                              context,
+                              AppRouter.fade(const SearchPage()),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.restore_from_trash,
+                            size: UIConstants.iconMD,
+                            color: isDark
+                                ? Colors.white
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () async {
+                            uiNotifier.clearSnackBars();
+                            await Navigator.push(
+                              context,
+                              AppRouter.slide(const RecyclePage()),
+                            );
+                          },
+                        ),
+                        Builder(
+                          builder: (context) {
+                            return IconButton(
+                              icon: const Icon(Icons.sort),
                               color: isDark
                                   ? Colors.white
                                   : colorScheme.onSurfaceVariant,
-                            ),
-                            onPressed: () async {
-                              uiNotifier.clearSnackBars();
-                              await Navigator.push(
-                                context,
-                                fadeRoute(const SearchPage()),
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.restore_from_trash,
-                              size: UIConstants.iconMD,
-                              color: isDark
-                                  ? Colors.white
-                                  : colorScheme.onSurfaceVariant,
-                            ),
-                            onPressed: () async {
-                              uiNotifier.clearSnackBars();
-                              await Navigator.push(
-                                context,
-                                slideRoute(const RecyclePage()),
-                              );
-                            },
-                          ),
-                          Builder(
-                            builder: (context) {
-                              return IconButton(
-                                icon: const Icon(Icons.sort),
-                                color: isDark
-                                    ? Colors.white
-                                    : colorScheme.onSurfaceVariant,
-                                onPressed: onOpenDrawer,
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                              onPressed: onOpenDrawer,
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -164,8 +151,7 @@ class HomeAppBar extends StatelessWidget {
 
               // --- HIDDEN LARGE TITLE ---
               Opacity(
-                opacity:
-                    largeTitleOpacity, // ⚡ Uses the staggered large title phase
+                opacity: largeTitleOpacity,
                 child: IgnorePointer(
                   ignoring:
                       largeTitleOpacity ==

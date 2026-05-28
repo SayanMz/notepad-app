@@ -45,25 +45,22 @@ class NotesSection {
 
   // --- MEMOIZATION CACHE ---
   // This lives in RAM for instant access during scrolling.
-  List<String>? _cachedPreview;
+  List<PreviewLine>? _cachedPreview;
   String? _lastProcessedContent;
 
-  List<String> getPreview(int maxLines, {String? normalizedContent}) {
-    // Use the passed-in content if provided, otherwise fallback to the class fields
+  List<PreviewLine> getPreview(int maxLines, {String? normalizedContent}) {
     final String sourcedData =
         normalizedContent ?? (richContent.isNotEmpty ? richContent : content);
 
-    // ⚡ CACHE HIT
+    // ⚡ CACHE HIT (Now protects NoteCard during scrolling!)
     if (_cachedPreview != null && _lastProcessedContent == sourcedData) {
       return _cachedPreview!.take(maxLines).toList();
     }
 
     // ⚡ CACHE MISS: Process and update
     _lastProcessedContent = sourcedData;
-    _cachedPreview = extractPreviewLines(
-      sourcedData,
-      maxLines: 12, // Consider making this dynamic if needed
-    );
+    // We will rename the structured method to extractPreviewLines next
+    _cachedPreview = extractPreviewLines(sourcedData, maxLines: 12);
 
     return _cachedPreview!.take(maxLines).toList();
   }

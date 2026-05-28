@@ -5,17 +5,17 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/note/note_page.dart';
 
 class HomeFab extends StatelessWidget {
   final HomeController controller;
-  final bool isSelectionMode;
-
+  final SelectionController selectionController;
   const HomeFab({
     super.key,
     required this.controller,
-    required this.isSelectionMode,
+    required this.selectionController,
   });
 
   @override
@@ -28,98 +28,119 @@ class HomeFab extends StatelessWidget {
         ? Colors.black.withValues(alpha: 0.8)
         : Colors.white;
 
-    const double expandedWidth = HomeConstants.fabExpandedWidth;
-    const double collapsedWidth = HomeConstants.fabCollapsedWidth;
-    const double fabHeight = HomeConstants.fabHeight;
+    // 📍 Location: home_fab.dart -> Inside your build method
 
-    // ⚡ Ultra-smooth fluid curve choice (emphasized ease-out)
-    const Curve fluidCurve = Curves.easeOutBack;
+    const double expandedWidth = HomeConstants.fabExpandedWidth; //
+    const double collapsedWidth = HomeConstants.fabCollapsedWidth; //
+    const double fabHeight = HomeConstants.fabHeight; //
+    const Curve fluidCurve = Curves.easeOutBack; //
 
-    return SafeArea(
-      child: AnimatedSlide(
-        offset: isSelectionMode ? const Offset(0, 1.8) : Offset.zero,
-        duration: AnimationConstants.medium,
-        curve: Curves.fastOutSlowIn, // Smoother deceleration curve for exits
-        child: ListenableBuilder(
-          listenable: controller.fabAlignX,
-          builder: (context, child) {
-            final double alignX = controller.fabAlignX.value;
+    return ListenableBuilder(
+      listenable: controller, //
+      builder: (context, _) {
+        final bool isSelectionActive = selectionController.isSelectionMode; //
+        final bool isDraggingActive = controller.isDraggingNote; //
+        final bool shouldHide = isSelectionActive || isDraggingActive; //
 
-            return AnimatedAlign(
-              duration: AnimationConstants.slow,
-              curve: Curves.easeOutCubic,
-              alignment: Alignment(alignX, HomeConstants.fabAlignDefaultY),
-              child: child!,
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: UIConstants.paddingXL,
-            ),
-            child: OpenContainer(
-              transitionType: ContainerTransitionType.fadeThrough,
-              transitionDuration: AnimationConstants.medium,
-              openColor: Theme.of(context).scaffoldBackgroundColor,
-              closedColor: Colors.transparent,
-              closedElevation: isSelectionMode ? 0 : UIConstants.elevationHigh,
-              closedShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  HomeConstants.fabClosedRadius,
-                ),
-              ),
-              openShape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero,
-              ),
-              middleColor: Colors.transparent,
+        return SafeArea(
+          child: AnimatedSlide(
+            offset: (isSelectionActive || shouldHide)
+                ? const Offset(0, 1.8) //
+                : Offset.zero, //
+            duration: AnimationConstants.medium, //
+            curve: Curves.fastOutSlowIn, //
+            child: ListenableBuilder(
+              listenable: controller.fabAlignX, //
+              builder: (context, child) {
+                final double alignX = controller.fabAlignX.value; //
 
-              closedBuilder: (context, openContainer) => RepaintBoundary(
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: controller.isFabExtended,
-                  builder: (context, isExtended, _) {
-                    return AnimatedContainer(
-                      duration: AnimationConstants.medium,
-                      curve:
-                          fluidCurve, // Added bouncy, organic physical scale response
-                      height: fabHeight,
-                      width: isExtended ? expandedWidth : collapsedWidth,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          HomeConstants.fabClosedRadius,
-                        ),
-                      ),
-                      child: Material(
-                        color: fabColor,
-                        child: InkWell(
-                          onTap: openContainer,
-                          child: TweenAnimationBuilder<double>(
-                            tween: Tween<double>(end: isExtended ? 1.0 : 0.0),
-                            duration: AnimationConstants.fast,
-                            curve: Curves.easeInOutCubic,
-                            builder: (context, animationProgress, _) {
-                              return CustomPaint(
-                                size: Size(
-                                  isExtended ? expandedWidth : collapsedWidth,
-                                  fabHeight,
-                                ),
-                                painter: FluidFabPainter(
-                                  contentColor: contentColor,
-                                  progress: animationProgress,
-                                ),
-                              );
-                            },
+                return AnimatedAlign(
+                  duration: AnimationConstants.slow, //
+                  curve: Curves.easeOutCubic, //
+                  alignment: Alignment(
+                    alignX,
+                    HomeConstants.fabAlignDefaultY,
+                  ), //
+                  child: child!, //
+                );
+              },
+              child: ValueListenableBuilder<bool>(
+                valueListenable: controller.isFabExtended, //
+                builder: (context, isExtended, _) {
+                  return TweenAnimationBuilder<double>(
+                    tween: Tween<double>(
+                      begin: isExtended ? expandedWidth : collapsedWidth,
+                      end: isExtended ? expandedWidth : collapsedWidth,
+                    ),
+                    duration: AnimationConstants.medium,
+                    curve: fluidCurve,
+                    builder: (context, animatedWidth, child) {
+                      return SizedBox(
+                        height: fabHeight,
+                        width: animatedWidth,
+                        child: OpenContainer(
+                          transitionType:
+                              ContainerTransitionType.fadeThrough, //
+                          transitionDuration: const Duration(
+                            milliseconds: 180,
+                          ), // Snappy routing exit
+                          openColor: Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor, //
+                          closedColor: fabColor, //
+                          closedElevation: isSelectionActive
+                              ? 0
+                              : UIConstants.elevationHigh, //
+                          closedShape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              HomeConstants.fabClosedRadius,
+                            ), //
                           ),
+                          openShape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero, //
+                          ),
+                          middleColor: Colors.transparent, //
+
+                          closedBuilder: (context, openContainer) =>
+                              RepaintBoundary(
+                                //
+                                child: Material(
+                                  color: Colors.transparent, //
+                                  child: InkWell(
+                                    onTap: shouldHide ? null : openContainer, //
+                                    child: TweenAnimationBuilder<double>(
+                                      tween: Tween<double>(
+                                        end: isExtended ? 1.0 : 0.0, //
+                                      ),
+                                      duration: AnimationConstants.fast, //
+                                      curve: Curves.easeInOutCubic, //
+                                      builder: (context, animationProgress, _) {
+                                        return CustomPaint(
+                                          size: Size(
+                                            animatedWidth,
+                                            fabHeight,
+                                          ), // Matches outer width flawlessly
+                                          painter: FluidFabPainter(
+                                            contentColor: contentColor, //
+                                            progress: animationProgress, //
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          openBuilder: (context, _) => const NotePage(), //
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  );
+                },
               ),
-              openBuilder: (context, _) => const NotePage(),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

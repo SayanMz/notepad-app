@@ -4,19 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
 import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
-import 'package:notepad/core/services/repo_services/index_cache_service.dart';
 import 'package:notepad/core/services/repo_services/note_sort_service.dart';
 import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
 import 'package:notepad/core/services/repo_services/seed_data_service.dart';
-import 'package:notepad/core/services/repo_services/selection_service.dart';
 import 'package:notepad/core/services/storage_service.dart' as db;
 
-/// ------------------------------------------------------------
-/// NOTE REPOSITORY (Pure Data Engine)
-/// Strictly manages CRUD operations, lists, and topological states.
-/// ------------------------------------------------------------
-class NoteRepository extends ChangeNotifier {
+class NoteRepository {
   factory NoteRepository() => _instance;
   NoteRepository._internal();
   static final NoteRepository _instance = NoteRepository._internal();
@@ -27,90 +21,58 @@ class NoteRepository extends ChangeNotifier {
   final List<NotesSection> _activeNotes = [];
   final List<NotesSection> _deletedNotes = [];
 
-  Map<String, int>? _activeIndexCache;
-  final Map<String, NotesSection> _pendingPinnedWrites = {};
+  // 🚀 OPTIMIZATION 1: Fast O(1) tracking index cache to completely bypass DB queries during loops
+  final Map<String, NotesSection> _cacheMap = {};
+
+  // 🚀 OPTIMIZATION 2: Cached lists to stop allocation thrashing inside your getters
+  List<NotesSection> _cachedPinnedNotes = [];
+  List<NotesSection> _cachedUnpinnedNotes = [];
 
   final ValueNotifier<int> activeRevision = ValueNotifier(0);
   final ValueNotifier<int> deletedRevision = ValueNotifier(0);
-  final ValueNotifier<int> pinnedRevision = ValueNotifier(0);
-  final ValueNotifier<int> colorRevision = ValueNotifier(0);
-
-  void _notifyActiveChanged({
-    String? removedId,
-    int? removedAtIndex,
-    int? insertedAtIndex,
-  }) {
-    if (_activeIndexCache != null) {
-      if (removedId != null && removedAtIndex != null) {
-        IndexCacheService.removeEntry(_activeIndexCache!, removedId);
-        IndexCacheService.shiftIndicesFrom(
-          _activeIndexCache!,
-          _activeNotes,
-          removedAtIndex,
-        );
-      } else if (insertedAtIndex != null) {
-        IndexCacheService.shiftIndicesFrom(
-          _activeIndexCache!,
-          _activeNotes,
-          insertedAtIndex,
-        );
-      } else {
-        _activeIndexCache = null;
-        IndexCacheService.buildCacheInBackground(
-          _activeNotes,
-        ).then((newCache) => _activeIndexCache = newCache);
-      }
-    } else {
-      IndexCacheService.buildCacheInBackground(
-        _activeNotes,
-      ).then((newCache) => _activeIndexCache = newCache);
-    }
-    activeRevision.value++;
-  }
 
   List<NotesSection> get activeNotes => List.unmodifiable(_activeNotes);
   List<NotesSection> get deletedNotes => List.unmodifiable(_deletedNotes);
 
-  // Stops checking the instant it hits an unpinned note (Massively faster)
-  List<NotesSection> get pinnedNotes {
-    // Assert that we never hit an unpinned note while pinning
-    assert(
-      _activeNotes.isEmpty ||
-          !_activeNotes.any((n) => n.isPinned) ||
-          _activeNotes.first.isPinned == true,
-      "List not sorted!",
-    );
-    return _activeNotes.takeWhile((n) => n.isPinned).toList();
-  }
-
-  // Skips the pinned notes we already know about
-  List<NotesSection> get unpinnedNotes =>
-      _activeNotes.skipWhile((n) => n.isPinned).toList();
+  // 🚀 OPTIMIZATION 3: Return pre-cached unmodifiable structures with zero allocation overhead
+  List<NotesSection> get pinnedNotes => _cachedPinnedNotes;
+  List<NotesSection> get unpinnedNotes => _cachedUnpinnedNotes;
 
   static const int _currentSeedVersion = 1;
 
   Future<void> init() async {
     _activeNotes.clear();
     _deletedNotes.clear();
+    _cacheMap.clear(); //
 
     final int installedSeedVersion = appSettingsRepository.settings.seedVersion;
 
     if (installedSeedVersion != _currentSeedVersion) {
       debugPrint('Migration: Resetting stale data...');
       await db.clearAllNotes();
-      _activeNotes.addAll(SeedDataService.generateWelcomeNotes());
+      final welcomeNotes = SeedDataService.generateWelcomeNotes();
+
+      for (int i = 0; i < welcomeNotes.length; i++) {
+        welcomeNotes[i].positionIndex = i;
+      }
+      _activeNotes.addAll(welcomeNotes);
+
+      // Populate cache instantly
+      for (final note in _activeNotes) {
+        _cacheMap[note.id] = note;
+      }
+
       await db.saveNotesBulk({for (var n in _activeNotes) n.id: n});
       await appSettingsRepository.setSeedVersion(_currentSeedVersion);
     } else {
       for (final note in db.loadAllNotes()) {
+        _cacheMap[note.id] =
+            note; // ⚡ Cache everything directly on application launch
         note.isDeleted ? _deletedNotes.add(note) : _activeNotes.add(note);
       }
     }
 
-    _sortAll();
-    IndexCacheService.buildCacheInBackground(
-      _activeNotes,
-    ).then((c) => _activeIndexCache = c);
+    _sortAndRebuildCache(); // Synchronizes the sorting blocks safely
 
     final lastRun = appSettingsRepository.settings.lastMaintenanceDate;
     final now = DateTime.now();
@@ -119,98 +81,43 @@ class NoteRepository extends ChangeNotifier {
       debugPrint(
         'Maintenance: 7-day timeline reached. Running Hive compaction...',
       );
-
       try {
-        await db.performMaintenance(); // This triggers _notesBox.compact()
-        await appSettingsRepository
-            .recordMaintenanceCompleted(); // Reset the clock
+        await db.performMaintenance();
+        await appSettingsRepository.recordMaintenanceCompleted();
       } catch (e) {
         debugPrint('Maintenance failed, will retry next launch: $e');
       }
     }
   }
 
-  NotesSection? findById(String id) => db.getNoteById(id);
-
-  int getActiveIndex(String id) {
-    _activeIndexCache ??= IndexCacheService.buildCacheOnMainThread(
-      _activeNotes,
-    );
-    return _activeIndexCache![id] ?? -1;
-  }
-
-  // Pinned local index matches global index exactly because they live at the start
-  int getPinnedLocalIndex(String id) => getActiveIndex(id);
-
-  // Unpinned local index subtracts the pinned count to normalize back to 0
-  int getUnpinnedLocalIndex(String id) {
-    final int globalIndex = getActiveIndex(id);
-    if (globalIndex == -1) return -1;
-
-    // Subtract the number of pinned notes to calculate the true local sub-list index
-    return globalIndex - pinnedNotes.length;
-  }
+  // 🚀 FIXED: Blazing fast O(1) memory lookup with fallback safety assurance
+  NotesSection? findById(String id) => _cacheMap[id] ?? db.getNoteById(id);
 
   void reorderPinnedNotes(int oldIndex, int newIndex) =>
-      _reorderZone(pinnedNotes, oldIndex, newIndex);
+      _reorderZone(pinnedNotes.toList(), oldIndex, newIndex, true);
   void reorderUnpinnedNotes(int oldIndex, int newIndex) =>
-      _reorderZone(unpinnedNotes, oldIndex, newIndex);
+      _reorderZone(unpinnedNotes.toList(), oldIndex, newIndex, false);
 
   Future<void> _reorderZone(
     List<NotesSection> zoneList,
     int oldIndex,
     int newIndex,
+    final bool pinnedZone,
   ) async {
     if (oldIndex < 0 || oldIndex >= zoneList.length || oldIndex == newIndex) {
       return;
     }
 
-    final movingNote = zoneList.removeAt(oldIndex);
-    zoneList.insert(newIndex, movingNote);
+    final bulkUpdates = NoteSortService.reorderZone(
+      activeNotes: _activeNotes,
+      zoneList: zoneList,
+      oldIndex: oldIndex,
+      newIndex: newIndex,
+      pinnedCount: _cachedPinnedNotes.length,
+      isPinnedZone: pinnedZone,
+    );
 
-    final Map<String, NotesSection> bulkUpdates = {};
-    for (int i = 0; i < zoneList.length; i++) {
-      zoneList[i].positionIndex = i;
-      bulkUpdates[zoneList[i].id] = zoneList[i];
-    }
-
-    _sortAll();
-    _notifyActiveChanged();
-    try {
-      await db.saveNotesBulk(bulkUpdates);
-    } catch (e) {
-      debugPrint("Reorder Save Error: $e");
-    }
-  }
-
-  /*
-  Future<void> _reorderZone(List<NotesSection> zoneList, int oldIndex, int newIndex) async {
-    if (oldIndex < 0 || oldIndex >= zoneList.length || oldIndex == newIndex) return;
-
-    // 1. Get the actual global indices in _activeNotes before moving
-    final globalOldIndex = _activeNotes.indexOf(zoneList[oldIndex]);
-    
-    // 2. Move the item in the sub-zone
-    final movingNote = zoneList.removeAt(oldIndex);
-    zoneList.insert(newIndex, movingNote);
-
-    // 3. Move the item in the global active list
-    _activeNotes.removeAt(globalOldIndex);
-    final globalNewIndex = _activeNotes.indexOf(zoneList[newIndex]);
-    _activeNotes.insert(globalNewIndex, movingNote);
-
-    // 4. Update the position variables
-    final Map<String, NotesSection> bulkUpdates = {};
-    for (int i = 0; i < zoneList.length; i++) {
-      zoneList[i].positionIndex = i;
-      bulkUpdates[zoneList[i].id] = zoneList[i];
-    }
-
-    // 5. 🔥 SURGICAL CACHE PATCH: No _sortAll() or background isolates needed!
-    if (_activeIndexCache != null) {
-      final lowestImpactedIndex = globalOldIndex < globalNewIndex ? globalOldIndex : globalNewIndex;
-      IndexCacheService.shiftIndicesFrom(_activeIndexCache!, _activeNotes, lowestImpactedIndex);
-    }
+    _sortAndRebuildCache();
     activeRevision.value++;
 
     try {
@@ -219,11 +126,29 @@ class NoteRepository extends ChangeNotifier {
       debugPrint("Reorder Save Error: $e");
     }
   }
-  */
 
-  void _sortAll() {
+  // 🚀 CENTRALIZED CACHE LIFECYCLE MANAGEMENT
+  void _sortAndRebuildCache() {
     NoteSortService.sortActiveNotes(_activeNotes);
-    NoteSortService.sortDeletedNotes(_deletedNotes);
+
+    // Re-generate list fragments statically once during updates instead of continuously inside getters
+    _cachedPinnedNotes = List.unmodifiable(
+      _activeNotes.takeWhile((n) => n.isPinned),
+    );
+    _cachedUnpinnedNotes = List.unmodifiable(
+      _activeNotes.skipWhile((n) => n.isPinned),
+    );
+  }
+
+  void _rebuildSubListPointersOnly() {
+    // 🚀 Fast O(N) linear passes to regenerate the unmodifiable slices.
+    // This updates your getters instantly without triggering a heavy Quicksort pass.
+    _cachedPinnedNotes = List.unmodifiable(
+      _activeNotes.takeWhile((n) => n.isPinned),
+    );
+    _cachedUnpinnedNotes = List.unmodifiable(
+      _activeNotes.skipWhile((n) => n.isPinned),
+    );
   }
 
   Future<NotesSection?> saveNote({
@@ -244,8 +169,6 @@ class NoteRepository extends ChangeNotifier {
         ..updatedAt = now;
 
       if (notify) {
-        NoteSortService.sortActiveNotes(_activeNotes);
-        _activeIndexCache = null;
         activeRevision.value++;
       }
 
@@ -257,17 +180,26 @@ class NoteRepository extends ChangeNotifier {
       return existingNote;
     }
 
+    final int topUnpinnedIndex = _cachedUnpinnedNotes.isNotEmpty
+        ? _cachedUnpinnedNotes.first.positionIndex - 1
+        : 0;
+
     final newNote = NotesSection(
       title: title,
       content: content,
       richContent: richContent,
       createdAt: now,
       updatedAt: now,
+      positionIndex: topUnpinnedIndex,
     );
 
+    _cacheMap[newNote.id] =
+        newNote; // Register newly minted text notes in local runtime index
+    NoteSortService.insertSorted(_activeNotes, newNote);
+
+    _rebuildSubListPointersOnly();
     if (notify) {
-      final landingIndex = NoteSortService.insertSorted(_activeNotes, newNote);
-      _notifyActiveChanged(insertedAtIndex: landingIndex);
+      activeRevision.value++;
     }
 
     unawaited(
@@ -288,24 +220,17 @@ class NoteRepository extends ChangeNotifier {
       ..updatedAt = now;
 
     if (isDeleted) {
-      final index = getActiveIndex(noteId);
-      if (index != -1) {
-        _activeNotes.removeAt(index);
-        _notifyActiveChanged(removedId: noteId, removedAtIndex: index);
-      }
-      //  else {
-      //   _activeNotes.remove(note);
-      //   _notifyActiveChanged();
-      // }
-      _deletedNotes.add(note);
-      deletedRevision.value++;
+      _activeNotes.remove(note);
+      NoteSortService.insertSorted(_deletedNotes, note);
     } else {
       _deletedNotes.remove(note);
-      deletedRevision.value++;
-
-      final int landingIndex = NoteSortService.insertSorted(_activeNotes, note);
-      _notifyActiveChanged(insertedAtIndex: landingIndex);
+      NoteSortService.insertSorted(_activeNotes, note);
     }
+
+    _rebuildSubListPointersOnly();
+
+    activeRevision.value++;
+    deletedRevision.value++;
 
     unawaited(db.saveNote(note));
     return true;
@@ -324,8 +249,9 @@ class NoteRepository extends ChangeNotifier {
       toDelete: isDeleted,
     );
 
-    _sortAll();
-    _notifyActiveChanged();
+    _sortAndRebuildCache();
+    NoteSortService.sortDeletedNotes(_deletedNotes);
+    activeRevision.value++;
 
     await db.saveNotesBulk(result.dbUpdates);
   }
@@ -345,6 +271,7 @@ class NoteRepository extends ChangeNotifier {
 
     _deletedNotes.removeWhere((note) => noteIds.contains(note.id));
     deletedRevision.value++;
+
     await db.deleteNotesBulk(noteIds);
   }
 
@@ -352,34 +279,11 @@ class NoteRepository extends ChangeNotifier {
     final note = findById(noteId);
     if (note == null) return;
 
-    // 1. Capture the old location BEFORE changing its status
-    final oldIndex = getActiveIndex(noteId);
-
     note.isPinned = !note.isPinned;
     note.updatedAt = DateTime.now();
 
-    if (oldIndex != -1) {
-      // 2. SURGICAL MOVE: Yank it out and drop it in the new sorted slot
-      _activeNotes.removeAt(oldIndex);
-      final newIndex = NoteSortService.insertSorted(_activeNotes, note);
-
-      // 3. SURGICAL CACHE PATCH: Shift only the affected index range instantly
-      if (_activeIndexCache != null) {
-        final lowestImpactedIndex = oldIndex < newIndex ? oldIndex : newIndex;
-        IndexCacheService.shiftIndicesFrom(
-          _activeIndexCache!,
-          _activeNotes,
-          lowestImpactedIndex,
-        );
-      }
-      // Notify the UI to redraw the lists
-      activeRevision.value++;
-    } else {
-      // Fallback just in case the cache was completely out of sync
-      _activeNotes.remove(note);
-      NoteSortService.insertSorted(_activeNotes, note);
-      _notifyActiveChanged();
-    }
+    _sortAndRebuildCache();
+    activeRevision.value++;
 
     unawaited(db.saveNote(note));
   }
@@ -387,7 +291,6 @@ class NoteRepository extends ChangeNotifier {
   Future<void> togglePinBulk(Set<String> noteIds, bool goalState) async {
     if (noteIds.isEmpty) return;
 
-    // 1. Delegate the heavy logic to the service
     final dbUpdates = PinOperationsService.processBulkPin(
       activeNotes: _activeNotes,
       targetIds: noteIds,
@@ -395,43 +298,37 @@ class NoteRepository extends ChangeNotifier {
       currentPinnedCount: pinnedNotes.length,
     );
 
-    // 2. Orchestrate the UI and Cache
-    _sortAll();
-    _notifyActiveChanged();
+    _sortAndRebuildCache();
+    activeRevision.value++;
 
-    // 3. Write directly to the database
     await db.saveNotesBulk(dbUpdates);
   }
 
-  Future<void> flushPendingPinnedWrites() async {
-    if (_pendingPinnedWrites.isEmpty) return;
-    await db.saveNotesBulk(_pendingPinnedWrites);
-    _pendingPinnedWrites.clear();
-  }
-
-  void updateColorsBulk(Set<String> noteIds, Color color) {
-    SelectionService.applyColorToSelection(
-      selectedIds: noteIds,
-      allNotes: _activeNotes,
-      newColor: color,
-    );
-    activeRevision.value++;
+  void applyColorToSelection(Set<String> selectedIds, Color newColor) {
+    for (final id in selectedIds) {
+      findById(id)?.cardColor = newColor;
+    }
   }
 
   void restoreColors(Map<String, Color> originalColors) {
-    originalColors.forEach((id, color) {
-      final note = findById(id);
-      if (note != null) note.cardColor = color;
-    });
-    activeRevision.value++;
+    for (final entry in originalColors.entries) {
+      findById(entry.key)?.cardColor = entry.value;
+    }
   }
 
   Future<void> saveColorsBulk(Set<String> noteIds) async {
-    final entries = {
-      for (final id in noteIds)
-        if (findById(id) != null) id: findById(id)!,
-    };
-    await db.saveNotesBulk(entries);
+    final Map<String, NotesSection> entries = {};
+
+    for (final id in noteIds) {
+      final note = findById(id);
+      if (note != null) {
+        entries[id] = note;
+      }
+    }
+
+    if (entries.isNotEmpty) {
+      await db.saveNotesBulk(entries);
+    }
   }
 
   Future<String> exportNotesToBackupString() async {
@@ -464,8 +361,14 @@ class NoteRepository extends ChangeNotifier {
 
     if (updates.isNotEmpty) {
       _activeNotes.addAll(updates.values);
-      _sortAll();
-      _notifyActiveChanged();
+
+      // Merge freshly imported items into the active working cache index
+      for (final note in updates.values) {
+        _cacheMap[note.id] = note;
+      }
+
+      _sortAndRebuildCache();
+      activeRevision.value++;
       await db.saveNotesBulk(updates);
     }
   }

@@ -22,7 +22,7 @@ class PinOperationsService {
 
     // If we are pinning, we start counting from the bottom of the current pinned list.
     // If we are unpinning, their pin position doesn't matter (set to 0).
-    int positionCounter = goalState ? currentPinnedCount : 0;
+    int positionCounter = goalState ? currentPinnedCount : -targetIds.length;
     final now = DateTime.now();
 
     for (final note in activeNotes) {

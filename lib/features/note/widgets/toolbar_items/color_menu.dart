@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
-
-import 'draggable_toolbar_color_picker.dart';
+import 'package:notepad/features/note/widgets/toolbar_items/draggable_color_picker.dart';
 
 class ColorMenu extends StatefulWidget {
   const ColorMenu({
@@ -61,7 +60,7 @@ class _ColorMenuState extends State<ColorMenu> {
         : (widget.isDark ? Colors.white : Colors.black);
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => DraggableToolbarColorPicker(
+      builder: (context) => DraggableColorPicker(
         initialColor: initialColor,
         isDark: widget.isDark,
         onColorChanged: (selectedColor) {

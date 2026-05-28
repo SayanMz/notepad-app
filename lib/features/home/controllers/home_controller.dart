@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/home/controllers/animation_controller.dart';
+import 'package:notepad/features/home/controllers/selection_controller.dart';
+import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/home/services/auth_controller.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
 import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:notepad/features/home/controllers/animation_controller.dart';
-import 'package:notepad/features/home/controllers/selection_controller.dart';
 
 class HomeController extends ChangeNotifier {
   // ==========================================
@@ -27,6 +27,8 @@ class HomeController extends ChangeNotifier {
   // ==========================================
   // 2. STATE NOTIFIERS & VARIABLES
   // ==========================================
+  // 🌟 SIDE-CHANNEL: Doesn't trigger notifyListeners()
+  final ValueNotifier<int> colorChangeNotifier = ValueNotifier<int>(0);
 
   // Loading & Sync Status Notifiers
   final ValueNotifier<bool> isSavingNotifier = ValueNotifier(false);
@@ -51,15 +53,12 @@ class HomeController extends ChangeNotifier {
       .where((note) => selectionController.selectedIds.contains(note.id))
       .toList();
 
-  bool get isSelectionMode => selectionController.hasSelection;
-  bool get isAllSelected => selectionController.areAllSelected(activeNotes);
-
   // If at least one selected note is NOT pinned, we show the 'Pin' action
   bool get showPinAction => selectedNotes.any((n) => !n.isPinned);
 
-  bool isNoteSelected(String id) => selectionController.isNoteSelected(id);
-  bool isVaporizing(String id) => animationController.isVaporizing(id);
-
+  List<NotesSection> get pinnedNotes => noteRepository.pinnedNotes;
+  List<NotesSection> get unpinnedNotes => noteRepository.unpinnedNotes;
+  bool get hasActiveNotes => noteRepository.activeNotes.isNotEmpty;
   // ==========================================
   // 4. LIFECYCLE (INIT & DISPOSE)
   // ==========================================
@@ -89,17 +88,7 @@ class HomeController extends ChangeNotifier {
     selectionController.setSelectAll(activeNotes, newValue);
     if (newValue) {
       HapticFeedback.mediumImpact();
-    } else {
-      HapticFeedback.lightImpact();
     }
-  }
-
-  void clearSelection() {
-    selectionController.clearSelection();
-  }
-
-  void toggleSelected(String noteId) {
-    selectionController.toggleSelected(noteId);
   }
 
   // ==========================================
@@ -115,7 +104,7 @@ class HomeController extends ChangeNotifier {
     await onNavigate(noteId);
   }
 
-  Future<void> togglePin(String noteId) async {
+  void togglePin(String noteId) async {
     await noteRepository.togglePinStatus(noteId);
   }
 
@@ -124,16 +113,22 @@ class HomeController extends ChangeNotifier {
       selectedNotes.map((n) => n.id).toSet(),
       showPinAction,
     );
-  }
-
-  Future<void> flushPendingPinnedWrites() async {
-    await noteRepository.flushPendingPinnedWrites();
+    notifyListeners();
   }
 
   void updateSelectedColors(Color color) {
-    noteRepository.updateColorsBulk(selectionController.selectedIds, color);
-    // Provide physical feedback for the color change
-    HapticFeedback.selectionClick();
+    noteRepository.applyColorToSelection(
+      selectionController.selectedIds,
+      color,
+    );
+    colorChangeNotifier.value++;
+  }
+
+  Map<String, Color> getSelectedColorsSnapshot() {
+    return {
+      for (final id in selectionController.selectedIds)
+        if (noteRepository.findById(id) case final note?) id: note.cardColor,
+    };
   }
 
   void saveColors() =>
@@ -141,43 +136,45 @@ class HomeController extends ChangeNotifier {
 
   void restoreColors(Map<String, Color> originalColors) {
     noteRepository.restoreColors(originalColors);
+    colorChangeNotifier.value++;
   }
 
-  Future<void> deleteSelected(List<NotesSection> notes) async {
-    if (notes.isEmpty) return;
+  bool isDraggingNote = false;
 
-    final movedNoteIds = notes.map((n) => n.id).toSet();
-    noteRepository.toggleDeletedStatusBulk(movedNoteIds, true);
+  void setDraggingState(bool dragging) {
+    isDraggingNote = dragging;
+    notifyListeners(); // Triggers the HomeFab to hide/show smoothly
+  }
 
+  // Combined Deletion Execution Flow leveraging SelectionController
+  Future<void> executeBulkDelete() async {
+    if (selectionController.selectedIds.isEmpty) return;
+
+    // 1. Fetch data directly via your Sub-Controller
+    final movedNoteIds = selectionController.selectedIds.toSet();
+    final int selectedCount = movedNoteIds.length;
+
+    // 2. Execute transactional backend repository mutation
+    await animationController.triggerVaporizeAnimation(movedNoteIds);
+    await noteRepository.toggleDeletedStatusBulk(movedNoteIds, true);
+
+    // 3. Clear the selection manager state instantly to reset overlays
+    selectionController.exitSelectionMode();
+    HapticFeedback.heavyImpact(); // Premium tactical physical feedback
+
+    // 4. Render the restoration Snackbar setup
     showRestorationSnackBar(
       undoLabel: 'Restore',
       message:
-          '${notes.length} ${notes.length == 1 ? 'note' : 'notes'} moved to recycle bin',
+          '$selectedCount ${selectedCount == 1 ? 'note' : 'notes'} moved to recycle bin',
       onUndo: () async {
-        // Use the bulk method instead of a loop!
+        // 🌟 RESTORE THE TRACKED NOTE IDS BACK INTO ACTIVE VIEWS
         await noteRepository.toggleDeletedStatusBulk(movedNoteIds, false);
       },
     );
   }
 
-  // BULK DELETE EXECUTION
-  Future<void> executeBulkDelete() async {
-    if (selectedNotes.isEmpty) return;
-
-    // 1. Lock in a copy of the selected notes before altering state
-    final selected = List<NotesSection>.from(selectedNotes);
-    final selectedIds = selected.map((n) => n.id).toList();
-
-    // 2. ⚡ Play the 300ms vaporize animation loop FIRST
-    await animationController.triggerVaporizeAnimation(selectedIds);
-
-    // 3. Once they shrink to 0.0, clear selection and execute the actual DB move
-    selectionController.clearSelection();
-    await deleteSelected(selected); // Triggers your SnackBar setup
-    HapticFeedback.heavyImpact(); // Premium feel for deletion
-  }
-
-  Future<void> showSingleDeleteSnackbar(String noteId) async {
+  Future<void> executeSingleDelete(String noteId) async {
     final note = noteRepository.findById(noteId);
     if (note == null) return;
 
@@ -187,7 +184,6 @@ class HomeController extends ChangeNotifier {
       message:
           '${note.title.isEmpty ? "Note" : note.title} moved to recycle bin',
       onUndo: () async {
-        // Use toggleDeletedStatus for consistency
         await noteRepository.toggleDeletedStatus(noteId, false);
       },
     );
@@ -214,11 +210,6 @@ class HomeController extends ChangeNotifier {
   // ==========================================
   // 7. UI, SCROLL & ANIMATION LOGIC
   // ==========================================
-
-  Future<void> triggerVaporizeAnimation(List<String> noteIds) async {
-    await animationController.triggerVaporizeAnimation(noteIds);
-  }
-
   void updateFabState({required bool extend}) {
     if (isFabExtended.value == extend) return;
     isFabExtended.value = extend;
@@ -227,9 +218,23 @@ class HomeController extends ChangeNotifier {
         : HomeConstants.fabAlignCollapsedX;
   }
 
+  /// Handle database state preservation during reordering events
+  void handlePinnedReorder(int oldIndex, int newIndex) {
+    noteRepository.reorderPinnedNotes(oldIndex, newIndex);
+  }
+
+  void handleUnpinnedReorder(int oldIndex, int newIndex) {
+    noteRepository.reorderUnpinnedNotes(oldIndex, newIndex);
+  }
+
+  /// Instant transactional execution for toggling pins
+  void handleTogglePin(String id) {
+    noteRepository.togglePinStatus(id);
+  }
+
   // SCROLL LOGIC
-  bool handleFabScroll(Notification notification, bool isSelectionMode) {
-    if (isSelectionMode) return false;
+  bool handleFabScroll(Notification notification) {
+    if (selectionController.isSelectionMode) return false;
 
     // 1. Reset on idle so tiny micro-scrolls don't stack up indefinitely over time
     if (notification is UserScrollNotification &&

@@ -131,18 +131,28 @@ class _NotePageState extends State<NotePage>
     ); //
 
     if (result == true && widget.noteId != null) {
-      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
-      final note = noteRepository.findById(widget.noteId!);
+      //
+      await noteRepository.toggleDeletedStatus(widget.noteId!, false); //
+      final note = noteRepository.findById(widget.noteId!); //
 
       setState(() {
-        _isReadOnly = false;
-        contentController.readOnly = false;
-      });
+        //
+        _isReadOnly = false; //
+        contentController.readOnly = false; //
+      }); //
 
       uiNotifier.showSnackBar(
-        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
+        //
+        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')), //
       ); //
-      _editorFocusNode.requestFocus();
+
+      // 🌟 THE FIX: Wait for the layout tree to finish compiling the editable editor
+      // state before launching the native soft input keyboard hook.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_editorFocusNode.canRequestFocus) {
+          _editorFocusNode.requestFocus();
+        }
+      });
     }
   }
 

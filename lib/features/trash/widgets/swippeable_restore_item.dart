@@ -20,140 +20,139 @@ class SwipeableRestoreItem extends StatefulWidget {
     required this.cardWidth,
   }) : super(key: key);
 
-  final NotesSection note; //
-  final bool isDark; //
-  final double cardWidth; //
-  final void Function(NotesSection) onRestore; //
-  final void Function(BuildContext, NotesSection) onShowActionSheet; //
+  final NotesSection note;
+  final bool isDark;
+  final double cardWidth;
+  final void Function(NotesSection) onRestore;
+  final void Function(BuildContext, NotesSection) onShowActionSheet;
 
   @override
   State<SwipeableRestoreItem> createState() => _SwipeableRestoreItemState();
 }
 
 class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
-  // ISOLATED STATE: Tracks the thumb!
-  final ValueNotifier<double> _dragProgress = ValueNotifier<double>(0.0); //
-
-  // Tracks when the swipe is confirmed to trigger the exit animation
-  final ValueNotifier<bool> _isConfirmed = ValueNotifier<bool>(false); //
+  final ValueNotifier<double> _dragProgress = ValueNotifier<double>(0.0);
+  final ValueNotifier<bool> _isConfirmed = ValueNotifier<bool>(false);
 
   @override
   void dispose() {
-    _dragProgress.dispose(); //
-    _isConfirmed.dispose(); //
+    _dragProgress.dispose();
+    _isConfirmed.dispose();
     super.dispose();
   }
 
-  double get cardWidth => widget.cardWidth; //
+  double get cardWidth => widget.cardWidth;
 
   @override
   Widget build(BuildContext context) {
     final previewLines = widget.note.getPreview(
       1,
       normalizedContent: widget.note.content,
-    ); //
+    );
+
     final subtitleText = previewLines.isNotEmpty
-        ? previewLines
-              .first //
-        : 'No additional text'; //
+        ? previewLines.first.text
+        : 'No additional text';
 
     return Padding(
-      padding: const EdgeInsets.all(RecycleConstants.cardMargin), //
+      padding: const EdgeInsets.all(RecycleConstants.cardMargin),
       child: Stack(
         children: [
-          // --- THE PERMANENT GREEN BACKGROUND ---
+          // --- THE BACKGROUND PANEL LAYER (PATH B: FLOATING GREEN CAPSULE) ---
           Positioned(
-            top: RecycleConstants.swipeBackgroundInset, //
-            bottom: RecycleConstants.swipeBackgroundInset, //
-            right: RecycleConstants.swipeBackgroundInset, //
-            left: RecycleConstants.swipeBackgroundLeft, //
+            // 🌟 EXTEND COMPLETELY TO EDGES TO TRACK INSET PARSING SIZES
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Card(
-              margin: EdgeInsets.zero, //
-              elevation: 0, //
+              // 🌟 INSET MARGINS INWARD: Creates vertical and horizontal cushion separation
+              margin: const EdgeInsets.symmetric(
+                vertical:
+                    0, // Removes the vertical cushion so the heights match perfectly!
+                horizontal: UIConstants
+                    .paddingXXS, // Keeps the slight side inset for depth separation
+              ),
+              elevation: 0,
               color: widget.isDark
-                  ? AppColors
-                        .recycleSwipeDark //
-                  : AppColors.recycleSwipeLight, //
+                  ? AppColors.recycleSwipeDark
+                  : AppColors.recycleSwipeLight,
+              // 🌟 EXAGGERATED CAPSULE RADIUS: Gives a completely premium pill shape
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.horizontal(
-                  right: Radius.circular(
-                    RecycleConstants.cardRadius - //
-                        UIConstants.toolbarBorderWidth, //
-                  ),
-                  left: Radius.zero, //
+                borderRadius: BorderRadius.circular(
+                  RecycleConstants.cardRadius * 2.5,
                 ),
               ),
               child: Container(
-                alignment: Alignment.centerRight, //
-                padding: const EdgeInsets.only(right: UIConstants.paddingLG), //
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(
+                  right:
+                      UIConstants.paddingXL, // Balanced target margin footprint
+                ),
                 child: ListenableBuilder(
-                  listenable: Listenable.merge([
-                    _dragProgress,
-                    _isConfirmed,
-                  ]), //
+                  listenable: Listenable.merge([_dragProgress, _isConfirmed]),
                   builder: (context, child) {
-                    final progress = _dragProgress.value; //
-                    final isConfirmed = _isConfirmed.value; //
+                    final progress = _dragProgress.value;
+                    final isConfirmed = _isConfirmed.value;
 
-                    final draggedPixels = progress * cardWidth; //
-                    const iconWidth = RecycleConstants.iconSize; //
-                    const targetPadding = 16.0; //
+                    final draggedPixels = progress * cardWidth;
+                    const iconWidth = RecycleConstants.iconSize;
+                    const targetPadding = 16.0;
 
                     const appearanceThreshold =
-                        RecycleConstants.swipeAppearanceThreshold; //
+                        RecycleConstants.swipeAppearanceThreshold;
 
                     final animationProgress =
                         ((draggedPixels - appearanceThreshold) /
                                 (cardWidth *
                                     RecycleConstants.swipeRevealFraction))
-                            .clamp(0.0, 1.0); //
+                            .clamp(0.0, 1.0);
 
-                    const lockPoint = (targetPadding * 2) + iconWidth; //
+                    const lockPoint = (targetPadding * 2) + iconWidth;
 
-                    double xOffset = (lockPoint / 2) - (draggedPixels / 2); //
-                    xOffset = xOffset.clamp(0.0, double.infinity); //
+                    double xOffset = (lockPoint / 2) - (draggedPixels / 2);
+                    xOffset = xOffset.clamp(0.0, double.infinity);
 
                     final scale = ui.lerpDouble(
-                      RecycleConstants.swipeIconStartScale, //
-                      1.0, //
+                      RecycleConstants.swipeIconStartScale,
+                      1.0,
                       animationProgress,
                     )!;
-                    final opacity = animationProgress; //
+                    final opacity = animationProgress;
 
                     final rotationProgress = (draggedPixels / lockPoint).clamp(
                       0.0,
                       2.0,
-                    ); //
-                    final angle = rotationProgress * pi; //
+                    );
+                    final angle = rotationProgress * pi;
 
+                    // Adjusted Translate logic for clean right-aligned spinning anchoring
                     final matrix = Matrix4.identity()
-                      ..translateByDouble(xOffset, 0, 0, 1) //
-                      ..rotateZ(angle) //
-                      ..scaleByDouble(scale, scale, scale, 1); //
+                      ..translateByDouble(-xOffset, 0, 0, 1)
+                      ..rotateZ(angle)
+                      ..scaleByDouble(scale, scale, scale, 1);
 
                     final baseColor = widget.isDark
-                        ? AppColors
-                              .recycleRestoreDark //
-                        : AppColors.recycleRestoreLight; //
+                        ? AppColors.recycleRestoreDark
+                        : AppColors.recycleRestoreLight;
 
                     return AnimatedOpacity(
-                      duration: AnimationConstants.fast, //
-                      curve: Curves.easeOut, //
-                      opacity: isConfirmed ? 0.0 : opacity, //
+                      duration: AnimationConstants.fast,
+                      curve: Curves.easeOut,
+                      opacity: isConfirmed ? 0.0 : opacity,
                       child: AnimatedScale(
-                        duration: AnimationConstants.fast, //
-                        curve: Curves.easeInBack, //
+                        duration: AnimationConstants.fast,
+                        curve: Curves.easeInBack,
                         scale: isConfirmed
-                            ? RecycleConstants
-                                  .swipeConfirmedScale //
+                            ? RecycleConstants.swipeConfirmedScale
                             : 1.0,
                         child: Transform(
-                          alignment: Alignment.center, //
-                          transform: matrix, //
+                          alignment: Alignment.center,
+                          transform: matrix,
                           child: Icon(
-                            Icons.restore, //
-                            color: baseColor, //
-                            size: RecycleConstants.iconSize, //
+                            Icons.restore,
+                            color: baseColor,
+                            size: RecycleConstants.iconSize,
                           ),
                         ),
                       ),
@@ -166,73 +165,70 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
 
           // --- THE SWIPE MASK ---
           Dismissible(
-            key: ValueKey('restore_${widget.note.id}'), //
-            direction: DismissDirection.endToStart, //
-            background: const ColoredBox(color: Colors.transparent), //
+            key: ValueKey('restore_${widget.note.id}'),
+            direction: DismissDirection.endToStart,
+            background: const ColoredBox(color: Colors.transparent),
             confirmDismiss: (direction) async {
-              _isConfirmed.value = true; //
-              return true; //
+              _isConfirmed.value = true;
+              return true;
             },
             onUpdate: (details) {
               if (!mounted) return;
               if ((details.progress - _dragProgress.value).abs() >
                   RecycleConstants.swipeMinimumProgressDelta) {
-                //
-                _dragProgress.value = details.progress; //
+                _dragProgress.value = details.progress;
               }
             },
             onDismissed: (_) {
-              widget.onRestore(widget.note); //
+              widget.onRestore(widget.note);
             },
             child: RepaintBoundary(
               child: Card(
-                margin: EdgeInsets.zero, //
-                elevation: UIConstants.elevationLow, //
+                margin: EdgeInsets.zero,
+                elevation: UIConstants.elevationLow,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
-                    RecycleConstants.cardRadius, //
+                    RecycleConstants.cardRadius,
                   ),
                 ),
                 child: ListTile(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
-                      RecycleConstants.cardRadius, //
+                      RecycleConstants.cardRadius,
                     ),
                   ),
                   contentPadding: const EdgeInsets.all(
-                    RecycleConstants.cardPadding, //
+                    RecycleConstants.cardPadding,
                   ),
                   title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, //
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         widget.note.displayTitle,
-                        style: const TextStyle(fontWeight: FontWeight.bold), //
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
                   subtitle: Text(
-                    subtitleText, //
-                    maxLines: 1, //
-                    overflow: TextOverflow.ellipsis, //
-                    style: TextStyle(color: Colors.grey[500]), //
+                    subtitleText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.grey[500]),
                   ),
                   trailing: IconButton(
                     onPressed: () =>
-                        widget.onShowActionSheet(context, widget.note), //
+                        widget.onShowActionSheet(context, widget.note),
                     icon: Icon(
-                      Icons.more_vert, //
-                      color: widget.isDark ? Colors.white : Colors.blue, //
+                      Icons.more_vert,
+                      color: widget.isDark ? Colors.white : Colors.blue,
                     ),
                   ),
-                  onLongPress: HapticFeedback.mediumImpact, //
+                  onLongPress: HapticFeedback.mediumImpact,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => NotePage(
-                          noteId: widget.note.id, //
-                          readOnly: true, //
-                        ),
+                        builder: (context) =>
+                            NotePage(noteId: widget.note.id, readOnly: true),
                       ),
                     );
                   },

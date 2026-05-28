@@ -4,33 +4,28 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
+import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/services/app_router.dart';
 import 'package:notepad/features/home/widgets/note_list_items/animated_trash_icon.dart';
 import 'package:notepad/features/home/widgets/note_list_items/note_card.dart';
+import 'package:notepad/features/note/note_page.dart';
 
 class SwipeableNoteItem extends StatefulWidget {
   const SwipeableNoteItem({
     super.key,
     required this.index,
     required this.note,
-    required this.isSelectionMode,
     required this.controller,
-    required this.onOpenNote,
-    required this.onSelectionToggle,
-    required this.onTogglePin,
-    required this.onDeleted,
-    required this.isSelected,
+    required this.animationController,
+    required this.maxPreviewLines,
   });
 
   final int index;
   final NotesSection note;
-  final bool isSelectionMode;
-  final bool isSelected;
   final HomeController controller;
-  final VoidCallback onSelectionToggle;
-  final void Function(String noteId) onTogglePin;
-  final void Function(String noteId) onOpenNote;
-  final void Function(String noteId) onDeleted;
+  final AnimationControllerState animationController;
+  final int maxPreviewLines;
 
   @override
   State<SwipeableNoteItem> createState() => _SwipeableNoteItemState();
@@ -61,20 +56,22 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
           final cardWidth = constraints.maxWidth;
           return Stack(
             children: [
-              // --- THE BACKGROUND PANEL LAYER ---
+              // --- THE BACKGROUND PANEL LAYER (PATH B: FLOATING CAPSULE) ---
               Positioned(
-                top: 4.0,
-                bottom: 4.0,
-                left: 0.5,
-                right: 16,
-                child: ListenableBuilder(
-                  listenable: Listenable.merge([_dragProgress, _isConfirmed]),
-                  builder: (context, _) {
+                // 🌟 MATCH OUTSIDE EDGE BOUNDARIES OF THE NOTECARD FOR LAYERING
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                    child: ListenableBuilder(
+                      listenable: Listenable.merge([_dragProgress, _isConfirmed]),
+                      builder: (context, _) {
                     final progress = _dragProgress.value;
                     final isConfirmed = _isConfirmed.value;
 
                     final bool shouldShowBackground =
-                        progress > 0.0 && !widget.isSelectionMode;
+                        progress > 0.0 &&
+                        !widget.controller.selectionController.isSelectionMode;
 
                     return AnimatedOpacity(
                       opacity: shouldShowBackground ? 1.0 : 0.0,
@@ -82,21 +79,26 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                       curve: Curves.easeOut,
                       child: RepaintBoundary(
                         child: Card(
-                          margin: EdgeInsets.zero,
+                          // 🌟 INSET MARGINS INWARD: Shaves top/bottom/sides for capsule separation
+                          margin: const EdgeInsets.symmetric(
+                            vertical: UIConstants.paddingXXS + 4,
+                            horizontal: UIConstants.paddingXXS,
+                          ),
                           elevation: 0,
                           color: context.isDark
                               ? AppColors.deleteDarkBg
                               : AppColors.deleteLightBg,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.horizontal(
-                              left: Radius.circular(UIConstants.radiusMD),
-                              right: Radius.zero,
+                          // 🌟 EXAGGERATED BORDER RADIUS: Standardized capsule curve shape
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              UIConstants.radiusMD * 2.5,
                             ),
                           ),
                           child: Container(
                             alignment: Alignment.centerLeft,
                             padding: const EdgeInsets.only(
-                              left: UIConstants.paddingLG,
+                              left: UIConstants
+                                  .paddingXL, // Tighter interior padding for action target
                             ),
                             child: Builder(
                               builder: (context) {
@@ -168,7 +170,7 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
               // --- THE SWIPE MASK SURFACE LAYER ---
               Dismissible(
                 key: ValueKey('dismiss_${widget.note.id}'),
-                direction: widget.isSelectionMode
+                direction: widget.controller.selectionController.isSelectionMode
                     ? DismissDirection.none
                     : DismissDirection.startToEnd,
                 background: const ColoredBox(color: Colors.transparent),
@@ -190,7 +192,6 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                     _hasSnapped = false;
                   }
 
-                  // FIX: Force the layout engine to accept absolute 0.0 boundaries
                   if (details.progress == 0.0 ||
                       (details.progress - _dragProgress.value).abs() > 0.01) {
                     _dragProgress.value = details.progress;
@@ -198,38 +199,46 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                 },
                 onDismissed: (_) {
                   HapticFeedback.mediumImpact();
-                  widget.onDeleted(widget.note.id);
+                  widget.controller.executeSingleDelete(widget.note.id);
                 },
                 child: RepaintBoundary(
                   child: NoteCard(
-                    // ⚡ Extracted UI Component
                     index: widget.index,
                     note: widget.note,
-                    isSelectionMode: widget.isSelectionMode,
-                    isVaporizing: widget.controller.isVaporizing(
+                    isSelectionMode:
+                        widget.controller.selectionController.isSelectionMode,
+                    isVaporizing: widget.animationController.isVaporizing(
                       widget.note.id,
                     ),
-                    controller: widget.controller,
-                    isSelected: widget.isSelected,
+                    onPin: () => widget.controller.togglePin(widget.note.id),
+                    colorNotifier: widget.controller.colorChangeNotifier,
+                    maxPreviewLines: widget.maxPreviewLines,
+                    selectionMode:
+                        widget.controller.selectionController.isSelectionMode,
+                    isSelected: widget.controller.selectionController.isNoteSelected(
+                      widget.note.id,
+                    ),
                     onTap: () async {
-                      if (widget.isSelectionMode) {
-                        widget.controller.toggleSelected(widget.note.id);
+                      if (widget.controller.selectionController.isSelectionMode) {
+                        widget.controller.selectionController.toggleSelected(
+                          widget.note.id,
+                        );
                         return;
                       }
-                      widget.onOpenNote(widget.note.id);
+                      widget.controller.openNote(
+                        noteId: widget.note.id,
+                        onNavigate: (id) async => Navigator.push(
+                          context,
+                          AppRouter.slide(NotePage(noteId: id)),
+                        ),
+                      );
                     },
                     onLongPress: () {
                       HapticFeedback.selectionClick();
-
-                      if (!widget.isSelectionMode) {
-                        widget.onSelectionToggle();
-                        widget.controller.clearSelection();
-                        widget.controller.toggleSelected(widget.note.id);
-                      } else {
-                        widget.controller.toggleSelected(widget.note.id);
-                      }
+                      widget.controller.selectionController.toggleSelected(
+                        widget.note.id,
+                      );
                     },
-                    onPin: () => widget.onTogglePin(widget.note.id),
                   ),
                 ),
               ),

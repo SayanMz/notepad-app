@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/data/notes_repository.dart';
 import 'package:notepad/core/services/context_extensions.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/note_list_items/note_empty_state.dart';
@@ -9,120 +7,98 @@ import 'package:notepad/features/home/widgets/note_list_items/note_empty_state.d
 import 'package:notepad/features/home/widgets/note_list_items/swipeable_note_item.dart';
 
 class NoteList extends StatelessWidget {
-  const NoteList({
-    super.key,
-    required this.isSelectionMode,
-    required this.onOpenNote,
-    required this.onTogglePin,
-    required this.onShare,
-    required this.onDeleteSelected,
-    required this.onSelectionToggle,
-    required this.controller,
-  });
-
-  final bool isSelectionMode;
-  final Future<void> Function(String noteId) onOpenNote;
-  final Future<void> Function(String noteId) onTogglePin;
-  final VoidCallback onShare;
-  final VoidCallback onDeleteSelected;
-  final VoidCallback onSelectionToggle;
+  const NoteList({super.key, required this.controller});
   final HomeController controller;
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: noteRepository.activeRevision,
-      builder: (_, _) {
-        final activeNotes = noteRepository.activeNotes;
-        final pinnedNotes = noteRepository.pinnedNotes;
-        final unpinnedNotes = noteRepository.unpinnedNotes;
+    final screenWidth = context.screenSize.width;
+    final maxPreviewLines = screenWidth > 1200
+        ? UIConstants.noteCardPreviewLargeDesktopLines
+        : screenWidth > 900
+        ? UIConstants.noteCardPreviewTabletLines
+        : screenWidth > 600
+        ? UIConstants.noteCardPreviewSmallTabletLines
+        : UIConstants.noteCardPreviewPhoneLines;
 
-        if (activeNotes.isEmpty) {
-          return const SliverFillRemaining(
-            hasScrollBody: false,
-            child: NoteEmptyState(),
-          );
-        }
+    final pinnedNotes = controller.pinnedNotes;
+    final unpinnedNotes = controller.unpinnedNotes;
 
-        return SliverMainAxisGroup(
-          slivers: [
-            // ZONE 1: PINNED NOTES
-            if (pinnedNotes.isNotEmpty) ...[
-              _buildSectionHeader(context, "PINNED"),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: UIConstants.listPadding,
-                ),
-                sliver: SliverReorderableList(
-                  itemCount: pinnedNotes.length,
-                  itemBuilder: (context, index) {
-                    final note = pinnedNotes[index];
-                    return RepaintBoundary(
-                      key: ValueKey(note.id),
-                      child: SwipeableNoteItem(
-                        // ⚡ Uses Extracted Widget
-                        index: noteRepository.getPinnedLocalIndex(note.id),
-                        note: note,
-                        isSelectionMode: isSelectionMode,
-                        controller: controller,
-                        onOpenNote: onOpenNote,
-                        onSelectionToggle: onSelectionToggle,
-                        onTogglePin: onTogglePin,
-                        onDeleted: controller.showSingleDeleteSnackbar,
-                        isSelected: controller.isNoteSelected(note.id),
-                      ),
-                    );
-                  },
-                  onReorder: (int oldIndex, int newIndex) {
-                    if (oldIndex < newIndex) newIndex -= 1;
-                    noteRepository.reorderPinnedNotes(oldIndex, newIndex);
-                    HapticFeedback.lightImpact();
-                  },
-                ),
-              ),
-            ],
+    if (!controller.hasActiveNotes) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: NoteEmptyState(),
+      );
+    }
 
-            // ZONE 2: UNPINNED NOTES
-            if (unpinnedNotes.isNotEmpty) ...[
-              if (pinnedNotes.isNotEmpty)
-                _buildSectionHeader(context, "OTHERS"),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: UIConstants.listPadding,
-                ),
-                sliver: SliverReorderableList(
-                  itemCount: unpinnedNotes.length,
-                  itemBuilder: (context, index) {
-                    final note = unpinnedNotes[index];
-                    return RepaintBoundary(
-                      key: ValueKey(note.id),
-                      child: SwipeableNoteItem(
-                        // ⚡ Uses Extracted Widget
-                        index: noteRepository.getUnpinnedLocalIndex(note.id),
-                        note: note,
-                        isSelectionMode: isSelectionMode,
-                        controller: controller,
-                        onOpenNote: onOpenNote,
-                        onSelectionToggle: onSelectionToggle,
-                        onTogglePin: onTogglePin,
-                        onDeleted: controller.showSingleDeleteSnackbar,
-                        isSelected: controller.isNoteSelected(note.id),
-                      ),
-                    );
-                  },
-                  onReorder: (int oldIndex, int newIndex) {
-                    if (oldIndex < newIndex) newIndex -= 1;
-                    noteRepository.reorderUnpinnedNotes(oldIndex, newIndex);
-                    HapticFeedback.lightImpact();
-                  },
-                ),
-              ),
-            ],
+    return SliverMainAxisGroup(
+      slivers: [
+        // ZONE 1: PINNED NOTES
+        if (pinnedNotes.isNotEmpty) ...[
+          _buildSectionHeader(context, "PINNED"),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: UIConstants.listPadding,
+            ),
+            sliver: SliverReorderableList(
+              itemCount: pinnedNotes.length,
+              itemBuilder: (context, index) {
+                final note = pinnedNotes[index];
+                return RepaintBoundary(
+                  key: ValueKey(note.id),
+                  child: SwipeableNoteItem(
+                    index: index,
+                    note: note,
+                    controller: controller,
+                    animationController: controller.animationController,
+                    maxPreviewLines: maxPreviewLines,
+                  ),
+                );
+              },
+              onReorder: (int oldIndex, int newIndex) {
+                if (oldIndex < newIndex) newIndex -= 1;
+                controller.handlePinnedReorder(oldIndex, newIndex);
+              },
+              onReorderStart: (index) {
+                controller.setDraggingState(true);
+              },
+              onReorderEnd: (index) {
+                controller.setDraggingState(false);
+              },
+            ),
+          ),
+        ],
 
-            const SliverPadding(padding: EdgeInsets.only(bottom: 70)),
-          ],
-        );
-      },
+        // ZONE 2: UNPINNED NOTES
+        if (unpinnedNotes.isNotEmpty) ...[
+          if (pinnedNotes.isNotEmpty) _buildSectionHeader(context, "OTHERS"),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: UIConstants.listPadding,
+            ),
+            sliver: SliverReorderableList(
+              itemCount: unpinnedNotes.length,
+              itemBuilder: (context, index) {
+                final note = unpinnedNotes[index];
+                return RepaintBoundary(
+                  key: ValueKey(note.id),
+                  child: SwipeableNoteItem(
+                    index: index,
+                    note: note,
+                    controller: controller,
+                    animationController: controller.animationController,
+                    maxPreviewLines: maxPreviewLines,
+                  ),
+                );
+              },
+              onReorder: (int oldIndex, int newIndex) {
+                if (oldIndex < newIndex) newIndex -= 1;
+                controller.handleUnpinnedReorder(oldIndex, newIndex);
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
 

@@ -43,13 +43,13 @@ class DraggablePickerState {
   }
 }
 
-class DraggableToolbarColorPicker extends StatefulWidget {
+class DraggableColorPicker extends StatefulWidget {
   final Color initialColor;
   final bool isDark;
   final Function(Color) onColorChanged;
   final VoidCallback onDismissRequested;
 
-  const DraggableToolbarColorPicker({
+  const DraggableColorPicker({
     super.key,
     required this.initialColor,
     required this.isDark,
@@ -58,12 +58,11 @@ class DraggableToolbarColorPicker extends StatefulWidget {
   });
 
   @override
-  State<DraggableToolbarColorPicker> createState() =>
+  State<DraggableColorPicker> createState() =>
       _DraggableToolbarColorPickerState();
 }
 
-class _DraggableToolbarColorPickerState
-    extends State<DraggableToolbarColorPicker> {
+class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
   late Color pickerColor;
 
   // Single notifier for all UI state changes
@@ -86,8 +85,8 @@ class _DraggableToolbarColorPickerState
   @override
   Widget build(BuildContext context) {
     final screenSize = context.screenSize;
-    final availableWidth = (screenSize.width * 0.8).clamp(260.0, 300.0);
-    const double dHeight = 240;
+    final availableWidth = (screenSize.width * 0.4).clamp(260.0, 300.0);
+    const double dHeight = 120;
     bool isClosing = false;
 
     // OPTIMIZATION: Logic moved to PanUpdate. Build only reads values.
@@ -239,69 +238,84 @@ class _DraggableToolbarColorPickerState
     );
   }
 
+  // Location: draggable_color_picker.dart -> Replace your _buildExpensiveUI with this original transparent version
+
   Widget _buildExpensiveUI(double width) {
+    // Convert your standard Picker Color into HSVColor which the modular sub-widgets require
+    final hsvColor = HSVColor.fromColor(pickerColor);
+
     return Material(
-      type: MaterialType.transparency,
+      type: MaterialType.transparency, //
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24.0),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            width: width,
-            padding: const EdgeInsets.only(
-              top: 12.0,
-              left: 16.0,
-              right: 16.0,
-              bottom: 16.0,
-            ),
-            decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24.0), //
+        child: Container(
+          width: width, //
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: widget.isDark
+                ? Colors.black.withValues(alpha: 0.10)
+                : Colors.white.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(24.0), //
+            border: Border.all(
               color: widget.isDark
-                  ? const Color(0xFF1E1E1E).withValues(alpha: 0.8)
-                  : Colors.white.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(24.0),
-              border: Border.all(
-                color: widget.isDark
-                    ? Colors.white10
-                    : Colors.black.withValues(alpha: 0.05),
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.04),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10), //
+                blurRadius: 24, //
+                offset: const Offset(0, 12), //
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 32,
-                  offset: const Offset(0, 16),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, //
+            children: [
+              // Drag handle indicator
+              Container(
+                width: 40, //
+                height: 4, //
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C9C8D), //
+                  borderRadius: BorderRadius.circular(2), //
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C9C8D),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
+              ),
+              const SizedBox(height: 16),
+
+              // 🌟 MODULAR LAYER 1: The Main Shading Grid Canvas (No solid background built-in!)
+              SizedBox(
+                height:
+                    80, // Proportional height constraint so it doesn't look gigantic or collapse
+                width: width - 32,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: ColorPicker(
-                    pickerColor: pickerColor,
-                    onColorChanged: (color) {
-                      setState(() => pickerColor = color);
-                      widget.onColorChanged(color);
+                  child: ColorPickerArea(hsvColor, (color) {
+                    setState(() => pickerColor = color.toColor()); //
+                    widget.onColorChanged(color.toColor()); //
+                  }, PaletteType.hsv),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 🌟 MODULAR LAYER 2: The Hue Rainbow Track Slider
+              SizedBox(
+                height: 18,
+                width: width - 32,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: ColorPickerSlider(
+                    TrackType.hue,
+                    hsvColor,
+                    (color) {
+                      setState(() => pickerColor = color.toColor()); //
+                      widget.onColorChanged(color.toColor()); //
                     },
-                    pickerAreaHeightPercent: 0.35,
-                    enableAlpha: false,
-                    displayThumbColor: true,
-                    labelTypes: const [],
-                    portraitOnly: true,
-                    colorPickerWidth: width - 32,
+                    displayThumbColor: true, //
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

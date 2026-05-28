@@ -14,6 +14,7 @@ const String voiceAiSystemPrompt = """
      - WRONG: target: "menu items a checklist".
   5. OCCURRENCE: "second instance", "last time I said [word]" -> set occurrence to "second" or "last".
   6. CLEARING: "clear formatting", "remove styles", "start over", "nuke it" -> EXACTLY: { "instructions": [{"target": "all", "key": "unformat_all", "value": true, "occurrence": "all"}] }
+  7. CASUAL OR UNRELATED SPEECH: If the user speech is casual conversation, a greeting, a question, or contains absolutely NO explicit request to style or format text, you MUST return an empty instructions array exactly like this: { "instructions": [] }
 
   FEATURE & SYNONYM MAPPING:
   1. Styles: "bold", "italic", "underline", "strike" / "cross out" -> boolean true.

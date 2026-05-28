@@ -123,13 +123,9 @@ class SearchResultsPanel extends StatelessWidget {
     final hasActiveFilters = controller.hasFilters;
 
     return Padding(
-      padding: EdgeInsets.only(
-        // ⚡ MATCH THE GRID: This should use the exact same padding value as your list padding
-        // to ensure it perfectly aligns vertically with the note card contents.
-        left: hasActiveFilters ? 8.0 : RecycleConstants.listPadding,
-        right: RecycleConstants.listPadding,
-        top: SearchConstants.metadataPaddingV,
-        bottom: SearchConstants.metadataPaddingV,
+      padding: EdgeInsets.symmetric(
+        horizontal: hasActiveFilters ? 0 : RecycleConstants.listPadding,
+        vertical: SearchConstants.metadataPaddingV,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
@@ -143,11 +139,10 @@ class SearchResultsPanel extends StatelessWidget {
                 controller.clearFilter();
                 onClearFilter();
               },
-              icon: const Icon(Icons.filter_alt_off, size: 18),
+              icon: const Icon(Icons.filter_alt_off, size: 25),
               color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
               tooltip: 'Clear filter',
             ),
-            const SizedBox(width: 20), // Clean, natural spacing token
           ],
           if (hasCriteria || hasActiveFilters)
             Text(
