@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
 import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/secure_key_vault_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// APP BOOTSTRAPPER (INTERVIEW NOTE)
@@ -163,27 +164,43 @@ class AppBootstrapper {
   /// - Initialize Hive
   /// - Register adapters (idempotent)
   /// - Open required boxes in parallel
+  // 📍 Location: app_bootstrapper.dart -> Inside _defaultInitializePersistence()
+
   static Future<void> _defaultInitializePersistence() async {
-    await dotenv.load(fileName: '.env');
+    await dotenv.load(fileName: '.env'); //
 
     if (!dotenv.env.containsKey('GOOGLE_CLIENT_ID')) {
-      throw Exception('Missing GOOGLE_CLIENT_ID in .env');
-    }
+      //
+      throw Exception('Missing GOOGLE_CLIENT_ID in .env'); //
+    } //
 
-    await Hive.initFlutter();
+    await Hive.initFlutter(); //
 
     /// Adapter registration guarded to prevent duplicates
     if (!Hive.isAdapterRegistered(NotesSectionAdapter().typeId)) {
-      Hive.registerAdapter(NotesSectionAdapter());
-    }
+      //
+      Hive.registerAdapter(NotesSectionAdapter()); //
+    } //
     if (!Hive.isAdapterRegistered(AppSettingsAdapter().typeId)) {
-      Hive.registerAdapter(AppSettingsAdapter());
-    }
+      //
+      Hive.registerAdapter(AppSettingsAdapter()); //
+    } //
 
-    /// Open storage boxes concurrently
+    // 🌟 THE SECURE VAULT FIX:
+    // 1. Fetch or derive a cryptographically strong 256-bit key from the Android Keystore
+    final List<int> encryptionKey =
+        await SecureKeyVaultService.getOrCreateEncryptionKey();
+
+    // 2. Open storage boxes concurrently using high-level AES-256 block ciphers
     await Future.wait([
-      Hive.openBox<NotesSection>('notes_box'),
-      Hive.openBox<AppSettings>('settings_box'),
+      Hive.openBox<NotesSection>(
+        'notes_box',
+        encryptionCipher: HiveAesCipher(encryptionKey),
+      ),
+      Hive.openBox<AppSettings>(
+        'settings_box',
+        encryptionCipher: HiveAesCipher(encryptionKey),
+      ),
     ]);
   }
 

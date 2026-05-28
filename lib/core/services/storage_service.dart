@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/services/secure_key_vault_service.dart';
 
 /// ------------------------------------------------------------
 /// STORAGE SERVICE (Persistence Gateway)
@@ -12,6 +13,32 @@ const String _settingsBoxName = 'settings_box';
 const String _settingsKey = 'current_settings';
 Box<NotesSection> get _notesBox => Hive.box<NotesSection>(_notesBoxName);
 Box<AppSettings> get _settingsBox => Hive.box<AppSettings>(_settingsBoxName);
+
+Future<void> initializeEncryptedStorage() async {
+  try {
+    // 1. Fetch secure key from Android Keystore / iOS Keychain
+    final List<int> encryptionKey =
+        await SecureKeyVaultService.getOrCreateEncryptionKey();
+
+    // 2. Open the boxes using an AES-256 Encryption Cipher block
+    await Hive.openBox<NotesSection>(
+      _notesBoxName,
+      encryptionCipher: HiveAesCipher(encryptionKey),
+    );
+
+    await Hive.openBox<AppSettings>(
+      _settingsBoxName,
+      encryptionCipher: HiveAesCipher(encryptionKey),
+    );
+
+    debugPrint(
+      'StorageService: All Hive boxes securely mounted with AES-256 hardware encryption.',
+    );
+  } catch (e) {
+    debugPrint('StorageService Critical Initialization Error: $e');
+    rethrow;
+  }
+}
 
 // --- SAFETY CHECKS ---
 void _ensureNotesBoxReady() {
