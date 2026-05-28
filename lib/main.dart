@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
 import 'package:notepad/features/home/home_page.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// ===========================================================================
 /// APPLICATION ENTRY POINT
@@ -24,6 +26,13 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // 🌟 THE OVERRIDE: Force Android to ignore factory system binaries
+      // and read our bundled SQLite library which has full FTS5 support built-in.
+      if (Platform.isAndroid || Platform.isIOS) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
 
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,

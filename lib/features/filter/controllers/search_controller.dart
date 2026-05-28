@@ -147,12 +147,13 @@ class SearchController extends ChangeNotifier {
   /// - Delegates search to repository using current state
   /// - Updates cached results
   /// - Notifies listeners (UI rebuild)
-  void _recompute() {
-    // The UI stays responsive while this waits for the result
-    final newResults = searchSync(_state);
+  void _recompute() async {
+    // 🌟 Added async keyword
+    // The UI stays completely active and unblocked while this executes in the background
+    final newResults = await searchAsync(_state); // 🌟 Swapped to searchAsync
 
-    _results = newResults;
-    notifyListeners(); // Triggers the AnimatedSwitcher in your results panel
+    _results = newResults; //
+    notifyListeners(); //
   }
 
   /// -------------------------------------------------------------------------

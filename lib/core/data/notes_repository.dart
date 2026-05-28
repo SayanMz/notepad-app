@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'package:notepad/core/services/sqlite_fts_service.dart';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/app_settings_repository.dart';
@@ -60,6 +60,11 @@ class NoteRepository {
       // Populate cache instantly
       for (final note in _activeNotes) {
         _cacheMap[note.id] = note;
+        await SqliteFtsService.insertOrUpdate(
+          note.id,
+          note.title,
+          note.content,
+        );
       }
 
       await db.saveNotesBulk({for (var n in _activeNotes) n.id: n});
@@ -69,6 +74,14 @@ class NoteRepository {
         _cacheMap[note.id] =
             note; // ⚡ Cache everything directly on application launch
         note.isDeleted ? _deletedNotes.add(note) : _activeNotes.add(note);
+
+        if (!note.isDeleted) {
+          await SqliteFtsService.insertOrUpdate(
+            note.id,
+            note.title,
+            note.content,
+          );
+        }
       }
     }
 
@@ -177,6 +190,8 @@ class NoteRepository {
             .saveNote(existingNote)
             .catchError((e) => debugPrint("Disk Write Error: $e")),
       );
+
+      await SqliteFtsService.insertOrUpdate(existingNote.id, title, content);
       return existingNote;
     }
 
@@ -193,8 +208,8 @@ class NoteRepository {
       positionIndex: topUnpinnedIndex,
     );
 
-    _cacheMap[newNote.id] =
-        newNote; // Register newly minted text notes in local runtime index
+    _cacheMap[newNote.id] = newNote;
+    await SqliteFtsService.insertOrUpdate(newNote.id, title, content);
     NoteSortService.insertSorted(_activeNotes, newNote);
 
     _rebuildSubListPointersOnly();
@@ -222,9 +237,11 @@ class NoteRepository {
     if (isDeleted) {
       _activeNotes.remove(note);
       NoteSortService.insertSorted(_deletedNotes, note);
+      await SqliteFtsService.remove(noteId);
     } else {
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
+      await SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
     }
 
     _rebuildSubListPointersOnly();

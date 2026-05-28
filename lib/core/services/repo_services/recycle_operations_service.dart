@@ -1,4 +1,5 @@
 import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/services/sqlite_fts_service.dart';
 
 /// A Dart Record defining the exact payload returned after a bulk sweep
 typedef BulkMoveResult = ({Map<String, NotesSection> dbUpdates});
@@ -22,7 +23,8 @@ class RecycleOperationsService {
           note.isDeleted = true;
           note.updatedAt = now;
           updates[note.id] = note;
-          currentDeleted.add(note); // Move pointer to Trash
+          currentDeleted.add(note);
+          SqliteFtsService.remove(note.id);
           return true;
         }
         return false;
@@ -34,6 +36,7 @@ class RecycleOperationsService {
           note.updatedAt = now;
           updates[note.id] = note;
           currentActive.add(note); // Move pointer back to Home
+          SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
           return true;
         }
         return false;

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 /// Converts note text into structured objects, identifying list markers during the parsing phase.
@@ -148,30 +149,34 @@ void _parsePlainTextLines(
 List<List<String>> extractMultiSearchSnippets(
   String content,
   String query, {
-  int maxBlocks = 3, // Optimal resource threshold for mobile layouts
+  int maxBlocks = 3, //
 }) {
   final normalizedQuery = query.trim().toLowerCase(); //
-
-  // DUAL-MODE COMPLIANCE WIN:
-  // We do NOT pass maxLines here! We want the complete file tokenized so we can locate deep keywords.
-  final lines = extractPreviewLines(content).map((p) => p.text).toList();
+  final lines = extractPreviewLines(content).map((p) => p.text).toList(); //
 
   if (normalizedQuery.isEmpty) {
-    // Fallback: Return the first two lines as a single block
     return [lines.take(2).toList()]; //
   }
 
-  // 1. Gather all line indices where the query actually hits
+  // Split query into tokens to find line matches for ANY keyword component
+  final List<String> tokens = normalizedQuery
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+
+  if (tokens.isEmpty) return [lines.take(2).toList()];
+
+  // 1. Gather all unique line indices where ANY search token hits
   final List<int> matchIndices = []; //
   for (int i = 0; i < lines.length; i++) {
     //
-    if (lines[i].toLowerCase().contains(normalizedQuery)) {
-      //
+    final lineLower = lines[i].toLowerCase();
+    final bool isMatch = tokens.any((token) => lineLower.contains(token));
+    if (isMatch) {
       matchIndices.add(i); //
     }
   }
 
-  // Fallback if no matches found anywhere
   if (matchIndices.isEmpty) {
     return [lines.take(2).toList()]; //
   }
@@ -179,32 +184,40 @@ List<List<String>> extractMultiSearchSnippets(
   final List<List<String>> blocks = []; //
   int pointer = 0; //
 
-  // 2. Cluster generation loop
+  // 🌟 Define configuration thresholds for dynamic block separation
+  const int contextPadding = 2; // Lines of context to pull below a match block
+  const int maxGapAllowed =
+      3; // Max distance between matches before forcing a split
+
+  // 2. Advanced Cluster Extraction Loop
   while (pointer < matchIndices.length && blocks.length < maxBlocks) {
     //
     int startIdx = matchIndices[pointer]; //
     int endIdx = startIdx; //
 
-    // Expand our window to group adjacent rows if matches are on consecutive lines
+    // 🌟 THE FIX: Group matches together ONLY if they fall within our maximum gap buffer
     while (pointer + 1 < matchIndices.length &&
-        matchIndices[pointer + 1] <= endIdx + 1) {
-      //
+        matchIndices[pointer + 1] - endIdx <= maxGapAllowed) {
       pointer++; //
       endIdx = matchIndices[pointer]; //
     }
 
-    // 3. Dynamic layout padding: Grabs start to end, plus trailing structural bounds
+    // 3. Slice out the clean, non-overlapping snippet window configuration
     final int startWindow = startIdx.clamp(0, lines.length - 1); //
-    final int endWindow = (endIdx + 4).clamp(0, lines.length); //
+    final int endWindow = (endIdx + contextPadding + 1).clamp(
+      0,
+      lines.length,
+    ); //
 
     blocks.add(lines.sublist(startWindow, endWindow)); //
-    pointer++; // Move forward to evaluate the next unique paragraph cluster block
+    pointer++; //
   }
 
   return blocks; //
 }
 
-/// Splits text into highlighted and normal spans for search result rendering.
+/// Splits text into multiple highlighted and normal spans by evaluating
+/// queries as individual matching word tokens.
 List<TextSpan> buildHighlightedTextSpans({
   required String text,
   required String query,
@@ -216,43 +229,55 @@ List<TextSpan> buildHighlightedTextSpans({
     return [TextSpan(text: text, style: baseStyle)]; //
   }
 
-  final lowerText = text.toLowerCase(); //
-  final lowerQuery = normalizedQuery.toLowerCase(); //
-  final spans = <TextSpan>[]; //
-  var start = 0; //
+  // 🌟 STEP 1: Split the query string into separate words and filter out empty items.
+  // This turns "AI Meeting" into ['ai', 'meeting'] so we match both tokens separately.
+  final List<String> tokens = normalizedQuery
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .where((token) => token.isNotEmpty)
+      .toList();
 
-  while (true) {
-    final matchIndex = lowerText.indexOf(lowerQuery, start); //
-    if (matchIndex == -1) {
-      if (start < text.length) {
-        spans.add(TextSpan(text: text.substring(start), style: baseStyle)); //
-      }
-      break; // Safe exit condition triggered once scanning maps finish
-    }
+  if (tokens.isEmpty) {
+    return [TextSpan(text: text, style: baseStyle)];
+  }
 
-    if (matchIndex > start) {
+  // 🌟 STEP 2: Escape words for safe regex consumption, then build an alternation pattern.
+  // Resulting regex matches: (ai|meeting)
+  final String pattern = tokens.map((t) => RegExp.escape(t)).join('|');
+  final RegExp regex = RegExp(pattern, caseSensitive: false);
+
+  final List<TextSpan> spans = [];
+  int lastMatchEnd = 0;
+
+  // 🌟 STEP 3: Iterate through all matching token locations found inside the text slice
+  for (final Match match in regex.allMatches(text)) {
+    // Append the unhighlighted text prefix leading up to this match hit
+    if (match.start > lastMatchEnd) {
       spans.add(
-        TextSpan(text: text.substring(start, matchIndex), style: baseStyle), //
+        TextSpan(
+          text: text.substring(lastMatchEnd, match.start),
+          style: baseStyle,
+        ),
       );
     }
 
+    // Append the highlighted text span for the matched word token
     spans.add(
       TextSpan(
-        text: text.substring(
-          matchIndex,
-          matchIndex + normalizedQuery.length,
-        ), //
-        style: highlightStyle, //
+        text: text.substring(match.start, match.end),
+        style: highlightStyle,
       ),
     );
 
-    start =
-        matchIndex +
-        normalizedQuery
-            .length; // Advance structural tracking index pointer past matched word
+    lastMatchEnd = match.end;
   }
 
-  return spans; //
+  // Append any trailing leftover text remaining after the final loop match
+  if (lastMatchEnd < text.length) {
+    spans.add(TextSpan(text: text.substring(lastMatchEnd), style: baseStyle));
+  }
+
+  return spans;
 }
 
 class PreviewLine {

@@ -1,51 +1,48 @@
 import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/services/sqlite_fts_service.dart'; // Import service
 import 'package:notepad/features/filter/models/search_date_selection.dart';
 import 'package:notepad/features/filter/models/search_state.dart';
 
-/// Runs a synchronous search on the active notes list using chronological windowing.
-List<NotesSection> searchSync(SearchState searchState) {
-  final activeNotes = noteRepository.activeNotes;
+/// 🌟 CHANGED: Executed asynchronously to pull indexing bounds seamlessly
+Future<List<NotesSection>> searchAsync(SearchState searchState) async {
+  final activeNotes = noteRepository.activeNotes; //
 
   if (searchState.normalizedQuery.isEmpty && !searchState.hasFilters) {
-    return const [];
+    //
+    return const []; //
+  } //
+
+  // 🌟 THE HYBRID ADVANTAGE: Fetch matching text ID lists instantly via SQLite index
+  Set<String>? matchedIds;
+  if (searchState.normalizedQuery.isNotEmpty) {
+    final ids = await SqliteFtsService.searchIds(searchState.normalizedQuery);
+    matchedIds = Set.from(ids);
+    if (matchedIds.isEmpty) {
+      return const []; // Return fast if no structural string hit matches
+    }
   }
 
-  return _performSearchSync(activeNotes, searchState);
-}
+  final filters = searchState.filters; //
+  final startDate = _buildBoundary(filters.start, isEndOfRange: false); //
+  final endDate =
+      filters
+          .isRangeSearch //
+      ? _buildBoundary(filters.end, isEndOfRange: true) //
+      : _buildBoundary(filters.start, isEndOfRange: true); //
 
-List<NotesSection> _performSearchSync(
-  List<NotesSection> notes,
-  SearchState state,
-) {
-  final normalizedQuery = state.normalizedQuery;
-  final filters = state.filters;
+  return activeNotes.where((note) {
+    //
+    // Pass 1: Filter immediately using our SQLite O(1) matching ID table
+    if (matchedIds != null && !matchedIds.contains(note.id)) return false;
 
-  // Consolidate Logic: Build a start and end point for every search
-  final startDate = _buildBoundary(filters.start, isEndOfRange: false);
+    // Pass 2: Process localized chronological boundaries
+    final date = note.updatedAt; //
+    if (startDate != null && date.isBefore(startDate)) return false; //
+    if (endDate != null && date.isAfter(endDate)) return false; //
 
-  // If it's a single search, use the start criteria to build the upper bound of the window
-  final endDate = filters.isRangeSearch
-      ? _buildBoundary(filters.end, isEndOfRange: true)
-      : _buildBoundary(filters.start, isEndOfRange: true);
-
-  return notes.where((note) {
-    final date = note.updatedAt;
-
-    // --- PHASE 1: CHRONOLOGICAL WINDOW CHECK ---
-    // Single comparison is faster than multiple attribute checks
-    if (startDate != null && date.isBefore(startDate)) return false;
-    if (endDate != null && date.isAfter(endDate)) return false;
-
-    // --- PHASE 2: TEXT CHECK ---
-    if (normalizedQuery.isNotEmpty) {
-      final titleMatch = note.title.toLowerCase().contains(normalizedQuery);
-      final contentMatch = note.content.toLowerCase().contains(normalizedQuery);
-      return titleMatch || contentMatch;
-    }
-
-    return true;
-  }).toList();
+    return true; //
+  }).toList(); //
 }
 
 DateTime? _buildBoundary(
