@@ -35,7 +35,7 @@ class NoteList extends StatelessWidget {
       slivers: [
         // ZONE 1: PINNED NOTES
         if (pinnedNotes.isNotEmpty) ...[
-          _buildSectionHeader(context, "PINNED"),
+          _buildSectionHeader(context, "PINNED (${pinnedNotes.length})"),
           SliverPadding(
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.listPadding,
@@ -71,7 +71,8 @@ class NoteList extends StatelessWidget {
 
         // ZONE 2: UNPINNED NOTES
         if (unpinnedNotes.isNotEmpty) ...[
-          if (pinnedNotes.isNotEmpty) _buildSectionHeader(context, "OTHERS"),
+          if (pinnedNotes.isNotEmpty)
+            _buildSectionHeader(context, "OTHERS (${unpinnedNotes.length})"),
           SliverPadding(
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.listPadding,

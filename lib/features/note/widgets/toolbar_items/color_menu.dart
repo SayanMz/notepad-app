@@ -149,6 +149,11 @@ class _ColorMenuState extends State<ColorMenu> {
                   ? Attribute.fromKeyValue('color', null)
                   : ColorAttribute(hexString);
               widget.controller.formatSelection(colorAttr);
+
+              if (_menuController.isOpen) {
+                _menuController.close();
+              }
+
               widget.focusNode.requestFocus();
             }
           },

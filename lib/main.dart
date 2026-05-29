@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' if (dart.library.html) 'dart:html'; // To check platform safely
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -14,7 +15,7 @@ import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
 import 'package:notepad/features/home/home_page.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // The missing factory driver
 
 /// ===========================================================================
 /// APPLICATION ENTRY POINT
@@ -29,7 +30,8 @@ Future<void> main() async {
 
       // 🌟 THE OVERRIDE: Force Android to ignore factory system binaries
       // and read our bundled SQLite library which has full FTS5 support built-in.
-      if (Platform.isAndroid || Platform.isIOS) {
+      if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+        // Initialize the FFI database factory driver for desktop
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }

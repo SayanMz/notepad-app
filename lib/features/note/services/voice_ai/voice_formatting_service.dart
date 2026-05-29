@@ -41,7 +41,7 @@ class VoiceFormattingService {
             'middle',
             'justify',
           ].contains(v?.toString().toLowerCase())) {
-        final combinedStr = '${k}_${v}'.toLowerCase();
+        final combinedStr = '${k}_$v'.toLowerCase();
         k = 'align'; // Force the key to be align
 
         if (combinedStr.contains('right')) {

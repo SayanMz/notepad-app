@@ -18,129 +18,111 @@ class HomeFab extends StatelessWidget {
     required this.selectionController,
   });
 
+  // 📍 Location: home_fab.dart -> Inside your build method
+
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
+    final isDark = context.isDark; //
     final Color fabColor = isDark
         ? AppColors.homeFabDark
-        : AppColors.homeFabLight;
+        : AppColors.homeFabLight; //
     final Color contentColor = isDark
         ? Colors.black.withValues(alpha: 0.8)
-        : Colors.white;
-
-    // 📍 Location: home_fab.dart -> Inside your build method
+        : Colors.white; //
 
     const double expandedWidth = HomeConstants.fabExpandedWidth; //
     const double collapsedWidth = HomeConstants.fabCollapsedWidth; //
     const double fabHeight = HomeConstants.fabHeight; //
     const Curve fluidCurve = Curves.easeOutBack; //
 
-    return ListenableBuilder(
-      listenable: controller, //
-      builder: (context, _) {
-        final bool isSelectionActive = selectionController.isSelectionMode; //
-        final bool isDraggingActive = controller.isDraggingNote; //
-        final bool shouldHide = isSelectionActive || isDraggingActive; //
+    final bool isSelectionActive = selectionController.isSelectionMode; //
+    final bool isDraggingActive = controller.isDraggingNote; //
+    final bool shouldHide = isSelectionActive || isDraggingActive; //
 
-        return SafeArea(
-          child: AnimatedSlide(
-            offset: (isSelectionActive || shouldHide)
-                ? const Offset(0, 1.8) //
-                : Offset.zero, //
-            duration: AnimationConstants.medium, //
-            curve: Curves.fastOutSlowIn, //
-            child: ListenableBuilder(
-              listenable: controller.fabAlignX, //
-              builder: (context, child) {
-                final double alignX = controller.fabAlignX.value; //
+    return SafeArea(
+      child: AnimatedSlide(
+        offset: shouldHide ? const Offset(0, 1.8) : Offset.zero, //
+        duration: AnimationConstants.medium, //
+        curve: Curves.fastOutSlowIn, //
+        // 🌟 THE MERGE FIX: Listen to both properties at the same time cleanly
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            controller.fabAlignX,
+            controller.isFabExtended,
+          ]),
+          builder: (context, _) {
+            final double alignX = controller.fabAlignX.value; //
+            final bool isExtended = controller.isFabExtended.value;
 
-                return AnimatedAlign(
-                  duration: AnimationConstants.slow, //
-                  curve: Curves.easeOutCubic, //
-                  alignment: Alignment(
-                    alignX,
-                    HomeConstants.fabAlignDefaultY,
-                  ), //
-                  child: child!, //
-                );
-              },
-              child: ValueListenableBuilder<bool>(
-                valueListenable: controller.isFabExtended, //
-                builder: (context, isExtended, _) {
-                  return TweenAnimationBuilder<double>(
-                    tween: Tween<double>(
-                      begin: isExtended ? expandedWidth : collapsedWidth,
-                      end: isExtended ? expandedWidth : collapsedWidth,
-                    ),
-                    duration: AnimationConstants.medium,
-                    curve: fluidCurve,
-                    builder: (context, animatedWidth, child) {
-                      return SizedBox(
-                        height: fabHeight,
-                        width: animatedWidth,
-                        child: OpenContainer(
-                          transitionType:
-                              ContainerTransitionType.fadeThrough, //
-                          transitionDuration: const Duration(
-                            milliseconds: 180,
-                          ), // Snappy routing exit
-                          openColor: Theme.of(
-                            context,
-                          ).scaffoldBackgroundColor, //
-                          closedColor: fabColor, //
-                          closedElevation: isSelectionActive
-                              ? 0
-                              : UIConstants.elevationHigh, //
-                          closedShape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              HomeConstants.fabClosedRadius,
-                            ), //
-                          ),
-                          openShape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero, //
-                          ),
-                          middleColor: Colors.transparent, //
+            return AnimatedAlign(
+              duration: AnimationConstants.slow, //
+              curve: Curves.easeOutCubic, //
+              alignment: Alignment(alignX, HomeConstants.fabAlignDefaultY), //
+              // Localized animation tree stays completely isolated from alignment rebuilds!
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(
+                  begin: isExtended ? expandedWidth : collapsedWidth,
+                  end: isExtended ? expandedWidth : collapsedWidth,
+                ),
+                duration: AnimationConstants.medium, //
+                curve: fluidCurve, //
+                builder: (context, animatedWidth, child) {
+                  return SizedBox(
+                    height: fabHeight, //
+                    width: animatedWidth,
+                    child: OpenContainer(
+                      transitionType: ContainerTransitionType.fadeThrough, //
+                      transitionDuration: const Duration(milliseconds: 180), //
+                      openColor: Theme.of(context).scaffoldBackgroundColor, //
+                      closedColor: fabColor, //
+                      closedElevation: isSelectionActive
+                          ? 0
+                          : UIConstants.elevationHigh, //
+                      closedShape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          HomeConstants.fabClosedRadius,
+                        ), //
+                      ),
+                      openShape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ), //
+                      middleColor: Colors.transparent, //
 
-                          closedBuilder: (context, openContainer) =>
-                              RepaintBoundary(
-                                //
-                                child: Material(
-                                  color: Colors.transparent, //
-                                  child: InkWell(
-                                    onTap: shouldHide ? null : openContainer, //
-                                    child: TweenAnimationBuilder<double>(
-                                      tween: Tween<double>(
-                                        end: isExtended ? 1.0 : 0.0, //
+                      closedBuilder: (context, openContainer) =>
+                          RepaintBoundary(
+                            //
+                            child: Material(
+                              color: Colors.transparent, //
+                              child: InkWell(
+                                onTap: shouldHide ? null : openContainer, //
+                                child: TweenAnimationBuilder<double>(
+                                  tween: Tween<double>(
+                                    end: isExtended ? 1.0 : 0.0,
+                                  ), //
+                                  duration: AnimationConstants.fast, //
+                                  curve: Curves.easeInOutCubic, //
+                                  builder: (context, animationProgress, _) {
+                                    return CustomPaint(
+                                      size: Size(animatedWidth, fabHeight), //
+                                      painter: FluidFabPainter(
+                                        contentColor: contentColor, //
+                                        progress: animationProgress, //
                                       ),
-                                      duration: AnimationConstants.fast, //
-                                      curve: Curves.easeInOutCubic, //
-                                      builder: (context, animationProgress, _) {
-                                        return CustomPaint(
-                                          size: Size(
-                                            animatedWidth,
-                                            fabHeight,
-                                          ), // Matches outer width flawlessly
-                                          painter: FluidFabPainter(
-                                            contentColor: contentColor, //
-                                            progress: animationProgress, //
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ),
-                          openBuilder: (context, _) => const NotePage(), //
-                        ),
-                      );
-                    },
+                            ),
+                          ),
+                      openBuilder: (context, _) => const NotePage(), //
+                    ),
                   );
                 },
               ),
-            ),
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }
