@@ -5,9 +5,10 @@ Hey there! 👋 Welcome to **Notepad**, a polished, buttery-smooth, and local-fi
 Notepad combines a clean, distraction-free editor experience with practical everyday features. Whether you are typing away, using voice-assisted commands, or syncing your encrypted notes to Google Drive, the app is designed to feel fast, completely dependable, and tailored to your workflow.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/ae38b96d-c7fc-4483-9815-17682fd8081e" width="250" alt="Editor Screen" style="margin: 10px;" />
-  <img src="https://github.com/user-attachments/assets/edcaacdc-6a28-4dac-bdbf-854de70830cd" width="250" alt="Home Screen" style="margin: 10px;" />
-  <img src="https://github.com/user-attachments/assets/7fc3c20a-3746-4ec7-b7f0-244898dba152" width="250" alt="Search screen" style="margin: 10px;" />
+   <img src="assets/screenshots/home.png" width="250" />
+  <img src="assets/screenshots/editor.png" width="250" />
+  <img src="assets/screenshots/search.png" width="250" />
+  <img src="assets/screenshots/trash.png" width="250" />
 </p>
 
 ---
