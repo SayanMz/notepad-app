@@ -1,9 +1,10 @@
+// HTML export preserves note structure while normalizing links and formatting.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/note/services/document_delta_parser.dart'
     as doc_delta;
 import 'package:path_provider/path_provider.dart';
@@ -20,7 +21,6 @@ class NoteHtmlExporter {
       ..writeln(
         '<title>${_escapeHtml(title.trim().isEmpty ? 'Untitled note' : title.trim())}</title>',
       )
-      // CRITICAL UPDATE: The Universal Font Stack
       ..writeln(
         '<style>body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; padding: 32px; line-height: 1.5; }',
       )
@@ -105,20 +105,19 @@ class NoteHtmlExporter {
     required String title,
     required List<dynamic> richContent,
   }) async {
-    final baseDir = await _shareDirectory(); //
+    final baseDir = await _shareDirectory();
     final uniqueDir = await Directory(
       '${baseDir.path}/${DateTime.now().microsecondsSinceEpoch}',
     ).create(recursive: true);
 
-    // Build the final file path inside your newly isolated safe folder
     final file = File('${uniqueDir.path}/$fileNameBase.html');
 
     await file.writeAsString(
       buildHtmlDocument(title: title, richContent: richContent),
-      flush: true, //
+      flush: true,
     );
 
-    return file; //
+    return file;
   }
 
   static Future<Directory> _shareDirectory() async {
@@ -149,13 +148,11 @@ class NoteHtmlExporter {
       final isUnchecked = listType == 'unchecked';
       final isList = isBullet || isOrdered || isChecked || isUnchecked;
 
-      // Handle list grouping
       if (listType != currentListType) {
         closeListIfNeeded();
         if (isBullet) {
           buffer.writeln('<ul>');
         } else if (isChecked || isUnchecked) {
-          // Remove default bullets for checklists to match PDF's [x] / [ ] format
           buffer.writeln('<ul style="list-style-type: none;">');
         } else if (isOrdered) {
           buffer.writeln('<ol>');
@@ -163,7 +160,6 @@ class NoteHtmlExporter {
         currentListType = listType ?? '';
       }
 
-      // CRITICAL FIX: Normalize runs before rendering, exactly like PDF
       final normalizedRuns = doc_delta.normalizeRunsForListLine(
         line.runs,
         isBullet: isBullet || isChecked || isUnchecked,
@@ -174,7 +170,6 @@ class NoteHtmlExporter {
           ? '&nbsp;'
           : normalizedRuns.map(_htmlSpan).join();
 
-      // Render line based on block type
       if (isList) {
         if (isChecked) {
           buffer.writeln('<li><strong>[x] </strong>$htmlLine</li>');
@@ -201,7 +196,7 @@ class NoteHtmlExporter {
     final header = blockAttributes['header'];
     switch (header) {
       case 1:
-        return 'h2'; // Matches PDF scale
+        return 'h2';
       case 2:
         return 'h3';
       case 3:

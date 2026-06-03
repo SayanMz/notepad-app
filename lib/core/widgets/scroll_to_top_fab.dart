@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 
 class ScrollToTopFab extends StatelessWidget {
   const ScrollToTopFab({
@@ -15,10 +15,8 @@ class ScrollToTopFab extends StatelessWidget {
   final ValueNotifier<bool> showScrollToTopBtn;
   final String heroTag;
 
-  /// Optional extra validation state (e.g. _searchController.hasAnyCriteria)
   final bool additionalCondition;
 
-  /// Optional extra actions to run alongside the scroll action
   final VoidCallback? onPressed;
 
   @override
@@ -32,7 +30,6 @@ class ScrollToTopFab extends StatelessWidget {
         child: ValueListenableBuilder<bool>(
           valueListenable: showScrollToTopBtn,
           builder: (context, showBtn, _) {
-            // Evaluates the pixel threshold against your customizable view conditions
             final bool isVisible = showBtn && additionalCondition;
 
             return AnimatedOpacity(
@@ -53,7 +50,6 @@ class ScrollToTopFab extends StatelessWidget {
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.fastOutSlowIn,
                     );
-                    // Fire any custom component overrides passed in from parent scopes
                     onPressed?.call();
                   },
                   child: const Icon(Icons.arrow_upward),

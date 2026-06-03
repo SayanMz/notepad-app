@@ -1,3 +1,4 @@
+// Voice feedback turns model responses into short user-facing guidance.
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -12,10 +13,10 @@ class NoteVoiceFeedbackService {
     'Awesome, here it is.',
     'All set! There you go.',
     'That\'s cool. Let me handle it.',
-    'Looking good! Formatting applied.', //
-    'Consider it done!', //
+    'Looking good! Formatting applied.',
+    'Consider it done!',
     'Perfect! Applying that right now.',
-    'Got it! Your changes are live.', //
+    'Got it! Your changes are live.',
   ];
   final List<String> _failurePhrases = [
     'Sorry, I couldn\'t find that word in the text.',
@@ -79,3 +80,4 @@ class NoteVoiceFeedbackService {
     await _tts.speak(phrase);
   }
 }
+

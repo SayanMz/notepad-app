@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+// Converts Quill deltas into plain-text and rich-content structures.
 class DocumentDeltaLine {
   const DocumentDeltaLine({required this.runs, required this.blockAttributes});
 

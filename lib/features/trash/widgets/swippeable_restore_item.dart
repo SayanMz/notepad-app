@@ -1,3 +1,4 @@
+// Swipe-to-restore rows need gesture handling and delete affordances together.
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -5,11 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/note_page.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
+// Swipe actions restore or permanently delete notes from the recycle bin.
 class SwipeableRestoreItem extends StatefulWidget {
   const SwipeableRestoreItem({
     required this.note,
@@ -58,26 +60,20 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
       padding: const EdgeInsets.all(RecycleConstants.cardMargin),
       child: Stack(
         children: [
-          // --- THE BACKGROUND PANEL LAYER (PATH B: FLOATING GREEN CAPSULE) ---
           Positioned(
-            // 🌟 EXTEND COMPLETELY TO EDGES TO TRACK INSET PARSING SIZES
             top: 0,
             bottom: 0,
             left: 0,
             right: 0,
             child: Card(
-              // 🌟 INSET MARGINS INWARD: Creates vertical and horizontal cushion separation
               margin: const EdgeInsets.symmetric(
-                vertical:
-                    0, // Removes the vertical cushion so the heights match perfectly!
-                horizontal: UIConstants
-                    .paddingXXS, // Keeps the slight side inset for depth separation
+                vertical: 0,
+                horizontal: UIConstants.paddingXXS,
               ),
               elevation: 0,
               color: widget.isDark
                   ? AppColors.recycleSwipeDark
                   : AppColors.recycleSwipeLight,
-              // 🌟 EXAGGERATED CAPSULE RADIUS: Gives a completely premium pill shape
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(
                   RecycleConstants.cardRadius * 2.5,
@@ -85,10 +81,7 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
               ),
               child: Container(
                 alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(
-                  right:
-                      UIConstants.paddingXL, // Balanced target margin footprint
-                ),
+                padding: const EdgeInsets.only(right: UIConstants.paddingXL),
                 child: ListenableBuilder(
                   listenable: Listenable.merge([_dragProgress, _isConfirmed]),
                   builder: (context, child) {
@@ -126,7 +119,6 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                     );
                     final angle = rotationProgress * pi;
 
-                    // Adjusted Translate logic for clean right-aligned spinning anchoring
                     final matrix = Matrix4.identity()
                       ..translateByDouble(-xOffset, 0, 0, 1)
                       ..rotateZ(angle)
@@ -163,7 +155,6 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
             ),
           ),
 
-          // --- THE SWIPE MASK ---
           Dismissible(
             key: ValueKey('restore_${widget.note.id}'),
             direction: DismissDirection.endToStart,

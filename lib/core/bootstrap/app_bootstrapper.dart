@@ -1,89 +1,25 @@
+// Keep bootstrap outside the widget tree so retries stay deterministic.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/core/services/secure_key_vault_service.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/services/security_key_vault_service.dart';
 
-/// ---------------------------------------------------------------------------
-/// APP BOOTSTRAPPER (INTERVIEW NOTE)
-/// ---------------------------------------------------------------------------
-///
-/// Role:
-/// Orchestrates the full application startup lifecycle independently
-/// from the UI layer.
-///
-/// Responsibilities:
-/// - Initializes persistence layer (Hive)
-/// - Registers adapters safely
-/// - Initializes repositories
-/// - Provides structured startup logging
-/// - Ensures bootstrap runs only once (idempotent)
-///
-/// Why this design:
-/// Separates startup logic from UI to:
-/// - Improve testability
-/// - Isolate failure points
-/// - Keep app initialization deterministic
-///
-/// Architectural Placement:
-/// Bootstrap → Dependencies → UI
-///
-/// Key Decisions:
-/// - Uses injectable BootstrapStep functions for flexibility and testing
-/// - Uses Future caching to prevent duplicate initialization
-/// - Uses sequential orchestration for dependency safety
-/// - Uses parallel execution (Future.wait) where possible for performance
-///
-/// Trade-offs:
-/// - Sequential startup may slightly increase launch time
-///   but guarantees consistency
-/// - Logging is lightweight (debugPrint) instead of full telemetry system
-///
-/// Scalability:
-/// Designed to support:
-/// - multiple environments (prod/dev/test)
-/// - staged initialization
-/// - future observability integration
 typedef BootstrapStep = Future<void> Function();
 
-/// Defines runtime environment modes
-///
-/// Can be used for:
-/// - environment-specific configuration
-/// - conditional initialization logic
 enum AppEnvironment { production, development, test }
 
-/// ---------------------------------------------------------------------------
-/// APP BOOTSTRAPPER
-/// ---------------------------------------------------------------------------
-///
-/// Responsible for:
-/// - Coordinating application startup sequence
-/// - Initializing persistence layer (Hive)
-/// - Initializing repositories
-/// - Providing logging hooks for observability
-///
-/// Design:
-/// - Fully testable (steps are injectable)
-/// - Idempotent initialization (runs once, reuses future)
-/// - Fail-safe (resets state on error)
-/// - Supports dependency injection and custom bootstrap flows
+// Keep bootstrap outside the widget tree so retries stay deterministic.
 class AppBootstrapper {
   AppBootstrapper({
     required this.noteRepository,
     required this.appSettingsRepository,
-
-    /// Optional override for persistence initialization
     BootstrapStep? initializePersistence,
-
-    /// Optional override for repository initialization
     BootstrapStep? initializeRepositories,
-
-    /// Optional logging function (defaults to debugPrint)
     void Function(String message)? log,
   }) : _log = log ?? debugPrint,
        _initializePersistenceStep =
@@ -92,40 +28,22 @@ class AppBootstrapper {
            initializeRepositories ??
            _defaultRepositoriesStep(noteRepository, appSettingsRepository);
 
-  /// Repository for note data
   final NoteRepository noteRepository;
-
-  /// Repository for app settings
   final AppSettingsRepository appSettingsRepository;
-
-  /// Logging function used for bootstrap observability
   final void Function(String message) _log;
-
-  /// Step responsible for persistence setup
   final BootstrapStep _initializePersistenceStep;
-
-  /// Step responsible for repository initialization
   final BootstrapStep _initializeRepositoriesStep;
 
-  /// Cached bootstrap future to ensure single execution
+  // Cache the in-flight future so startup work runs once per attempt.
   Future<void>? _bootstrapFuture;
 
-  /// -------------------------------------------------------------------------
-  /// INITIALIZATION ENTRY POINT
-  /// -------------------------------------------------------------------------
-  ///
-  /// Ensures bootstrap runs only once:
-  /// - Returns existing future if already in progress
-  /// - Resets state on failure for retry
   Future<void> initialize() {
     final existing = _bootstrapFuture;
     if (existing != null) return existing;
 
     final future = _initialize().catchError((error, stack) {
-      /// Reset future to allow retry after failure
+      // Clear the cached future so a later launch can retry from scratch.
       _bootstrapFuture = null;
-
-      /// Log failure details
       _log('Bootstrap failed: $error');
 
       if (stack is StackTrace) {
@@ -139,13 +57,6 @@ class AppBootstrapper {
     return future;
   }
 
-  /// -------------------------------------------------------------------------
-  /// BOOTSTRAP PIPELINE
-  /// -------------------------------------------------------------------------
-  ///
-  /// Executes startup steps sequentially:
-  /// 1. Persistence initialization
-  /// 2. Repository initialization
   Future<void> _initialize() async {
     _log('Bootstrap: initializing persistence');
     await _initializePersistenceStep();
@@ -156,42 +67,29 @@ class AppBootstrapper {
     _log('Bootstrap: complete');
   }
 
-  /// -------------------------------------------------------------------------
-  /// DEFAULT PERSISTENCE INITIALIZATION
-  /// -------------------------------------------------------------------------
-  ///
-  /// Responsibilities:
-  /// - Initialize Hive
-  /// - Register adapters (idempotent)
-  /// - Open required boxes in parallel
-  // 📍 Location: app_bootstrapper.dart -> Inside _defaultInitializePersistence()
-
   static Future<void> _defaultInitializePersistence() async {
-    await dotenv.load(fileName: '.env'); //
+    await dotenv.load(fileName: '.env');
 
+    // Windows and desktop startup depend on this client id being present.
     if (!dotenv.env.containsKey('GOOGLE_CLIENT_ID')) {
-      //
-      throw Exception('Missing GOOGLE_CLIENT_ID in .env'); //
-    } //
+      throw Exception('Missing GOOGLE_CLIENT_ID in .env');
+    }
 
-    await Hive.initFlutter(); //
+    await Hive.initFlutter();
 
-    /// Adapter registration guarded to prevent duplicates
+    // Adapter registration must tolerate hot restart and retry paths.
     if (!Hive.isAdapterRegistered(NotesSectionAdapter().typeId)) {
-      //
-      Hive.registerAdapter(NotesSectionAdapter()); //
-    } //
+      Hive.registerAdapter(NotesSectionAdapter());
+    }
     if (!Hive.isAdapterRegistered(AppSettingsAdapter().typeId)) {
-      //
-      Hive.registerAdapter(AppSettingsAdapter()); //
-    } //
+      Hive.registerAdapter(AppSettingsAdapter());
+    }
 
-    // 🌟 THE SECURE VAULT FIX:
-    // 1. Fetch or derive a cryptographically strong 256-bit key from the Android Keystore
+    // A single stable device key keeps encrypted boxes readable across launches.
     final List<int> encryptionKey =
         await SecureKeyVaultService.getOrCreateEncryptionKey();
 
-    // 2. Open storage boxes concurrently using high-level AES-256 block ciphers
+    // Once the key exists, both boxes can open in parallel.
     await Future.wait([
       Hive.openBox<NotesSection>(
         'notes_box',
@@ -204,19 +102,14 @@ class AppBootstrapper {
     ]);
   }
 
-  /// -------------------------------------------------------------------------
-  /// DEFAULT REPOSITORY INITIALIZATION
-  /// -------------------------------------------------------------------------
-  ///
-  /// Initializes all repositories required by the app.
-  ///
-  /// Uses parallel execution for efficiency.
   static BootstrapStep _defaultRepositoriesStep(
     NoteRepository noteRepository,
     AppSettingsRepository appSettingsRepository,
   ) {
+    // Settings must load first so seed checks read the persisted version.
     return () async {
-      await Future.wait([noteRepository.init(), appSettingsRepository.load()]);
+      await appSettingsRepository.load();
+      await noteRepository.init();
     };
   }
 }

@@ -1,7 +1,8 @@
+// Search filters live in a dialog so query refinement stays focused.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/filter/models/search_date_selection.dart';
 import 'package:notepad/features/filter/models/search_filters.dart';
@@ -21,7 +22,6 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   late SearchFilters _filterState;
   bool get isDarkMode => context.isDark;
 
-  // Precomputed values for dropdown menus
   static final List<String> _dayItems = List.generate(
     SearchConstants.filterDayOptionCount,
     (index) => (index + 1).toString().padLeft(2, '0'),
@@ -59,11 +59,9 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     _filterState = widget.initialFilters;
   }
 
-  // Model-to-UI conversion logic
   int? _parseSelection(String? selectedString, List<String> items) {
     if (selectedString == null) return null;
 
-    // If the list is _monthItems, find the index and add 1
     if (items == _monthItems) {
       final index = _monthItems.indexOf(selectedString);
       return index != -1 ? index + 1 : null;
@@ -75,14 +73,12 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
   String? _getFormattedValue(int? modelValue, List<String> availableItems) {
     if (modelValue == null || availableItems.isEmpty) return null;
 
-    // Handle Month Names
     if (availableItems == _monthItems) {
       return (modelValue >= 1 && modelValue <= 12)
           ? _monthItems[modelValue - 1]
           : null;
     }
 
-    // Handle standard padding for Year (4) and Day/Time (2)
     final padding = (availableItems == _yearItems)
         ? SearchConstants.filterYearDisplayPadding
         : SearchConstants.filterDateTimeDisplayPadding;
@@ -98,7 +94,6 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     if (!_filterState.isRangeSearch) return true;
     if (!_filterState.end.hasValues) return false;
 
-    // Convert selections into a raw, comparable chronological score
     int score(SearchDateSelection selection) =>
         (selection.year ?? 0) * 100000000 +
         (selection.month ?? 0) * 1000000 +
@@ -359,7 +354,6 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     );
   }
 
-  // Refined update logic with named parameters to match calls
   void _updateSelection({
     bool isRangeSearch = false,
     String? day,
@@ -485,10 +479,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
           isExpanded: true,
           value: localValue,
           onChanged: (value) {
-            onChanged(value); // Update parent data
+            onChanged(value);
             setState(() {
-              localValue = value; // Updates the local UI state
-            }); // Refresh this specific dropdown UI
+              localValue = value;
+            });
           },
           menuMaxHeight: SearchConstants.filterDropdownMaxHeight,
           hint: Text(
@@ -517,7 +511,6 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
 
   void _toggleRangeSearch() {
     setState(() {
-      // This triggers a full rebuild to show/hide the End Date area
       _filterState = _filterState.copyWith(
         isRangeSearch: !_filterState.isRangeSearch,
       );

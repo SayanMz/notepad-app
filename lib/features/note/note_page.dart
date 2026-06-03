@@ -1,21 +1,21 @@
+// The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 import 'dart:async';
-
 // ignore_for_file: experimental_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/core/services/context_extensions.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_data_controller.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/features/note/services/note_document_service.dart';
+import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
@@ -23,9 +23,6 @@ import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
 import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
 
-/// Note editor screen.
-/// Keeps note orchestration in one place while delegates saving, voice input,
-/// and formatting to smaller helpers.
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
@@ -48,26 +45,20 @@ class _NotePageState extends State<NotePage>
   late bool _isReadOnly;
   late AnimationController _lottieController;
 
-  /// Listens to app lifecycle (background, pause, etc.)
   late final AppLifecycleListener _lifecycleListener;
 
   late final NoteDataController _dataController;
   late final NoteVoiceController _voiceController;
   late final NoteUIController _uiController;
 
-  /// Title input controller
   late final TextEditingController titleController;
 
-  /// Rich text editor controller (flutter_quill)
   late final QuillController contentController;
 
-  /// Focus control for editor
   final FocusNode _editorFocusNode = FocusNode();
 
-  /// Scroll control for editor
   final ScrollController _editorScrollController = ScrollController();
 
-  // For Overlay lifecycle orchestration
   late final NoteToolbarController _toolbarController;
 
   bool _shouldNudge = true;
@@ -91,12 +82,13 @@ class _NotePageState extends State<NotePage>
     _lottieController = AnimationController(
       vsync: this,
       duration: AnimationConstants.snackbarShort,
-    ); //
+    );
     _toolbarController = NoteToolbarController();
 
     _attachListeners();
     _lifecycleListener = _createLifecycleListener();
 
+    // Warm up the AI service after first paint so editor startup stays responsive.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -107,7 +99,7 @@ class _NotePageState extends State<NotePage>
         GroqService.warmUp().catchError(
           (e) => debugPrint('AI Warmup skip: $e'),
         ),
-      ); //
+      );
     });
   }
 
@@ -128,26 +120,22 @@ class _NotePageState extends State<NotePage>
           ),
         ],
       ),
-    ); //
+    );
 
     if (result == true && widget.noteId != null) {
-      //
-      await noteRepository.toggleDeletedStatus(widget.noteId!, false); //
-      final note = noteRepository.findById(widget.noteId!); //
+      // Restored notes re-enter editable mode immediately so the user can continue typing.
+      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
+      final note = noteRepository.findById(widget.noteId!);
 
       setState(() {
-        //
-        _isReadOnly = false; //
-        contentController.readOnly = false; //
-      }); //
+        _isReadOnly = false;
+        contentController.readOnly = false;
+      });
 
       uiNotifier.showSnackBar(
-        //
-        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')), //
-      ); //
+        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
+      );
 
-      // 🌟 THE FIX: Wait for the layout tree to finish compiling the editable editor
-      // state before launching the native soft input keyboard hook.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_editorFocusNode.canRequestFocus) {
           _editorFocusNode.requestFocus();
@@ -164,7 +152,6 @@ class _NotePageState extends State<NotePage>
     titleController = TextEditingController(text: note?.title ?? widget.title);
     contentController = _createContentController(note);
 
-    // ⚡ ROUTE SIGNATURE TO DATA ENGINE
     _dataController.setInitialSignature(
       titleController.text,
       contentController.document,
@@ -172,6 +159,7 @@ class _NotePageState extends State<NotePage>
   }
 
   QuillController _createContentController(NotesSection? note) {
+    // Existing notes load from stored rich content; fresh notes start from plain text or empty state.
     if (note != null) {
       return QuillController(
         document: Document.fromJson(
@@ -213,7 +201,7 @@ class _NotePageState extends State<NotePage>
 
   AppLifecycleListener _createLifecycleListener() {
     return AppLifecycleListener(
-      // ⚡ LAUNCH SAFE NON-DESTRUCTIVE SAVES ON BACKGROUND PIPELINES
+      // Persist on lifecycle loss because note edits are expected to survive quick app switches.
       onInactive: () async {
         await _dataController.saveNote(
           title: titleController.text,
@@ -235,9 +223,8 @@ class _NotePageState extends State<NotePage>
     );
   }
 
-  /// CHANGE HANDLER (AUTO-SAVE TRIGGER)
   void _handleEditorChanged() {
-    // ⚡ COMPOSE EXECUTION PATHS SIDE-BY-SIDE
+    // Keep the dirty-state and save controls in sync with title or body edits.
     _dataController.handleEditorChanged(
       title: titleController.text,
       document: contentController.document,
@@ -281,7 +268,6 @@ class _NotePageState extends State<NotePage>
       await Future.delayed(NoteConstants.notePageKeyboardDismissDelay);
     }
 
-    // ⚡ RUN THE SANITIZED FILE CLEANUP ROUTINE VIA THE VAULT DATA CONTAINER
     unawaited(
       _dataController
           .saveAndCleanupOnClose(
@@ -289,7 +275,7 @@ class _NotePageState extends State<NotePage>
             document: contentController.document,
           )
           .catchError((e) => debugPrint('Background save error: $e')),
-    ); //
+    );
 
     try {
       if (!mounted) return;
@@ -315,17 +301,13 @@ class _NotePageState extends State<NotePage>
         child: Scaffold(
           backgroundColor: isDark
               ? AppColors.darkScaffold
-              : AppColors.lightScaffold, //
-          // -------------------------------------------------------------------
-          // APP BAR
-          // -------------------------------------------------------------------
+              : AppColors.lightScaffold,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
             child: _isReadOnly
                 ? NoteAppBar(
                     key: const ValueKey('readonly_bar'),
-                    saveState: _dataController
-                        .saveState, // ⚡ Pointed to data container
+                    saveState: _dataController.saveState,
                     contentController: contentController,
                     title: titleController,
                     isDark: isDark,
@@ -333,8 +315,7 @@ class _NotePageState extends State<NotePage>
                   )
                 : NoteAppBar(
                     key: const ValueKey('editable_bar'),
-                    saveState: _dataController
-                        .saveState, // ⚡ Pointed to data container
+                    saveState: _dataController.saveState,
                     contentController: contentController,
                     title: titleController,
                     isDark: isDark,
@@ -342,9 +323,6 @@ class _NotePageState extends State<NotePage>
                   ),
           ),
 
-          // -------------------------------------------------------------------
-          // BODY
-          // -------------------------------------------------------------------
           body: SafeArea(
             child: Stack(
               children: [
@@ -427,9 +405,6 @@ class _NotePageState extends State<NotePage>
             ),
           ),
 
-          // -------------------------------------------------------------------
-          // FLOATING ACTION BUTTON (VOICE AI ASSISTANT)
-          // -------------------------------------------------------------------
           floatingActionButton: _isReadOnly
               ? null
               : ValueListenableBuilder<bool>(
@@ -448,10 +423,8 @@ class _NotePageState extends State<NotePage>
                   },
                   child: VoiceAssistantButton(
                     lottieController: _lottieController,
-                    voiceController:
-                        _voiceController, // ⚡ Pass the module straight down
-                    uiController:
-                        _uiController, // ⚡ Pass the module straight down
+                    voiceController: _voiceController,
+                    uiController: _uiController,
                     contentController: contentController,
                   ),
                 ),

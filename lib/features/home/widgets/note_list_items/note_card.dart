@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
-import 'package:notepad/core/services/note_timestamp_formatter.dart';
+import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
 
+/// Note cards assemble preview text, checklist snippets, and state badges in one place.
 class NoteCard extends StatelessWidget {
   const NoteCard({
     super.key,
@@ -35,32 +36,22 @@ class NoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = context.screenSize.width; //
+    final screenWidth = context.screenSize.width;
 
-    // 🌟 STEP 1: Pass a high ceiling limit to pull the full un-truncated cache stream!
-    // This gives the card access to all 12 cached lines so checklists aren't cut short.
     final List<PreviewLine> cachedLines = note.getPreview(12);
 
-    // 🌟 STEP 2: Extract text items and safely clip them to respect maxPreviewLines
     final regularTextWidgets = cachedLines
         .where((line) => !line.isList)
-        .take(
-          maxPreviewLines,
-        ) // Enforces your responsive layout ceiling strictly on text!
-        .map((line) => _PreviewLine(line: line.text, width: screenWidth)); //
+        .take(maxPreviewLines)
+        .map((line) => _PreviewLine(line: line.text, width: screenWidth));
 
-    // 🌟 STEP 3: Extract ALL available checklist items from the cache group (up to 6)
     final checklistItems = cachedLines
         .where((line) => line.isList)
         .map((line) => line.text)
         .take(maxPreviewLines)
-        .toList(); //
+        .toList();
 
-    // Combine them safely: text paragraphs on top, full scrollable checklists on the bottom
     final List<Widget> finalCardLayoutWidgets = [
-      // 🌟 THE FIX: Wrap your regular text blocks in a Flexible layout block.
-      // This forces the text paragraphs to truncate with ellipsis (...) when content gets large,
-      // instead of aggressively expanding and crushing your checklist row off-screen!
       if (regularTextWidgets.isNotEmpty)
         Flexible(
           fit: FlexFit.loose,
@@ -71,18 +62,17 @@ class NoteCard extends StatelessWidget {
           ),
         ),
 
-      // Ensure there is always a tiny spacing buffer above your scrollable checklist tag row
       if (checklistItems.isNotEmpty)
         const SizedBox(height: UIConstants.paddingXS),
 
       if (checklistItems.isNotEmpty)
         _ChecklistPreviewGroup(
           items: checklistItems,
-          selectionMode: selectionMode, //
+          selectionMode: selectionMode,
         ),
     ];
 
-    final bool showAsSelected = isSelectionMode && isSelected; //
+    final bool showAsSelected = isSelectionMode && isSelected;
     return AnimatedScale(
       scale: isVaporizing ? 0.0 : (showAsSelected ? 0.96 : 1.0),
       duration: const Duration(milliseconds: 300),
@@ -188,25 +178,26 @@ class NoteCard extends StatelessWidget {
                                       )
                                     : const SizedBox.shrink(),
                               ),
-                              AnimatedPadding(
-                                duration: UIConstants.animationMedium,
-                                curve: Curves.easeOutCubic,
-                                padding: EdgeInsets.only(
-                                  left: isSelectionMode
-                                      ? 0.0
-                                      : 4.0, // Soft organic shift offset
-                                ),
-                                child: Text(
-                                  note.displayTitle,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: UIConstants.noteCardTitleFontSize,
+                              Expanded(
+                                child: AnimatedPadding(
+                                  duration: UIConstants.animationMedium,
+                                  curve: Curves.easeOutCubic,
+                                  padding: EdgeInsets.only(
+                                    left: isSelectionMode ? 0.0 : 4.0,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  child: Text(
+                                    note.displayTitle,
+
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize:
+                                          UIConstants.noteCardTitleFontSize,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
-                              const Spacer(),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 
-/// ------------------------------------------------------------
-/// SELECTION CONTROLLER (UI State)
-/// Tracks active selections. Merged with all legacy SelectionService methods.
-/// ------------------------------------------------------------
+// Selection state is isolated here so bulk actions stay predictable.
 class SelectionController extends ChangeNotifier {
   Set<String> _selectedIds = {};
   bool _isSelectionMode = false;
@@ -53,7 +50,6 @@ class SelectionController extends ChangeNotifier {
   void setSelectAll(List<NotesSection> activeNotes, bool selected) {
     if (selected) {
       _isSelectionMode = true;
-      // 🌟 Restored logic from SelectionService.selectAll
       _selectedIds = activeNotes.map((note) => note.id).toSet();
     } else {
       _selectedIds.clear();

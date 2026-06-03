@@ -1,18 +1,14 @@
-import 'package:notepad/core/data/app_data.dart';
+// Seed data provides the initial notes and versioned startup content.
+import 'package:notepad/core/database/app_data.dart';
 
-/// Centralizes all hardcoded starter data and testing generation
-/// so the main repository doesn't have to compile strings.
 class SeedDataService {
-  /// Generates the initial tutorial notes for first-time users.
   static List<NotesSection> generateWelcomeNotes() {
     return [
       NotesSection(
         title: 'Welcome to Notepad',
         content:
             'Your new favorite workspace.\n\n'
-            '- Use the toolbar below to manually apply styles like bold, italic, or new colors.\n'
-            '- Highlight text to add links or change font sizes.\n'
-            '- Long-press a note on the home screen to delete it.\n\n'
+            '- Use the toolbar 🪄 to manually apply styles like bold, italic, or new colors.\n'
             'Dive in and start typing, or check out the next note to see something cool!',
         isPinned: true,
         cardColorValue: 0xFF81A1C1,
@@ -38,15 +34,14 @@ class SeedDataService {
             'Burger\n\n'
             'Try saying these exact commands:\n'
             '- "Make the first line italic"\n'
-            '- "Make golden retriever huge,"\n'
-            '- "Make the word bold look large"\n'
+            '- "Make golden retriever huge"\n'
             '- "Underline the second instance of dog"\n'
-            '- "Make menu items a checklist"\n'
             '- "Center the last paragraph"',
+        isPinned: true,
         cardColorValue: 0xFFEBCB8B,
       ),
       NotesSection(
-        title: 'AI tested/working Commands by me',
+        title: 'AI Playground',
         content:
             "List items: \n"
             "A\n"
@@ -64,20 +59,19 @@ class SeedDataService {
             "Selection highlighter: \n"
             "Select any porion text and say:\n"
             "make these look gold\n"
-            "select entire list items and say 'make this sentence a list item'"
-            "only keep the list item section for this test to work properly, remove everything else",
+            "select entire 'List items' and say 'make this sentence a list item'",
+        cardColorValue: 0xFFEBCB8B,
       ),
     ];
   }
 
-  /// Generates thousands of dummy notes to verify O(1) map lookups and scrolling performance.
   static List<NotesSection> generateStressTestNotes(int count) {
     return List.generate(
       count,
-      (i) => NotesSection(
-        title: 'Stress Test Note #$i',
+      (index) => NotesSection(
+        title: 'Stress Test Note #$index',
         content:
-            'This is a test note to check if the O(1) Map lookup remains fast.',
+            'Automated performance benchmark tracking record index valuation data block generation sequence.',
       ),
     );
   }

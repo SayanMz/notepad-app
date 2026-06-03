@@ -1,7 +1,9 @@
+// SQLite FTS mirrors active note content for fast text search.
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+// Mirrors active note content into SQLite FTS for fast text search.
 class SqliteFtsService {
   static Database? _db;
 
@@ -19,7 +21,6 @@ class SqliteFtsService {
       path,
       version: 1,
       onCreate: (db, version) async {
-        // 🌟 Initialize FTS5 Virtual Table for near O(1) text indexing matching
         await db.execute('''
           CREATE VIRTUAL TABLE notes_fts USING fts5(
             id UNINDEXED,
@@ -37,7 +38,6 @@ class SqliteFtsService {
     String content,
   ) async {
     final db = await database;
-    // FTS5 requires a clean drop-and-replace sweep to safely avoid duplication records
     await db.delete('notes_fts', where: 'id = ?', whereArgs: [id]);
     await db.insert('notes_fts', {
       'id': id,
@@ -69,7 +69,6 @@ class SqliteFtsService {
     if (query.trim().isEmpty) return [];
     final db = await database;
 
-    // Sanitize punctuation inputs to safely protect the internal query evaluator from crashing
     final sanitizedQuery = '${query.replaceAll(RegExp(r'[^\w\s]'), '')}*';
 
     final List<Map<String, dynamic>> maps = await db.rawQuery(
@@ -79,3 +78,4 @@ class SqliteFtsService {
     return List.generate(maps.length, (i) => maps[i]['id'] as String);
   }
 }
+

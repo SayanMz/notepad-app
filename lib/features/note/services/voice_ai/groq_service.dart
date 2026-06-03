@@ -1,3 +1,4 @@
+// Groq AI calls are wrapped here so voice and assistant features share one client.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -7,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
 
-/// Friendly wrapper for Groq availability/configuration failures.
 class GroqServiceException implements Exception {
   GroqServiceException(this.message);
 
@@ -36,13 +36,7 @@ class GroqService {
     return future;
   }
 
-  /// Ensures the AI environment configuration is available.
-  ///
-  /// Note: The actual file loading (.env) is now centralized in [AppBootstrapper]
-  /// to prevent redundant disk I/O. This method simply validates that the
-  /// required keys were loaded successfully.
   static Future<void> _ensureEnvLoaded() async {
-    // Optimization: If already cached, exit immediately.
     if (_apiKey != null && _apiKey!.isNotEmpty) return;
 
     final key = dotenv.env['GROQ_API_KEY'];
@@ -53,7 +47,6 @@ class GroqService {
       );
     }
 
-    // Cache it for the rest of the app's lifecycle.
     _apiKey = key;
   }
 
@@ -112,3 +105,4 @@ class GroqService {
     }
   }
 }
+

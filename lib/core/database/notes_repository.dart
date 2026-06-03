@@ -1,14 +1,15 @@
+// Repository logic keeps active, deleted, and cached note views in sync.
 import 'dart:async';
-import 'package:notepad/core/services/sqlite_fts_service.dart';
+import 'package:notepad/core/database/sqlite_fts_service.dart';
 import 'package:flutter/material.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
 import 'package:notepad/core/services/repo_services/note_sort_service.dart';
 import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
 import 'package:notepad/core/services/repo_services/seed_data_service.dart';
-import 'package:notepad/core/services/storage_service.dart' as db;
+import 'package:notepad/core/database/storage_service.dart' as db;
 
 class NoteRepository {
   factory NoteRepository() => _instance;
@@ -21,10 +22,10 @@ class NoteRepository {
   final List<NotesSection> _activeNotes = [];
   final List<NotesSection> _deletedNotes = [];
 
-  // 🚀 OPTIMIZATION 1: Fast O(1) tracking index cache to completely bypass DB queries during loops
+  // Fast lookup cache for reads and cross-feature updates.
   final Map<String, NotesSection> _cacheMap = {};
 
-  // 🚀 OPTIMIZATION 2: Cached lists to stop allocation thrashing inside your getters
+  // These slices stay cached so list widgets do not rebuild them repeatedly.
   List<NotesSection> _cachedPinnedNotes = [];
   List<NotesSection> _cachedUnpinnedNotes = [];
 
@@ -34,7 +35,6 @@ class NoteRepository {
   List<NotesSection> get activeNotes => List.unmodifiable(_activeNotes);
   List<NotesSection> get deletedNotes => List.unmodifiable(_deletedNotes);
 
-  // 🚀 OPTIMIZATION 3: Return pre-cached unmodifiable structures with zero allocation overhead
   List<NotesSection> get pinnedNotes => _cachedPinnedNotes;
   List<NotesSection> get unpinnedNotes => _cachedUnpinnedNotes;
 
@@ -43,11 +43,12 @@ class NoteRepository {
   Future<void> init() async {
     _activeNotes.clear();
     _deletedNotes.clear();
-    _cacheMap.clear(); //
+    _cacheMap.clear();
 
     final int installedSeedVersion = appSettingsRepository.settings.seedVersion;
 
     if (installedSeedVersion != _currentSeedVersion) {
+      // Replace stale seeded content rather than trying to migrate it in place.
       debugPrint('Migration: Resetting stale data...');
       await db.clearAllNotes();
       final welcomeNotes = SeedDataService.generateWelcomeNotes();
@@ -57,7 +58,6 @@ class NoteRepository {
       }
       _activeNotes.addAll(welcomeNotes);
 
-      // Populate cache instantly
       for (final note in _activeNotes) {
         _cacheMap[note.id] = note;
         await SqliteFtsService.insertOrUpdate(
@@ -71,10 +71,10 @@ class NoteRepository {
       await appSettingsRepository.setSeedVersion(_currentSeedVersion);
     } else {
       for (final note in db.loadAllNotes()) {
-        _cacheMap[note.id] =
-            note; // ⚡ Cache everything directly on application launch
+        _cacheMap[note.id] = note;
         note.isDeleted ? _deletedNotes.add(note) : _activeNotes.add(note);
 
+        // Deleted notes stay out of FTS so search only scans active content.
         if (!note.isDeleted) {
           await SqliteFtsService.insertOrUpdate(
             note.id,
@@ -85,12 +85,14 @@ class NoteRepository {
       }
     }
 
-    _sortAndRebuildCache(); // Synchronizes the sorting blocks safely
+    // Rebuild the derived lists after the active/deleted split is loaded.
+    _sortAndRebuildCache();
 
     final lastRun = appSettingsRepository.settings.lastMaintenanceDate;
     final now = DateTime.now();
 
     if (lastRun == null || now.difference(lastRun).inDays >= 7) {
+      // Compact and record maintenance on a weekly cadence to keep storage healthy.
       debugPrint(
         'Maintenance: 7-day timeline reached. Running Hive compaction...',
       );
@@ -103,7 +105,6 @@ class NoteRepository {
     }
   }
 
-  // 🚀 FIXED: Blazing fast O(1) memory lookup with fallback safety assurance
   NotesSection? findById(String id) => _cacheMap[id] ?? db.getNoteById(id);
 
   void reorderPinnedNotes(int oldIndex, int newIndex) =>
@@ -140,11 +141,10 @@ class NoteRepository {
     }
   }
 
-  // 🚀 CENTRALIZED CACHE LIFECYCLE MANAGEMENT
   void _sortAndRebuildCache() {
+    // Sorting is centralized here so every derived view stays consistent.
     NoteSortService.sortActiveNotes(_activeNotes);
 
-    // Re-generate list fragments statically once during updates instead of continuously inside getters
     _cachedPinnedNotes = List.unmodifiable(
       _activeNotes.takeWhile((n) => n.isPinned),
     );
@@ -154,8 +154,7 @@ class NoteRepository {
   }
 
   void _rebuildSubListPointersOnly() {
-    // 🚀 Fast O(N) linear passes to regenerate the unmodifiable slices.
-    // This updates your getters instantly without triggering a heavy Quicksort pass.
+    // Use this when ordering already changed and only the cached slices need refresh.
     _cachedPinnedNotes = List.unmodifiable(
       _activeNotes.takeWhile((n) => n.isPinned),
     );
@@ -199,6 +198,7 @@ class NoteRepository {
         ? _cachedUnpinnedNotes.first.positionIndex - 1
         : 0;
 
+    // New notes are inserted ahead of the first unpinned note to preserve ordering.
     final newNote = NotesSection(
       title: title,
       content: content,
@@ -235,10 +235,12 @@ class NoteRepository {
       ..updatedAt = now;
 
     if (isDeleted) {
+      // Deleted notes leave the active list and stop participating in search.
       _activeNotes.remove(note);
       NoteSortService.insertSorted(_deletedNotes, note);
       await SqliteFtsService.remove(noteId);
     } else {
+      // Restoring puts the note back into the active ordering and search index.
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
       await SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
@@ -379,7 +381,6 @@ class NoteRepository {
     if (updates.isNotEmpty) {
       _activeNotes.addAll(updates.values);
 
-      // Merge freshly imported items into the active working cache index
       for (final note in updates.values) {
         _cacheMap[note.id] = note;
       }

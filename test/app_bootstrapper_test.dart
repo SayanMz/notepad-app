@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/notes_repository.dart';
 
 void main() {
   test('bootstrapper runs startup steps once for repeated calls', () async {

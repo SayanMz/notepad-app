@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:notepad/core/constants/editor_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 
 class PremiumColorPicker extends StatefulWidget {
@@ -42,7 +42,6 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
     final displayColors = widget.recentColors.take(widget.maxColors).toList();
     final colorScheme = context.colorScheme;
 
-    // 📐 CLEANUP: Compute widths once to eliminate widget tree layout noise
     final availableWidth =
         (screenSize.width * EditorConstants.pickerWidthFactor).clamp(
           EditorConstants.pickerMinWidth,
@@ -52,7 +51,6 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
         availableWidth - EditorConstants.pickerInternalWidthPadding;
     final maxHeight = screenSize.height * EditorConstants.pickerMaxHeightFactor;
 
-    // 🎨 CLEANUP: Move all theme blending configurations out of the widget layout tree
     final baseSurface = widget.isDark
         ? AppColors.darkDialogSurface
         : Colors.white;

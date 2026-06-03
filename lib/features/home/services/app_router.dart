@@ -1,56 +1,23 @@
+// Route helpers centralize the app's navigation transitions.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 
-/// ---------------------------------------------------------------------------
-/// APP ROUTER (NAVIGATION + TRANSITIONS)
-/// ---------------------------------------------------------------------------
-///
-/// ROLE:
-/// - Centralizes all navigation animations
-/// - Prevents duplication of PageRouteBuilder logic across UI
-///
-/// BENEFITS:
-/// - Consistent transitions across app
-/// - Easier to modify animations globally
-/// - Cleaner UI code (HomePage, controllers)
-///
-/// DESIGN:
-/// - Static utility class (no state)
-/// - Returns Route objects for Navigator.push()
-///
-
 class AppRouter {
-  /// -------------------------------------------------------------------------
-  /// SLIDE TRANSITION (PRIMARY NAVIGATION)
-  /// -------------------------------------------------------------------------
-  ///
-  /// BEHAVIOR:
-  /// - New page slides in from right → center
-  /// - Current page slightly shifts left (secondaryAnimation)
-  ///
-  /// RESULT:
-  /// - Smooth, modern, iOS-like transition
-  ///
-  /// ANIMATION FLOW:
-  /// - animation → controls incoming page
-  /// - secondaryAnimation → controls outgoing page
+  // Use the slide route for primary navigation so screen changes feel continuous.
   static Route slide(Widget page) {
     return PageRouteBuilder(
       transitionDuration: UIConstants.animationSlow,
       reverseTransitionDuration: UIConstants.animationMedium,
 
-      /// Builds target page
       pageBuilder: (_, _, _) => page,
 
-      /// Custom animation builder
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        /// Incoming page animation
+        // Incoming and outgoing pages animate independently so the handoff stays smooth.
         final inTween = Tween(
           begin: Offset(UIConstants.routeSlideInBeginX, 0),
           end: Offset.zero,
         ).chain(CurveTween(curve: Curves.easeOutCubic));
 
-        /// Outgoing page animation (subtle shift)
         final outTween = Tween(
           begin: Offset.zero,
           end: Offset(UIConstants.routeSlideOutEndX, 0),
@@ -67,17 +34,7 @@ class AppRouter {
     );
   }
 
-  /// -------------------------------------------------------------------------
-  /// FADE TRANSITION (SECONDARY NAVIGATION)
-  /// -------------------------------------------------------------------------
-  ///
-  /// USE CASES:
-  /// - Search screen
-  /// - Dialog-like pages
-  ///
-  /// BEHAVIOR:
-  /// - Page fades in on push
-  /// - Page fades out on pop (reverse animation)
+  // Use the fade route for lighter, dialog-like navigation.
   static Route fade(Widget page) {
     return PageRouteBuilder(
       transitionDuration: UIConstants.animationMedium,
@@ -92,5 +49,4 @@ class AppRouter {
   }
 }
 
-/// INTERVIEW NOTE:
-/// This demonstrates separation of navigation concerns from UI layer
+

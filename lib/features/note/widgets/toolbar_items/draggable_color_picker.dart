@@ -4,16 +4,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 
-/// Consolidated interaction state for the picker
 class DraggablePickerState {
   final Offset offset;
   final bool isDragging;
   final bool isOverTarget;
-  final double proximityProgress; // Pre-calculated for build performance
-  final double scale; // Calculated in PanUpdate
-  final double opacity; // Calculated in PanUpdate
+  final double proximityProgress;
+  final double scale;
+  final double opacity;
 
   const DraggablePickerState({
     this.offset = Offset.zero,
@@ -65,7 +64,6 @@ class DraggableColorPicker extends StatefulWidget {
 class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
   late Color pickerColor;
 
-  // Single notifier for all UI state changes
   final ValueNotifier<DraggablePickerState> _pickerNotifier = ValueNotifier(
     const DraggablePickerState(),
   );
@@ -89,7 +87,6 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
     const double dHeight = 120;
     bool isClosing = false;
 
-    // OPTIMIZATION: Logic moved to PanUpdate. Build only reads values.
     return ValueListenableBuilder<DraggablePickerState>(
       valueListenable: _pickerNotifier,
       builder: (context, state, pickerUI) {
@@ -97,7 +94,6 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
           ignoring: isClosing,
           child: Stack(
             children: [
-              // --- DYNAMIC DISMISS TARGET ---
               Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
@@ -140,7 +136,6 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
                 ),
               ),
 
-              // --- MAGNETIC DRAGGABLE PICKER ---
               Positioned(
                 left: (screenSize.width - availableWidth) / 2 + state.offset.dx,
                 top: (screenSize.height - dHeight) / 2 + state.offset.dy,
@@ -158,18 +153,15 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
                         setState(() => isClosing = true);
                         final currentState = _pickerNotifier.value;
 
-                        // 1. Calculate raw movement
                         double newX = currentState.offset.dx + details.delta.dx;
                         double newY = currentState.offset.dy + details.delta.dy;
 
-                        // This calculates how far the widget is allowed to move from the center
                         final maxX = (screenSize.width - availableWidth) / 2;
                         final maxY = (screenSize.height - dHeight) / 2;
 
                         newX = newX.clamp(-maxX, maxX);
                         newY = newY.clamp(-maxY, maxY);
 
-                        // 2. Perform math once per update in the callback
                         const targetX = 0.0;
                         final targetY = (screenSize.height / 2) - 110;
                         const hotZoneRadius = 100.0;
@@ -179,7 +171,6 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
                               math.pow(newY - targetY, 2),
                         );
 
-                        // 3. Proximity & Visuals logic
                         final proximityProgress = (distance / 300).clamp(
                           0.0,
                           1.0,
@@ -190,13 +181,11 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
                           if (isOver) HapticFeedback.lightImpact();
                         }
 
-                        // Magnetic effect
                         if (isOver) {
                           newX = lerpDouble(newX, targetX, 0.2)!;
                           newY = lerpDouble(newY, targetY, 0.2)!;
                         }
 
-                        // 4. Batch update values to prevent build thrashing
                         _pickerNotifier.value = currentState.copyWith(
                           offset: Offset(newX, newY),
                           isOverTarget: isOver,
@@ -224,7 +213,6 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
                           opacity: 1.0,
                         );
                       },
-                      // OPTIMIZATION: Child is pre-built and wrapped in RepaintBoundary
                       child: pickerUI!,
                     ),
                   ),
@@ -238,24 +226,21 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
     );
   }
 
-  // Location: draggable_color_picker.dart -> Replace your _buildExpensiveUI with this original transparent version
-
   Widget _buildExpensiveUI(double width) {
-    // Convert your standard Picker Color into HSVColor which the modular sub-widgets require
     final hsvColor = HSVColor.fromColor(pickerColor);
 
     return Material(
-      type: MaterialType.transparency, //
+      type: MaterialType.transparency,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24.0), //
+        borderRadius: BorderRadius.circular(24.0),
         child: Container(
-          width: width, //
+          width: width,
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
             color: widget.isDark
                 ? Colors.black.withValues(alpha: 0.10)
                 : Colors.white.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(24.0), //
+            borderRadius: BorderRadius.circular(24.0),
             border: Border.all(
               color: widget.isDark
                   ? Colors.white.withValues(alpha: 0.08)
@@ -263,56 +248,47 @@ class _DraggableToolbarColorPickerState extends State<DraggableColorPicker> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10), //
-                blurRadius: 24, //
-                offset: const Offset(0, 12), //
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min, //
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle indicator
               Container(
-                width: 40, //
-                height: 4, //
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2C9C8D), //
-                  borderRadius: BorderRadius.circular(2), //
+                  color: const Color(0xFF2C9C8D),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // 🌟 MODULAR LAYER 1: The Main Shading Grid Canvas (No solid background built-in!)
               SizedBox(
-                height:
-                    80, // Proportional height constraint so it doesn't look gigantic or collapse
+                height: 80,
                 width: width - 32,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: ColorPickerArea(hsvColor, (color) {
-                    setState(() => pickerColor = color.toColor()); //
-                    widget.onColorChanged(color.toColor()); //
+                    setState(() => pickerColor = color.toColor());
+                    widget.onColorChanged(color.toColor());
                   }, PaletteType.hsv),
                 ),
               ),
               const SizedBox(height: 14),
 
-              // 🌟 MODULAR LAYER 2: The Hue Rainbow Track Slider
               SizedBox(
                 height: 18,
                 width: width - 32,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(6),
-                  child: ColorPickerSlider(
-                    TrackType.hue,
-                    hsvColor,
-                    (color) {
-                      setState(() => pickerColor = color.toColor()); //
-                      widget.onColorChanged(color.toColor()); //
-                    },
-                    displayThumbColor: true, //
-                  ),
+                  child: ColorPickerSlider(TrackType.hue, hsvColor, (color) {
+                    setState(() => pickerColor = color.toColor());
+                    widget.onColorChanged(color.toColor());
+                  }, displayThumbColor: true),
                 ),
               ),
             ],

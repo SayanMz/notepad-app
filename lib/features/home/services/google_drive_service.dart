@@ -1,8 +1,4 @@
-/*
-Local device state is source of truth.
-Google Drive stores snapshots only.
-*/
-
+// Google Drive sync only stores backups; the local database stays authoritative.
 import 'dart:convert';
 
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
@@ -36,8 +32,6 @@ class GoogleDriveService {
 
   GoogleSignInAccount? _user;
 
-  /// Signs in the user silently if possible,
-  /// otherwise falls back to interactive login.
   Future<bool> signIn() async {
     if (_clientId.isEmpty && UniversalPlatform.isWindows) {
       throw Exception('Missing GOOGLE_CLIENT_ID in .env');
@@ -54,13 +48,11 @@ class GoogleDriveService {
     }
   }
 
-  /// Signs the user out and clears cached session state.
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     _user = null;
   }
 
-  /// Returns an authenticated Google Drive API client.
   Future<drive.DriveApi?> getDriveApi() async {
     final authClient = await _googleSignIn.authenticatedClient();
 
@@ -69,7 +61,6 @@ class GoogleDriveService {
     return drive.DriveApi(authClient);
   }
 
-  /// Ensures the user still has a valid authenticated session.
   Future<bool> ensureAuthenticated() async {
     try {
       final user = await _googleSignIn.signInSilently();
@@ -80,9 +71,6 @@ class GoogleDriveService {
     }
   }
 
-  /// Uploads a new versioned backup snapshot.
-  ///
-  /// Uploads are serialized to prevent concurrent writes.
   Future<void> uploadBackup(String jsonContent) async {
     if (!await ensureAuthenticated()) {
       return;
@@ -101,7 +89,6 @@ class GoogleDriveService {
     }
   }
 
-  /// Downloads the newest available backup snapshot.
   Future<String?> downloadBackup() async {
     if (!await ensureAuthenticated()) {
       return null;
@@ -153,7 +140,6 @@ class GoogleDriveService {
     }
   }
 
-  /// Returns Google Drive storage usage information.
   Future<Map<String, dynamic>> getDetailedStorageUsage() async {
     final api = await getDriveApi();
 
@@ -195,7 +181,6 @@ class GoogleDriveService {
     }
   }
 
-  /// Performs the actual upload operation.
   Future<void> _performUpload(String jsonContent) async {
     final api = await getDriveApi();
 
@@ -218,7 +203,6 @@ class GoogleDriveService {
     await _cleanupOldBackups(api);
   }
 
-  /// Keeps only the newest backup snapshots.
   Future<void> _cleanupOldBackups(drive.DriveApi api) async {
     final backups = await api.files.list(
       q: "name contains 'notepad_backup_'",
@@ -243,3 +227,4 @@ class GoogleDriveService {
 }
 
 final GoogleDriveService googleDriveService = GoogleDriveService();
+

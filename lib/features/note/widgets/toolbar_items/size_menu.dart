@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 class SizeMenu extends StatefulWidget {
@@ -36,7 +36,6 @@ class SizeMenu extends StatefulWidget {
     72,
   ];
 
-  // ⚡ Map sizes to their labels for easy lookup
   static final Map<double, String> headingLabels = {
     32.0: 'H1',
     28.0: 'H2',
@@ -49,7 +48,6 @@ class SizeMenu extends StatefulWidget {
 }
 
 class _SizeMenuState extends State<SizeMenu> {
-  // ⚡ Persistent storage for controllers
   late final MenuController _parentMenuController;
   late final MenuController _headingMenuController;
   late final MenuController _sizeMenuController;
@@ -94,22 +92,16 @@ class _SizeMenuState extends State<SizeMenu> {
               onPressed: () =>
                   controller.isOpen ? controller.close() : controller.open(),
             ),
-            // Note: Keep the innerMenu offsets (-55, -180 and -55, -250)
-            // as they handle the sub-menus correctly.
             menuChildren: [
               ConstrainedBox(
                 constraints: const BoxConstraints(minWidth: 120, maxHeight: 48),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // 1. HEADINGS SECTION
                     Expanded(
                       child: MenuAnchor(
                         controller: _headingMenuController,
-                        alignmentOffset: const Offset(
-                          -55,
-                          -200,
-                        ), // Floats above the button
+                        alignmentOffset: const Offset(-55, -200),
                         builder: (context, innerMenu, _) => TextButton(
                           onPressed: () => innerMenu.isOpen
                               ? innerMenu.close()
@@ -161,14 +153,10 @@ class _SizeMenuState extends State<SizeMenu> {
                       color: widget.isDark ? Colors.white24 : Colors.black12,
                     ),
 
-                    // 2. FONT SIZE SECTION
                     Expanded(
                       child: MenuAnchor(
                         controller: _sizeMenuController,
-                        alignmentOffset: const Offset(
-                          -55,
-                          -250,
-                        ), // Floats above the button
+                        alignmentOffset: const Offset(-55, -250),
                         builder: (context, innerMenu, _) => TextButton(
                           onPressed: () => innerMenu.isOpen
                               ? innerMenu.close()

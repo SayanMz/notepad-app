@@ -1,4 +1,5 @@
-/// Normalized date/time selection used by search filters.
+// Date selection captures the active time window used by search.
+// Date selections capture the time window used by search filtering.
 class SearchDateSelection {
   const SearchDateSelection({
     this.year,
@@ -37,3 +38,4 @@ class SearchDateSelection {
     );
   }
 }
+

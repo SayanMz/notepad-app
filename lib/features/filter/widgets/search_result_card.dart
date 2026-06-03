@@ -1,11 +1,10 @@
+// Search cards compress matches, snippets, and metadata into one row.
 import 'package:flutter/material.dart';
-import 'package:notepad/core/data/app_data.dart'; //
-import 'package:notepad/core/services/note_preview_util.dart'; //
-import 'package:notepad/core/services/note_timestamp_formatter.dart'; //
-import 'package:notepad/features/filter/search_constants.dart'; //
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/services/note_preview_util.dart';
+import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
+import 'package:notepad/features/filter/search_constants.dart';
 
-/// Displays a single search result (note) with highlighted multi-cluster blocks.
-/// Stateful implementation to manage isolated micro-scroll controller lifecycles cleanly.
 class SearchResultCard extends StatefulWidget {
   const SearchResultCard({
     required this.note,
@@ -24,7 +23,6 @@ class SearchResultCard extends StatefulWidget {
 }
 
 class _SearchResultCardState extends State<SearchResultCard> {
-  // ⚡ THE GESTURE ISOLATOR: Unique controller instance for this card's footprint area
   late final ScrollController _cardScrollController;
 
   @override
@@ -35,7 +33,6 @@ class _SearchResultCardState extends State<SearchResultCard> {
 
   @override
   void dispose() {
-    // Crucial: Clear memory leaks when cards are recycled or scrolled off screen
     _cardScrollController.dispose();
     super.dispose();
   }
@@ -44,7 +41,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
   Widget build(BuildContext context) {
     final titleStyle = const TextStyle(
       fontWeight: FontWeight.bold,
-      fontSize: SearchConstants.resultTitleFontSize, //
+      fontSize: SearchConstants.resultTitleFontSize,
     );
     final previewStyle = TextStyle(
       color: Colors.grey[400],
@@ -53,51 +50,48 @@ class _SearchResultCardState extends State<SearchResultCard> {
     );
 
     const highlightStyle = TextStyle(
-      backgroundColor: SearchConstants.highlightYellow, //
+      backgroundColor: SearchConstants.highlightYellow,
       fontWeight: FontWeight.w700,
-      color: Colors.black, //
+      color: Colors.black,
     );
 
     final List<List<String>> blocks = extractMultiSearchSnippets(
       widget.note.content,
       widget.query,
-    ); //
+    );
 
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: SearchConstants.resultMarginBottom,
-      ), //
+      margin: const EdgeInsets.only(bottom: SearchConstants.resultMarginBottom),
       clipBehavior: Clip.hardEdge,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: SearchConstants.resultContentPaddingH, //
-          vertical: SearchConstants.resultContentPaddingV, //
+          horizontal: SearchConstants.resultContentPaddingH,
+          vertical: SearchConstants.resultContentPaddingV,
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Note Title with text highlight spans matching queries
             Text.rich(
               TextSpan(
                 children: buildHighlightedTextSpans(
-                  text: widget.note.displayTitle, //
-                  query: widget.query, //
-                  baseStyle: titleStyle, //
-                  highlightStyle: titleStyle.merge(highlightStyle), //
+                  text: widget.note.displayTitle,
+                  query: widget.query,
+                  baseStyle: titleStyle,
+                  highlightStyle: titleStyle.merge(highlightStyle),
                 ),
               ),
-              maxLines: 1, //
-              overflow: TextOverflow.ellipsis, //
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: SearchConstants.chipGap), //
+            const SizedBox(height: SearchConstants.chipGap),
             Text(
-              'Edited: ${widget.note.updatedAt.format()}', //
+              'Edited: ${widget.note.updatedAt.format()}',
               style: TextStyle(
                 color: Colors.grey[500],
-                fontSize: SearchConstants.resultEditedFontSize, //
+                fontSize: SearchConstants.resultEditedFontSize,
               ),
             ),
-            const SizedBox(height: SearchConstants.chipGap), //
+            const SizedBox(height: SearchConstants.chipGap),
           ],
         ),
         subtitle: Padding(
@@ -105,10 +99,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
             top: SearchConstants.resultSubtitleTopPadding,
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: 0,
-              maxHeight: 115.0,
-            ), // Fixed layout ceiling prevents outer viewport jitter
+            constraints: const BoxConstraints(minHeight: 0, maxHeight: 115.0),
             child: SingleChildScrollView(
               physics: ClampingScrollPhysics(),
               controller: _cardScrollController,
@@ -124,7 +115,6 @@ class _SearchResultCardState extends State<SearchResultCard> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Bullet break separation layer between distinct paragraph fragments
                         if (blockIndex > 0)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 6.0),
@@ -143,7 +133,6 @@ class _SearchResultCardState extends State<SearchResultCard> {
                             ),
                           ),
 
-                        // Map out the targeted preview lines within this specific block loop
                         ...blockLines.map((line) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 3.0),
@@ -178,7 +167,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
             ),
           ),
         ),
-        onTap: widget.onTap, //
+        onTap: widget.onTap,
       ),
     );
   }

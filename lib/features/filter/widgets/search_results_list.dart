@@ -1,12 +1,14 @@
+// Search result list stays lazy because queries can return large result sets.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/filter/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/filter/search_constants.dart';
 import 'package:notepad/features/filter/widgets/search_empty_states.dart';
 import 'package:notepad/features/filter/widgets/search_result_card.dart';
 
+// Search results list keeps the query results scrollable and lazily built.
 class SearchResultsList extends StatefulWidget {
   const SearchResultsList({
     super.key,

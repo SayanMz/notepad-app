@@ -1,8 +1,10 @@
+// Empty recycle state explains when there are no deleted notes to restore.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
+// Empty recycle state explains when no deleted notes are available.
 class RecycleEmptyState extends StatefulWidget {
   final String text;
   final bool isDark;

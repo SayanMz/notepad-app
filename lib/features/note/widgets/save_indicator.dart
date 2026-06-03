@@ -1,22 +1,11 @@
+// Save indicator reflects the current persistence state in the note header.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 
-/// ---------------------------------------------------------------------------
-/// SAVE STATE ENUM
-/// ---------------------------------------------------------------------------
+// Save indicator reflects the current persistence state in the note header.
 enum SaveState { idle, saving, saved }
 
-/// ---------------------------------------------------------------------------
-/// SAVE INDICATOR WIDGET
-/// ---------------------------------------------------------------------------
-///
-/// RESPONSIBILITY:
-/// - Shows save status (Saving... -> Saved)
-/// - Fully isolated to prevent unnecessary AppBar rebuilds
-///
-/// DESIGN:
-/// - Uses ValueListenableBuilder for reactive updates
-/// - AnimatedSwitcher for smooth transitions
+// Save indicator reflects the current persistence state in the note header.
 class SaveIndicator extends StatelessWidget {
   const SaveIndicator({super.key, required this.saveState});
 
@@ -34,7 +23,6 @@ class SaveIndicator extends StatelessWidget {
         return AnimatedSwitcher(
           duration: UIConstants.animationFast,
 
-          /// Smooth fade transition
           transitionBuilder: (child, animation) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -81,3 +69,4 @@ class SaveIndicator extends StatelessWidget {
     );
   }
 }
+

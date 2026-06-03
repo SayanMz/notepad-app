@@ -1,6 +1,8 @@
+// Smooth slide-fade transition is reused across search navigation.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
+// Combines slide and fade transitions for search navigation.
 class SmoothSlideFade extends StatelessWidget {
   final Widget child;
   final bool isVisible;
@@ -14,7 +16,6 @@ class SmoothSlideFade extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
-      // Standardized values for your BCA project
       duration: AnimationConstants.extraLong,
       reverseDuration: AnimationConstants.long,
       switchInCurve: Curves.easeInOutCubic,
@@ -38,3 +39,4 @@ class SmoothSlideFade extends StatelessWidget {
     );
   }
 }
+

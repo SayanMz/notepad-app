@@ -1,9 +1,10 @@
+// Search constants keep filter sizing and thresholds in one place.
 import 'package:flutter/material.dart';
 
+// Search thresholds and sizing constants are centralized for the filter UI.
 class SearchConstants {
   SearchConstants._();
 
-  // Search page shell
   static const double appBarActionPadding = 8.0;
   static const double appBarTitleRightPadding = 12.0;
   static const double searchFieldRadius = 30.0;
@@ -23,7 +24,6 @@ class SearchConstants {
   static const double resultsBottomPadding = 20.0;
   static const double selectedChipAlpha = 0.8;
 
-  // Filter sheet
   static const int filterDayOptionCount = 31;
   static const int filterYearOptionCount = 10;
   static const int filterHourOptionCount = 24;
@@ -55,7 +55,6 @@ class SearchConstants {
   static const double filterSheetHandleBottomMargin = 24.0;
   static const double filterSheetHandleRadius = 2.0;
 
-  // Empty and result states
   static const double emptyHorizontalPadding = 32.0;
   static const double emptyIconSize = 48.0;
   static const double emptyTitleFontSize = 18.0;
@@ -70,3 +69,4 @@ class SearchConstants {
   static const double resultSubtitleBottomPadding = 2.0;
   static const Color highlightYellow = Color(0xFFFFF176);
 }
+

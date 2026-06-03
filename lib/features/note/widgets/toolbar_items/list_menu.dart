@@ -93,7 +93,6 @@ class ListMenu extends StatelessWidget {
     final style = controller.getSelectionStyle();
     final currentList = style.attributes['list'];
 
-    // 1. Handle non-collapsed selection (standard behavior)
     if (!selection.isCollapsed) {
       if (currentList?.value == attribute.value) {
         controller.formatSelection(Attribute.clone(Attribute.list, null));
@@ -103,7 +102,6 @@ class ListMenu extends StatelessWidget {
       return;
     }
 
-    // 2. Handle collapsed selection with parent block logic
     final offset = selection.baseOffset;
     final queryResult = controller.document.queryChild(offset);
     final line = queryResult.node;
@@ -111,13 +109,11 @@ class ListMenu extends StatelessWidget {
     if (line != null && line.parent != null) {
       final parent = line.parent!;
 
-      // If the parent already contains a list, we manage the whole block
       if (parent.style.attributes.containsKey('list')) {
         final blockStart = parent.documentOffset;
         final blockLength = parent.length;
 
         if (currentList?.value == attribute.value) {
-          // Toggle OFF: Remove list formatting specifically from this row
           controller.formatText(
             line.documentOffset,
             line.length,
@@ -125,7 +121,6 @@ class ListMenu extends StatelessWidget {
           );
           controller.formatSelection(Attribute.clone(Attribute.list, null));
         } else {
-          // Toggle ON/SWITCH: Apply new list type to the entire block
           controller.formatText(blockStart, blockLength, attribute);
           controller.formatSelection(attribute);
         }
@@ -133,7 +128,6 @@ class ListMenu extends StatelessWidget {
       }
     }
 
-    // 3. Fallback to standard selection formatting
     if (currentList?.value == attribute.value) {
       controller.formatSelection(Attribute.clone(Attribute.list, null));
     } else {

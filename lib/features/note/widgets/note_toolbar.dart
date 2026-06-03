@@ -1,10 +1,11 @@
+// Toolbar groups inline and block formatting actions for the note editor.
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/note/services/hyperlink_handler.dart';
@@ -13,6 +14,7 @@ import 'package:notepad/features/note/widgets/toolbar_items/color_menu.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/list_menu.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/size_menu.dart';
 
+// Formatting toolbar groups the inline and block actions for the editor.
 class NoteToolbar extends StatefulWidget {
   const NoteToolbar({
     super.key,
@@ -56,7 +58,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
     super.dispose();
   }
 
-  /// Restoration of the "Nudge" logic to signal scrollability to the user.
   Future<void> _performNudge() async {
     await Future.delayed(AnimationConstants.extraSlow);
     if (!mounted || !_scrollController.hasClients) return;
@@ -86,7 +87,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
     );
   }
 
-  /// Helper: Orchestrates the scrollable row and the ShaderMask fades.
   Widget _buildScrollableRow(double itemWidth) {
     final List<Widget> items = [
       _buildToggle(Icons.format_bold, Attribute.bold),
@@ -229,10 +229,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
     );
   }
 
-  /// Helper: Wraps the toolbar in the signature Glassmorphism effect and shadow.
   Widget _buildGlassContainer({required Widget child}) {
     return ConstrainedBox(
-      // ⚡ Limit the toolbar width on large screens
       constraints: const BoxConstraints(maxWidth: 800),
       child: Container(
         height: NoteConstants.toolbarHeight,

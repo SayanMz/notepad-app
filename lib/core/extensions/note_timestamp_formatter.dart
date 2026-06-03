@@ -1,6 +1,5 @@
+// Timestamp formatting stays in one place so note dates remain consistent.
 extension NoteDateFormatter on DateTime {
-  /// Formats the timestamp into a readable string with granular control.
-  /// Usage: note.updatedAt.format() -> "May 12, 2026 • 8:45 AM"
   String format({
     bool showDate = true,
     bool showYear = true,
@@ -8,12 +7,10 @@ extension NoteDateFormatter on DateTime {
   }) {
     final month = _monthName(this.month);
 
-    // Construct the Date portion
     final dateStr = '$month $day${showYear ? ', $year' : ''}';
 
     if (!showTime) return dateStr;
 
-    // Construct the Time portion
     final hour = this.hour == 0
         ? 12
         : (this.hour > 12 ? this.hour - 12 : this.hour);
@@ -23,11 +20,9 @@ extension NoteDateFormatter on DateTime {
 
     if (!showDate) return timeStr;
 
-    // Combine both with the bullet separator
     return '$dateStr • $timeStr';
   }
 
-  // Private helper for month names
   String _monthName(int month) {
     const months = [
       'Jan',
@@ -46,3 +41,4 @@ extension NoteDateFormatter on DateTime {
     return months[month - 1];
   }
 }
+

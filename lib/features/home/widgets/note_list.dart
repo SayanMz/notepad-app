@@ -1,11 +1,12 @@
+// Note list assembles the active and deleted sections for the home screen.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/note_list_items/note_empty_state.dart';
-// Import your newly extracted widget
 import 'package:notepad/features/home/widgets/note_list_items/swipeable_note_item.dart';
 
+// Builds the active and deleted note sections with drag and selection behavior.
 class NoteList extends StatelessWidget {
   const NoteList({super.key, required this.controller});
   final HomeController controller;
@@ -33,7 +34,6 @@ class NoteList extends StatelessWidget {
 
     return SliverMainAxisGroup(
       slivers: [
-        // ZONE 1: PINNED NOTES
         if (pinnedNotes.isNotEmpty) ...[
           _buildSectionHeader(context, "PINNED (${pinnedNotes.length})"),
           SliverPadding(
@@ -69,7 +69,6 @@ class NoteList extends StatelessWidget {
           ),
         ],
 
-        // ZONE 2: UNPINNED NOTES
         if (unpinnedNotes.isNotEmpty) ...[
           if (pinnedNotes.isNotEmpty)
             _buildSectionHeader(context, "OTHERS (${unpinnedNotes.length})"),

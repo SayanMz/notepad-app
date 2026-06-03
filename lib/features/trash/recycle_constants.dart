@@ -1,7 +1,6 @@
 class RecycleConstants {
   RecycleConstants._();
 
-  // Bottom sheet shell
   static const double sheetRadius = 20.0;
   static const double listPadding = 12.0;
   static const double cardMargin = 4.0;
@@ -16,7 +15,6 @@ class RecycleConstants {
   static const double sheetHandleDarkAlpha = 0.2;
   static const double sheetHandleLightAlpha = 0.15;
 
-  // Empty state animation
   static const double emptyRippleOuterSize = 160.0;
   static const double emptyRippleOuterPressedSize = 200.0;
   static const double emptyRippleMiddleSize = 120.0;
@@ -33,7 +31,6 @@ class RecycleConstants {
   static const double emptyStateBodyDarkAlpha = 0.45;
   static const double emptyStateBodyLightAlpha = 0.4;
 
-  // Swipe row interaction
   static const double swipeBackgroundInset = 0.5;
   static const double swipeBackgroundLeft = 16.0;
   static const double swipeAppearanceThreshold = 30.0;
@@ -42,7 +39,6 @@ class RecycleConstants {
   static const double swipeConfirmedScale = 0.0;
   static const double swipeIconStartScale = 0.5;
 
-  // Collapsible header
   static const double headerSlideDistance = 50.0;
   static const double headerLeadingPadding = 56.0;
   static const double headerTitleFontSize = 24.0;

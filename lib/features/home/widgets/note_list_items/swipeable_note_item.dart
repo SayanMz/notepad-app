@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
@@ -56,16 +56,14 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
           final cardWidth = constraints.maxWidth;
           return Stack(
             children: [
-              // --- THE BACKGROUND PANEL LAYER (PATH B: FLOATING CAPSULE) ---
               Positioned(
-                // 🌟 MATCH OUTSIDE EDGE BOUNDARIES OF THE NOTECARD FOR LAYERING
                 top: 0,
                 bottom: 0,
                 left: 0,
                 right: 0,
-                    child: ListenableBuilder(
-                      listenable: Listenable.merge([_dragProgress, _isConfirmed]),
-                      builder: (context, _) {
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([_dragProgress, _isConfirmed]),
+                  builder: (context, _) {
                     final progress = _dragProgress.value;
                     final isConfirmed = _isConfirmed.value;
 
@@ -79,7 +77,6 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                       curve: Curves.easeOut,
                       child: RepaintBoundary(
                         child: Card(
-                          // 🌟 INSET MARGINS INWARD: Shaves top/bottom/sides for capsule separation
                           margin: const EdgeInsets.symmetric(
                             vertical: UIConstants.paddingXXS + 4,
                             horizontal: UIConstants.paddingXXS,
@@ -88,7 +85,6 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                           color: context.isDark
                               ? AppColors.deleteDarkBg
                               : AppColors.deleteLightBg,
-                          // 🌟 EXAGGERATED BORDER RADIUS: Standardized capsule curve shape
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               UIConstants.radiusMD * 2.5,
@@ -97,8 +93,7 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                           child: Container(
                             alignment: Alignment.centerLeft,
                             padding: const EdgeInsets.only(
-                              left: UIConstants
-                                  .paddingXL, // Tighter interior padding for action target
+                              left: UIConstants.paddingXL,
                             ),
                             child: Builder(
                               builder: (context) {
@@ -167,7 +162,6 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                 ),
               ),
 
-              // --- THE SWIPE MASK SURFACE LAYER ---
               Dismissible(
                 key: ValueKey('dismiss_${widget.note.id}'),
                 direction: widget.controller.selectionController.isSelectionMode
@@ -215,11 +209,13 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                     maxPreviewLines: widget.maxPreviewLines,
                     selectionMode:
                         widget.controller.selectionController.isSelectionMode,
-                    isSelected: widget.controller.selectionController.isNoteSelected(
-                      widget.note.id,
-                    ),
+                    isSelected: widget.controller.selectionController
+                        .isNoteSelected(widget.note.id),
                     onTap: () async {
-                      if (widget.controller.selectionController.isSelectionMode) {
+                      if (widget
+                          .controller
+                          .selectionController
+                          .isSelectionMode) {
                         widget.controller.selectionController.toggleSelected(
                           widget.note.id,
                         );

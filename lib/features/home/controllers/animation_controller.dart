@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
-/// ------------------------------------------------------------
-/// ANIMATION CONTROLLER (UI State)
-/// Handles visual timing states like vaporizing/dismissing.
-/// ------------------------------------------------------------
+// Owns home-screen motion state so the widget tree stays lightweight.
 class AnimationControllerState extends ChangeNotifier {
   final Set<String> _vaporizingIds = {};
 

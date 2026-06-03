@@ -1,15 +1,17 @@
+// Selection toolbar groups bulk actions and color edits away from the list.
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/editor_constants.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/services/context_extensions.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/selection_tools/premium_color_picker.dart';
 
+// Bulk actions and selection editing live in this toolbar instead of the list itself.
 class SelectionToolbar extends StatefulWidget {
   const SelectionToolbar({
     super.key,
@@ -59,7 +61,6 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         ? Colors.white
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
 
-    // 🌟 ARCHITECTURE SNAPS: Pull values directly out of your controller's getters
     final homeController = widget.controller;
     final selectionCtrl = widget.selectionController;
 
@@ -104,12 +105,11 @@ class _SelectionToolbarState extends State<SelectionToolbar>
             icon: Icon(
               homeController.showPinAction
                   ? Icons.push_pin_rounded
-                  : Icons.push_pin_outlined, // Derived
+                  : Icons.push_pin_outlined,
               size: EditorConstants.toolbarIconSize,
               color: iconColor,
             ),
-            onPressed: () =>
-                homeController.togglePinBulk(), // Executed directly
+            onPressed: () => homeController.togglePinBulk(),
             splashRadius: EditorConstants.toolbarSplashRadius,
           ),
           IconButton(
@@ -125,7 +125,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
                   'Could not share selected notes: $errorMessage',
                 );
               },
-            ), // Executed directly
+            ),
             splashRadius: EditorConstants.toolbarSplashRadius,
           ),
           IconButton(
@@ -134,8 +134,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
               size: EditorConstants.toolbarIconSize,
               color: iconColor,
             ),
-            onPressed: () => homeController
-                .executeBulkDelete(), // Executed directly via controller transaction flow
+            onPressed: () => homeController.executeBulkDelete(),
             splashRadius: EditorConstants.toolbarSplashRadius,
           ),
         ],
@@ -188,14 +187,14 @@ class _SelectionToolbarState extends State<SelectionToolbar>
   }
 
   void _openPremiumColorPicker() async {
-    _rotationController.stop(); //
+    _rotationController.stop();
 
     final originalColors = widget.controller.getSelectedColorsSnapshot();
-    final screenSize = context.screenSize; //
+    final screenSize = context.screenSize;
     final maxColors =
         screenSize.width > EditorConstants.pickerRecentDesktopBreakpoint
         ? EditorConstants.pickerRecentDesktopCount
-        : EditorConstants.pickerRecentPhoneCount; //
+        : EditorConstants.pickerRecentPhoneCount;
     final Color initialColor = recentColors.isEmpty
         ? Colors.red
         : recentColors[0];
@@ -208,30 +207,29 @@ class _SelectionToolbarState extends State<SelectionToolbar>
       transitionDuration: const Duration(milliseconds: 150),
       pageBuilder: (context, animation, secondaryAnimation) {
         return PremiumColorPicker(
-          initialColor: initialColor, //
-          recentColors: recentColors, //
-          isDark: isDark, //
-          maxColors: maxColors, //
-          dialogOffsetNotifier:
-              dialogOffsetNotifier, // 🌟 LINKED: Passes state downstream cleanly!
+          initialColor: initialColor,
+          recentColors: recentColors,
+          isDark: isDark,
+          maxColors: maxColors,
+          dialogOffsetNotifier: dialogOffsetNotifier,
           onPreviewChanged: (color) =>
-              widget.controller.updateSelectedColors(color), //
+              widget.controller.updateSelectedColors(color),
         );
       },
     );
 
     if (resultColor != null) {
-      appSettingsRepository.addRecentColor(resultColor, maxColors); //
+      appSettingsRepository.addRecentColor(resultColor, maxColors);
       widget.controller.saveColors();
       setState(() {
-        recentColors.remove(resultColor); //
-        recentColors.insert(0, resultColor); //
-        if (recentColors.length > maxColors) recentColors.removeLast(); //
+        recentColors.remove(resultColor);
+        recentColors.insert(0, resultColor);
+        if (recentColors.length > maxColors) recentColors.removeLast();
       });
     } else {
-      widget.controller.restoreColors(originalColors); //
+      widget.controller.restoreColors(originalColors);
     }
 
-    _rotationController.repeat(); //
+    _rotationController.repeat();
   }
 }

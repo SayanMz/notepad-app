@@ -1,13 +1,15 @@
+// Home drawer mixes navigation, sync, and account state.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
-import 'package:notepad/features/home/services/auth_controller.dart';
+import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/widgets/drawer_items/spinning_sync_icon.dart';
 import 'package:notepad/features/home/widgets/drawer_items/storage_progress_bar.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 
+// Drawer content is split out because it carries navigation and account state.
 class HomeDrawer extends StatelessWidget {
   final HomeController controller;
   const HomeDrawer({super.key, required this.controller});
@@ -48,8 +50,7 @@ class HomeDrawer extends StatelessWidget {
                   },
                   child: SingleChildScrollView(
                     child: Column(
-                      mainAxisSize:
-                          MainAxisSize.min, // This makes it grow with content
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         _HomeDrawerHeader(
                           isDark: isDark,

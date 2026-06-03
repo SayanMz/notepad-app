@@ -1,3 +1,4 @@
+// Global snackbars need a stable messenger outside the widget tree.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ abstract class UiNotifier {
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
+// Central scaffold messenger access for snackbars shown outside widget scope.
 class ScaffoldMessengerUiNotifier implements UiNotifier {
   Timer? _snackBarTimer;
 
@@ -40,8 +42,6 @@ class ScaffoldMessengerUiNotifier implements UiNotifier {
       ..hideCurrentSnackBar()
       ..showSnackBar(snackBar);
 
-    // FIX: The auto-dismissal logic that prevents "sticky" snackbars
-    // Use the autoHideAfter if provided, otherwise fallback to the SnackBar's internal duration
     final dismissDuration = autoHideAfter ?? snackBar.duration;
 
     _snackBarTimer = Timer(dismissDuration, () {
@@ -64,9 +64,6 @@ class ScaffoldMessengerUiNotifier implements UiNotifier {
 
 final UiNotifier uiNotifier = ScaffoldMessengerUiNotifier();
 
-/// ---------------------------------------------------------------------------
-/// TOP-LEVEL HELPERS (Fixed: Outside the class for global access)
-/// ---------------------------------------------------------------------------
 
 void showRestorationSnackBar({
   required String message,
@@ -84,7 +81,7 @@ void showRestorationSnackBar({
       content: Row(
         children: [
           Expanded(child: Text(message)),
-          _buildElevatedAction(undoLabel, onUndo), // Boilerplate moved here
+          _buildElevatedAction(undoLabel, onUndo),
         ],
       ),
     ),
@@ -94,7 +91,7 @@ void showRestorationSnackBar({
 
 Widget _buildElevatedAction(String label, VoidCallback onTap) {
   return Material(
-    color: Colors.transparent, // Keeps the Material layer invisible
+    color: Colors.transparent,
     child: InkWell(
       onTap: () {
         uiNotifier.hideCurrentSnackBar();
@@ -168,3 +165,4 @@ void showErrorSnackBar(String message, {Duration? duration}) {
     autoHideAfter: d,
   );
 }
+

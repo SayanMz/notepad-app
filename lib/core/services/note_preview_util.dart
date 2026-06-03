@@ -1,9 +1,8 @@
+// Preview helpers extract short snippets from plain text and rich content.
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-/// Converts note text into structured objects, identifying list markers during the parsing phase.
-/// Optimized for the UI layer during scrolling.
 List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
   final trimmed = content.trim();
   if (trimmed.isEmpty) return [PreviewLine('No additional text')];
@@ -13,7 +12,6 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
       : [];
 
   try {
-    // 1. IS IT QUILL RICH TEXT DELTA JSON?
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       final List<dynamic> ops = jsonDecode(trimmed);
       final StringBuffer currentLineBuffer = StringBuffer();
@@ -84,7 +82,6 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
         extractedLines.add(PreviewLine(leftover));
       }
     } else {
-      // 2. PLAIN TEXT FALLBACK
       _parsePlainTextLines(trimmed, extractedLines, maxLines);
     }
   } catch (e) {
@@ -97,7 +94,6 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
       .cast<PreviewLine>();
 }
 
-/// Helper for plain text structural mapping
 void _parsePlainTextLines(
   String rawText,
   List<PreviewLine> targetList,
@@ -105,65 +101,19 @@ void _parsePlainTextLines(
 ) {
   int start = 0;
   int nextNewline = rawText.indexOf('\n');
-  final listPattern = RegExp(r'^\s*([-•·]|\d+\.)\s+(.*)'); //
+  final listPattern = RegExp(r'^\s*([-•·]|\d+\.)\s+(.*)');
 
   int regularTextCount = 0;
   int checklistCount = 0;
 
-  // Explicitly allocate a high threshold limit to collect every trailing item row
   final int maxChecklistsToFind = maxLines ?? 6;
 
-  // 🌟 THE UNBROKEN LOOP:
-  // Iterate all the way to the end of the text stream to locate every single checklist node,
-  // while applying maxLines strictly to text blocks only.
   while (nextNewline != -1) {
-    final String rawLine = rawText.substring(start, nextNewline).trim(); //
+    final String rawLine = rawText.substring(start, nextNewline).trim();
 
     if (rawLine.isNotEmpty) {
-      //
-      final match = listPattern.firstMatch(rawLine); //
+      final match = listPattern.firstMatch(rawLine);
 
-      if (match != null) {
-        // List item discovered: Capture it safely up to your 6-item capacity limit
-        if (checklistCount < maxChecklistsToFind) {
-          targetList.add(
-            PreviewLine(
-              (match.group(2) ?? '').trim(), //
-              isList: true, //
-              listMarker: match.group(1), //
-            ),
-          );
-          checklistCount++;
-        }
-      } else {
-        // Regular text paragraph: Freeze collection the exact moment you hit maxLines
-        if (maxLines == null || regularTextCount < maxLines) {
-          targetList.add(PreviewLine(rawLine)); //
-          regularTextCount++;
-        }
-      }
-
-      // ⚡ FAST TRASH/MINIMAL PATH EXIT GATE:
-      // We only short-circuit the loop early if we found our max text lines AND
-      // the remaining raw file substring does not contain any list markers whatsoever.
-      if (maxLines != null &&
-          regularTextCount >= maxLines &&
-          (checklistCount >= maxChecklistsToFind ||
-              !rawText.contains('-', start))) {
-        return;
-      }
-    }
-
-    start = nextNewline + 1; //
-    nextNewline = rawText.indexOf('\n', start); //
-  }
-
-  // Handle final trailing item line at the absolute bottom of the document file
-  if (start < rawText.length) {
-    final String lastLine = rawText.substring(start).trim(); //
-    if (lastLine.isNotEmpty) {
-      //
-      final match = listPattern.firstMatch(lastLine); //
       if (match != null) {
         if (checklistCount < maxChecklistsToFind) {
           targetList.add(
@@ -172,18 +122,51 @@ void _parsePlainTextLines(
               isList: true,
               listMarker: match.group(1),
             ),
-          ); //
+          );
+          checklistCount++;
         }
       } else {
         if (maxLines == null || regularTextCount < maxLines) {
-          targetList.add(PreviewLine(lastLine)); //
+          targetList.add(PreviewLine(rawLine));
+          regularTextCount++;
+        }
+      }
+
+      if (maxLines != null &&
+          regularTextCount >= maxLines &&
+          (checklistCount >= maxChecklistsToFind ||
+              !rawText.contains('-', start))) {
+        return;
+      }
+    }
+
+    start = nextNewline + 1;
+    nextNewline = rawText.indexOf('\n', start);
+  }
+
+  if (start < rawText.length) {
+    final String lastLine = rawText.substring(start).trim();
+    if (lastLine.isNotEmpty) {
+      final match = listPattern.firstMatch(lastLine);
+      if (match != null) {
+        if (checklistCount < maxChecklistsToFind) {
+          targetList.add(
+            PreviewLine(
+              (match.group(2) ?? '').trim(),
+              isList: true,
+              listMarker: match.group(1),
+            ),
+          );
+        }
+      } else {
+        if (maxLines == null || regularTextCount < maxLines) {
+          targetList.add(PreviewLine(lastLine));
         }
       }
     }
   }
 }
 
-/// Finds multiple separate match blocks across a document using word tokens.
 List<List<String>> extractMultiSearchSnippets(
   String content,
   String query, {
@@ -242,7 +225,6 @@ List<List<String>> extractMultiSearchSnippets(
   return blocks;
 }
 
-/// Splits text into highlighted spans via tokenized regex alternation rules.
 List<TextSpan> buildHighlightedTextSpans({
   required String text,
   required String query,
@@ -304,3 +286,4 @@ class PreviewLine {
 
   PreviewLine(this.text, {this.isList = false, this.listMarker});
 }
+

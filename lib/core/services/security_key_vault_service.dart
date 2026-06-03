@@ -1,21 +1,20 @@
+// Encryption keys are stored externally so Hive can reopen the database securely.
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 
+// Stores the encryption key outside the app sandbox so Hive can reopen securely.
 class SecureKeyVaultService {
   static const String _encryptionKeyToken = 'secure_persistence_encryption_key';
 
-  // Enforce hardware-backed storage options for Android Keystore
   static const _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences:
-          true, // Uses Keystore to encrypt the file keys
+          true,
     ),
   );
 
-  /// Retrieves an existing encryption key from the hardware vault or
-  /// derives a brand-new 256-bit cryptographically secure key.
   static Future<List<int>> getOrCreateEncryptionKey() async {
     try {
       final containsKey = await _secureStorage.containsKey(
@@ -29,11 +28,9 @@ class SecureKeyVaultService {
         }
       }
 
-      // 🌟 KEY DERIVATION: Generate a cryptographically strong 256-bit key
       final secureKey = Hive.generateSecureKey();
       final base64Key = base64Url.encode(secureKey);
 
-      // Persist the key inside the Hardware Key Vault
       await _secureStorage.write(key: _encryptionKeyToken, value: base64Key);
 
       debugPrint(
@@ -48,3 +45,4 @@ class SecureKeyVaultService {
     }
   }
 }
+

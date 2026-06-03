@@ -1,3 +1,4 @@
+// PDF export translates note structure into a printable layout.
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -9,7 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/note/services/document_delta_parser.dart'
     as doc_delta;
 
@@ -375,7 +376,6 @@ class NotePdfExporter {
       selectedFont = fontItalic;
     }
 
-    // CRITICAL FIX: Extract the background color to match HTML highlighting
     final bgColor = _pdfColor(attributes['background'] as String?);
 
     return pw.TextSpan(
@@ -390,7 +390,6 @@ class NotePdfExporter {
         decoration: isLink
             ? pw.TextDecoration.underline
             : _pdfDecoration(attributes),
-        // Apply the background highlight if it exists
         background: bgColor != null ? pw.BoxDecoration(color: bgColor) : null,
       ),
       annotation: link == null ? null : pw.AnnotationUrl(link),

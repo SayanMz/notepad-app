@@ -1,10 +1,11 @@
+// Recycle bin keeps deleted notes available for restore or permanent deletion.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/data/notes_repository.dart'; // Still needed for the global instance injection
-import 'package:notepad/core/services/context_extensions.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/core/widgets/scroll_to_top_fab.dart';
 import 'package:notepad/features/home/home_constants.dart';
@@ -14,6 +15,7 @@ import 'package:notepad/features/trash/widgets/recycle_empty_state.dart';
 import 'package:notepad/features/trash/widgets/recycle_header_delegate.dart';
 import 'package:notepad/features/trash/widgets/recycle_notes_sliver_list.dart';
 
+// Recycle bin page keeps deleted notes searchable, sortable, and restorable.
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
 
@@ -44,16 +46,16 @@ class _RecyclePageState extends State<RecyclePage> {
   }
 
   Future<void> _handleRestoreNote(NotesSection note) async {
-    final title = note.displayTitle; //
+    final title = note.displayTitle;
     final isRestored = await _controller.restoreNote(note.id);
 
     if (!(mounted || isRestored)) {
-      debugPrint("The note: ${note.id} couldn't be restored."); //
+      debugPrint("The note: ${note.id} couldn't be restored.");
       return;
     }
 
     showRestorationSnackBar(
-      message: '$title is now restored.', //
+      message: '$title is now restored.',
       onUndo: () => _controller.undoRestore(note.id),
     );
   }
@@ -62,20 +64,20 @@ class _RecyclePageState extends State<RecyclePage> {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete forever?'), //
-        content: const Text('This action cannot be undone.'), //
+        title: const Text('Delete forever?'),
+        content: const Text('This action cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false), //
-            child: const Text('Cancel'), //
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, //
-              foregroundColor: Colors.white, //
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
             ),
-            onPressed: () => Navigator.pop(context, true), //
-            child: const Text('Delete'), //
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -85,32 +87,29 @@ class _RecyclePageState extends State<RecyclePage> {
     _controller.deleteForever(note.id);
 
     if (!mounted) return;
-    Navigator.pop(context); // Close the bottom sheet if it's open
+    Navigator.pop(context);
   }
 
   Future<void> _handleEmptyRecycleBin() async {
-    // 1. Grab a frozen copy of the notes currently in the trash
-
-    // 2. High-friction confirmation
     final shouldEmpty = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Empty Recycle Bin?'), //
+        title: const Text('Empty Recycle Bin?'),
         content: const Text(
-          'All notes in the trash will be permanently deleted. This action cannot be undone.', //
+          'All notes in the trash will be permanently deleted. This action cannot be undone.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false), //
-            child: const Text('Cancel'), //
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, //
-              foregroundColor: Colors.white, //
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
             ),
-            onPressed: () => Navigator.pop(context, true), //
-            child: const Text('Empty Trash'), //
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Empty Trash'),
           ),
         ],
       ),
@@ -126,42 +125,42 @@ class _RecyclePageState extends State<RecyclePage> {
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(RecycleConstants.sheetRadius), //
+          top: Radius.circular(RecycleConstants.sheetRadius),
         ),
       ),
       builder: (context) => SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min, //
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: RecycleConstants.sheetHandleTopGap), //
+            const SizedBox(height: RecycleConstants.sheetHandleTopGap),
             Container(
-              width: RecycleConstants.sheetHandleWidth, //
-              height: RecycleConstants.sheetHandleHeight, //
+              width: RecycleConstants.sheetHandleWidth,
+              height: RecycleConstants.sheetHandleHeight,
               decoration: BoxDecoration(
                 color: isDark
                     ? Colors.white.withValues(
                         alpha: RecycleConstants.sheetHandleDarkAlpha,
-                      ) //
+                      )
                     : Colors.black.withValues(
                         alpha: RecycleConstants.sheetHandleLightAlpha,
-                      ), //
+                      ),
                 borderRadius: BorderRadius.circular(
                   RecycleConstants.sheetHandleRadius,
-                ), //
+                ),
               ),
             ),
-            const SizedBox(height: RecycleConstants.sheetHandleBottomGap), //
+            const SizedBox(height: RecycleConstants.sheetHandleBottomGap),
             ListTile(
-              leading: const Icon(Icons.restore, color: Colors.green), //
-              title: const Text('Restore note'), //
+              leading: const Icon(Icons.restore, color: Colors.green),
+              title: const Text('Restore note'),
               onTap: () {
-                Navigator.pop(context); //
+                Navigator.pop(context);
                 _handleRestoreNote(note);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_forever, color: Colors.red), //
-              title: const Text('Delete forever'), //
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text('Delete forever'),
               onTap: () => _handleDeleteForever(note),
             ),
           ],
@@ -170,7 +169,6 @@ class _RecyclePageState extends State<RecyclePage> {
     );
   }
 
-  // --- MAIN BUILD PIPELINE ---
   @override
   Widget build(BuildContext context) {
     const notesEmptyText = "Your trash is beautifully empty.";
@@ -189,7 +187,6 @@ class _RecyclePageState extends State<RecyclePage> {
 
             return Stack(
               children: [
-                // 1. The Scroll View with Activity Tracking
                 NotificationListener<ScrollNotification>(
                   onNotification: (ScrollNotification notification) {
                     final shouldShow = notification.metrics.pixels > 200.0;

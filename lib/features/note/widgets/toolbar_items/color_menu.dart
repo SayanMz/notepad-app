@@ -26,7 +26,6 @@ class _ColorMenuState extends State<ColorMenu> {
   OverlayEntry? _overlayEntry;
   late final MenuController _menuController = MenuController();
 
-  // In color_menu.dart
   void _toggleCustomPicker() {
     if (_overlayEntry != null) {
       _closePicker();
@@ -38,7 +37,6 @@ class _ColorMenuState extends State<ColorMenu> {
   @override
   void initState() {
     super.initState();
-    // Register the internal close picker logic with the controller
     widget.toolbarController.register(_closePicker);
   }
 
@@ -47,7 +45,6 @@ class _ColorMenuState extends State<ColorMenu> {
       _overlayEntry?.remove();
       _overlayEntry = null;
     }
-    // Ensure the parent MenuAnchor also closes
     if (_menuController.isOpen) _menuController.close();
   }
 

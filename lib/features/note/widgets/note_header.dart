@@ -1,8 +1,10 @@
+// Note header owns title editing and metadata presentation.
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/note_constants.dart';
 
+// Note header owns title editing and the note metadata strip.
 class NoteHeader extends StatelessWidget {
   NoteHeader({
     super.key,
@@ -65,31 +67,26 @@ class NoteHeader extends StatelessWidget {
                   builder: (context, child) {
                     return IconButton(
                       onPressed: () {
-                        // Toggle the state: true -> false, false -> true
                         _isClicked.value = !_isClicked.value;
 
-                        // Trigger your edit logic
                         onToggleEdit();
                       },
                       icon: ShaderMask(
                         blendMode: BlendMode.srcIn,
                         shaderCallback: (Rect bounds) {
-                          // Define the colors dynamically based on isDark and state
                           final List<Color> gradientColors;
 
                           if (_isClicked.value) {
-                            // ⚡ Active "AI Magic" Gradient State
                             gradientColors = isDark
                                 ? [
                                     const Color(0xFF9D4EDD),
                                     const Color(0xFF00F5D4),
-                                  ] // Dark Mode: Neon Purple -> Cyan
+                                  ]
                                 : [
                                     const Color(0xFF6200EE),
                                     const Color(0xFF03DAC6),
-                                  ]; // Light Mode: Deep Violet -> Teal
+                                  ];
                           } else {
-                            // 💤 Idle State (Matches your original fallback behavior)
                             gradientColors = isDark
                                 ? [Colors.white, Colors.white70]
                                 : [Colors.black, Colors.black87];

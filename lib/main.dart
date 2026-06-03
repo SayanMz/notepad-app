@@ -1,37 +1,27 @@
 import 'dart:async';
-import 'dart:io' if (dart.library.html) 'dart:html'; // To check platform safely
 import 'dart:ui';
-
-import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
 import 'package:notepad/core/bootstrap/bootstrap_app.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/data/notes_repository.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
-import 'package:notepad/core/services/theme_fader.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
 import 'package:notepad/features/home/home_page.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // The missing factory driver
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// ===========================================================================
-/// APPLICATION ENTRY POINT
-/// ===========================================================================
-
+// App startup wires global error handling, storage init, and theme bootstrapping.
 Future<void> main() async {
-  /// Executes the application inside a guarded zone to capture uncaught
-  /// synchronous and asynchronous errors across the full runtime lifecycle.
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      // 🌟 THE OVERRIDE: Force Android to ignore factory system binaries
-      // and read our bundled SQLite library which has full FTS5 support built-in.
-      if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
-        // Initialize the FFI database factory driver for desktop
+      if (!kIsWeb) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }
@@ -41,8 +31,6 @@ Future<void> main() async {
         DeviceOrientation.portraitDown,
       ]);
 
-      /// Handles Flutter framework errors.
-      /// Maintains default error presentation while ensuring structured logging.
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
         debugPrint('Flutter error: ${details.exceptionAsString()}');
@@ -51,8 +39,6 @@ Future<void> main() async {
         }
       };
 
-      /// Captures platform and engine-level errors not surfaced through
-      /// FlutterError, preventing silent failures across async boundaries.
       PlatformDispatcher.instance.onError = (error, stack) {
         debugPrint('Platform error: $error');
         debugPrintStack(stackTrace: stack);
@@ -79,10 +65,6 @@ Future<void> main() async {
     },
   );
 }
-
-/// ===========================================================================
-/// ROOT APPLICATION
-/// ===========================================================================
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -117,7 +99,6 @@ class MyApp extends StatelessWidget {
                 PointerDeviceKind.trackpad,
               },
             ),
-            //showPerformanceOverlay: true,
           ),
         );
       },

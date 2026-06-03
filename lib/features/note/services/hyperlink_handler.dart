@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/widgets/toolbar_items/hyperlink_title_dialog.dart';
 
+// Hyperlink helpers normalize and open URLs from note content.
 class HyperlinkHandler {
-  /// The exact hyperlink logic from the monolithic file, now decoupled.
   static Future<void> convertToHyperlink({
     required BuildContext context,
     required QuillController controller,
@@ -16,7 +16,6 @@ class HyperlinkHandler {
 
     String targetUrl = '';
 
-    // 1. Extract selected text or nearby word if selection is collapsed
     if (textLength > 0) {
       targetUrl = controller.document.getPlainText(startIndex, textLength);
     } else {
@@ -33,7 +32,6 @@ class HyperlinkHandler {
         end++;
       }
 
-      // ⚡ FIX: Update these so 'replaceText' uses the correct range
       startIndex = start;
       textLength = end - start;
 
@@ -41,7 +39,6 @@ class HyperlinkHandler {
       targetUrl = fullText.substring(start, end);
     }
 
-    // 2. Validate the extracted URL
     if (!_isValidLink(targetUrl)) {
       showErrorSnackBar('Please enter a valid link');
       return;
@@ -53,17 +50,14 @@ class HyperlinkHandler {
       finalUrl = 'https://$finalUrl';
     }
 
-    // 3. Ask user for display title via the dialog
     final displayTitle = await showHyperlinkTitleDialog(context);
 
     if (displayTitle != null && displayTitle.isNotEmpty) {
       const trailingSpace = ' ';
       final insertedText = '$displayTitle$trailingSpace';
 
-      // 4. Execute replacement
       controller.replaceText(startIndex, textLength, insertedText, null);
 
-      // 5. Apply explicit instructions: Link, Hex Color, and Underline
       controller.formatText(
         startIndex,
         displayTitle.length,
@@ -80,7 +74,6 @@ class HyperlinkHandler {
         Attribute.underline,
       );
 
-      // 6. Move cursor position +1 index from the length to prevent style bleed
       controller.updateSelection(
         TextSelection.collapsed(offset: startIndex + insertedText.length),
         ChangeSource.local,

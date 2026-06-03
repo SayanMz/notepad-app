@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
@@ -45,9 +45,6 @@ class SelectionOverlay extends StatelessWidget {
             end: isActive ? 0.0 : 1.0,
           ),
           builder: (context, hideFactor, child) {
-            // 🌟 THE FIX: Removed the Opacity wrapper completely.
-            // Now it just translates. The container remains at its native
-            // opacity level instantly from frame 1, killing the glass fade effect!
             return FractionalTranslation(
               translation: Offset(0, hideFactor * 1.2),
               child: child,

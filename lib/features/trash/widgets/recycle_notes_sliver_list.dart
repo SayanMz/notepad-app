@@ -1,9 +1,11 @@
+// Sliver list keeps recycle-bin content lazy and scroll-friendly.
 import 'package:flutter/material.dart';
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/trash/controller/recycle_controller.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 import 'package:notepad/features/trash/widgets/swippeable_restore_item.dart';
 
+// Sliver list wrapper keeps recycle bin rendering lazy and scroll-friendly.
 class RecycleNotesSliverList extends StatelessWidget {
   const RecycleNotesSliverList({
     required this.isDark,

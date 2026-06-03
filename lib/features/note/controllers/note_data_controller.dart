@@ -1,13 +1,14 @@
+// Note data changes are tracked by signature so redundant saves can be skipped.
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
 
-/// Handles purely file system I/O, autosave debouncing, and dirty state hashing.
+// Tracks note signatures so autosave can skip redundant writes.
 class NoteDataController {
   final NoteRepository noteRepository;
   String? noteId;
@@ -18,20 +19,16 @@ class NoteDataController {
   bool _isSaving = false;
   bool _isDisposed = false;
 
-  /// Surgical UI State: Notifies the page when to show the saving indicator
   final ValueNotifier<SaveState> saveState = ValueNotifier<SaveState>(
     SaveState.idle,
   );
 
-  /// Dirty State Tracking
   String? _lastEditorSignature;
 
-  /// Sets the initial baseline for comparison so hasPendingChanges accurately detects modifications.
   void setInitialSignature(String title, Document document) {
     _lastEditorSignature = _editorSignature(title, document);
   }
 
-  /// Generates a unique signature of the editor state for comparison.
   String _editorSignature(String title, Document document) {
     return '${title.trim()}\n${jsonEncode(document.toDelta().toJson())}';
   }
@@ -40,12 +37,10 @@ class NoteDataController {
     return _lastEditorSignature == _editorSignature(title, document);
   }
 
-  /// Exposes state checking for the UI back-navigation guard
   bool hasPendingChanges(String title, Document document) {
     return !_isStateUnchanged(title, document);
   }
 
-  /// Called whenever editor content changes. Uses a Bouncer Pattern.
   void handleEditorChanged({
     required String title,
     required Document document,
@@ -57,7 +52,6 @@ class NoteDataController {
     );
   }
 
-  /// Saves note to repository with a "latest-wins" strategy.
   Future<void> saveNote({
     required String title,
     required Document document,
@@ -66,13 +60,10 @@ class NoteDataController {
     _autosaveDebounce?.cancel();
     final plainText = document.toPlainText().trim();
 
-    // ⚡ Ghost Wipe Guard: If it's a completely new blank draft, don't write anything.
-    // If noteId is NOT null, it allows the user to intentionally clear an existing note!
     if (noteId == null && title.isEmpty && plainText.isEmpty) {
       return;
     }
 
-    // Skip redundant operations
     if (_isSaving || _isStateUnchanged(title, document)) {
       return;
     }
@@ -84,7 +75,6 @@ class NoteDataController {
 
       final resolvedTitle = title.isEmpty ? 'Untitled note' : title;
 
-      // Note: If noteId != null and fields are empty, this correctly saves empty values to Hive.
       final saved = await noteRepository.saveNote(
         noteId: noteId,
         title: resolvedTitle,
@@ -119,7 +109,6 @@ class NoteDataController {
     }
   }
 
-  /// Executed ONLY during manual back-navigation to destroy abandoned empty drafts.
   Future<void> saveAndCleanupOnClose({
     required String title,
     required Document document,
@@ -127,7 +116,6 @@ class NoteDataController {
     final plainText = document.toPlainText().trim();
     final cleanTitle = title.trim();
 
-    // Clean up empty drafts permanently from the database
     if ((cleanTitle.isEmpty || cleanTitle == 'Untitled note') &&
         plainText.isEmpty) {
       if (noteId != null) {

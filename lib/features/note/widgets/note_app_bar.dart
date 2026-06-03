@@ -1,19 +1,15 @@
+// Note app bar groups editor actions and read-only handling.
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/features/note/services/note_document_service.dart';
+import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 
-/// AppBar for NotePage
-///
-/// RESPONSIBILITIES:
-/// - Display title
-/// - Provide edit mode toggle
-/// - Expose undo/redo actions
+// Note app bar contains editor actions and read-only state handling.
 class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {
   const NoteAppBar({
     super.key,
@@ -54,7 +50,6 @@ class _NoteAppBarState extends State<NoteAppBar> {
     super.dispose();
   }
 
-  /// Helper to encapsulate menu logic and avoid repeating the 'isNotEmpty' check
   MenuItemButton _buildPdfMenuItem({
     required String label,
     required Future<void> Function(String, dynamic) action,
@@ -85,7 +80,6 @@ class _NoteAppBarState extends State<NoteAppBar> {
     );
   }
 
-  /// Helper to build the undo/redo row
   Widget _buildHistoryControls() {
     return ListenableBuilder(
       listenable: widget.contentController,

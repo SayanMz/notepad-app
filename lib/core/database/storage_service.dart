@@ -1,26 +1,22 @@
+// Central Hive storage helpers keep encryption, maintenance, and backups consistent.
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/services/secure_key_vault_service.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/services/security_key_vault_service.dart';
 
-/// ------------------------------------------------------------
-/// STORAGE SERVICE (Persistence Gateway)
-/// Handles all Hive I/O and Isolate-based JSON processing.
-/// ------------------------------------------------------------
 const String _notesBoxName = 'notes_box';
 const String _settingsBoxName = 'settings_box';
 const String _settingsKey = 'current_settings';
 Box<NotesSection> get _notesBox => Hive.box<NotesSection>(_notesBoxName);
 Box<AppSettings> get _settingsBox => Hive.box<AppSettings>(_settingsBoxName);
 
+// Open both boxes with the same encryption key so reads stay consistent across launches.
 Future<void> initializeEncryptedStorage() async {
   try {
-    // 1. Fetch secure key from Android Keystore / iOS Keychain
     final List<int> encryptionKey =
         await SecureKeyVaultService.getOrCreateEncryptionKey();
 
-    // 2. Open the boxes using an AES-256 Encryption Cipher block
     await Hive.openBox<NotesSection>(
       _notesBoxName,
       encryptionCipher: HiveAesCipher(encryptionKey),
@@ -40,8 +36,8 @@ Future<void> initializeEncryptedStorage() async {
   }
 }
 
-// --- SAFETY CHECKS ---
 void _ensureNotesBoxReady() {
+  // Guard all callers because Hive throws late and the failure is easier to diagnose here.
   if (!Hive.isBoxOpen(_notesBoxName)) {
     debugPrint(
       'StorageService Error: Attempted to access Notes box before initialization.',
@@ -51,6 +47,7 @@ void _ensureNotesBoxReady() {
 }
 
 void _ensureSettingsBoxReady() {
+  // Settings reads depend on startup having completed successfully.
   if (!Hive.isBoxOpen(_settingsBoxName)) {
     debugPrint(
       'StorageService Error: Attempted to access Settings box before initialization.',
@@ -59,15 +56,12 @@ void _ensureSettingsBoxReady() {
   }
 }
 
-/// Performs maintenance on the Hive boxes to reclaim disk space.
-/// Conceptually similar to 'defragmenting' a drive.
 Future<void> performMaintenance() async {
   try {
+    // Compact the notes box only after startup has confirmed it is open.
     _ensureNotesBoxReady();
 
-    // Only compact if the 'deleted' or 'overwritten' data
-    // takes up more than 30% of the total file size.
-    await _notesBox.compact(); // 👈 The Garbage Collector!
+    await _notesBox.compact();
 
     debugPrint('StorageService: Notes box compaction complete.');
   } catch (e) {
@@ -75,13 +69,11 @@ Future<void> performMaintenance() async {
   }
 }
 
-// --- BACKGROUND ISOLATE HELPERS ---
 String _serializeNotesTask(List<NotesSection> notes) {
   try {
     final data = notes.map((n) => n.toJson()).toList();
     return jsonEncode(data);
   } catch (e) {
-    // Catches formatting errors within the background isolate
     throw FormatException('Failed to serialize notes: $e');
   }
 }
@@ -91,16 +83,13 @@ List<NotesSection> _parseNotesTask(String jsonString) {
     final List<dynamic> jsonList = jsonDecode(jsonString);
     return jsonList.map((json) => NotesSection.fromJson(json)).toList();
   } catch (e) {
-    // Catches malformed JSON or corrupted backup files
     throw FormatException('Failed to parse backup JSON: $e');
   }
 }
 
-// --- CLOUD EXPORT / IMPORT ---
 Future<String> exportNotesToJSON(List<NotesSection> notes) async {
   try {
-    // If under 200 notes, parse instantly on the main thread.
-    // If massive, pay the 20ms spawn tax to protect the UI frame rate.
+    // Small exports stay on the UI isolate; larger ones move off-thread.
     if (notes.length < 200) {
       return _serializeNotesTask(notes);
     } else {
@@ -114,26 +103,27 @@ Future<String> exportNotesToJSON(List<NotesSection> notes) async {
 
 Future<List<NotesSection>> importNotesFromJSON(String jsonString) async {
   try {
+    // Import is always offloaded because malformed backups can be expensive to parse.
     return await compute(_parseNotesTask, jsonString);
   } catch (e) {
     debugPrint('StorageService Isolate Error (Import): $e');
-    rethrow; // Let the repository handle the UI feedback
+    rethrow;
   }
 }
 
-// --- NOTES CRUD OPERATIONS ---
 bool get isNotesStorageEmpty {
   try {
     _ensureNotesBoxReady();
     return _notesBox.isEmpty;
   } catch (e) {
     debugPrint('StorageService Error (isNotesStorageEmpty): $e');
-    return true; // Safe fallback
+    return true;
   }
 }
 
 List<NotesSection> loadAllNotes() {
   try {
+    // On read failure we fall back to an empty list so startup can continue.
     _ensureNotesBoxReady();
     return _notesBox.values.toList();
   } catch (e) {
@@ -161,7 +151,6 @@ Future<void> saveNote(NotesSection note) async {
     _ensureNotesBoxReady();
     await _notesBox.put(note.id, note);
   } catch (e) {
-    // Typical failure point for "Disk Full" scenarios
     debugPrint(
       'StorageService Error (saveNote): Failed to persist note ${note.id}. $e',
     );
@@ -193,7 +182,6 @@ Future<void> deleteNotesBulk(Set<String> ids) async {
   if (ids.isEmpty) return;
   try {
     _ensureNotesBoxReady();
-    // This is the massive O(1) disk optimization the PDF recommends
     await _notesBox.deleteAll(ids);
   } catch (e) {
     debugPrint(
@@ -215,27 +203,26 @@ Future<void> clearAllNotes() async {
   }
 }
 
-// --- SETTINGS CRUD OPERATIONS ---
 AppSettings loadSettings() {
   try {
-    _ensureSettingsBoxReady(); //
+    _ensureSettingsBoxReady();
 
-    final cachedSettings = _settingsBox.get(_settingsKey); //
+    final cachedSettings = _settingsBox.get(_settingsKey);
 
     if (cachedSettings == null) {
+      // Missing settings is treated as a first-run state rather than an error.
       debugPrint(
         'StorageService: No configuration found on disk. Initializing default AppSettings.',
       );
-      return const AppSettings(); // Falls back to default values (including seedVersion = -1)
+      return const AppSettings();
     }
 
     return cachedSettings;
   } catch (e) {
-    // This ONLY runs if the database file is physically broken or corrupted!
     debugPrint(
       'StorageService CRITICAL Error (loadSettings): Disk read failed! $e',
     );
-    return const AppSettings(); //
+    return const AppSettings();
   }
 }
 

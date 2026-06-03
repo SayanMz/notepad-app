@@ -15,16 +15,15 @@ class _SpinningSyncIconState extends State<SpinningSyncIcon>
   @override
   void initState() {
     super.initState();
-    // Controls the speed of the spin. Smaller duration = faster spin!
     _controller = AnimationController(
       duration: AnimationConstants.snackbarShort,
       vsync: this,
-    )..repeat(); // The .repeat() makes it loop infinitely
+    )..repeat();
   }
 
   @override
   void dispose() {
-    _controller.dispose(); // Always dispose controllers to prevent memory leaks
+    _controller.dispose();
     super.dispose();
   }
 
@@ -35,7 +34,7 @@ class _SpinningSyncIconState extends State<SpinningSyncIcon>
         turns: _controller,
         child: const Icon(
           Icons.sync,
-          color: Colors.lightBlueAccent, // Matches your progress bar color
+          color: Colors.lightBlueAccent,
         ),
       ),
     );

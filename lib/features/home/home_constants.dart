@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class HomeConstants {
   HomeConstants._();
 
-  // Drawer shell
   static const double drawerMarginTop = 90.0;
   static const double drawerMarginRight = 16.0;
   static const double drawerBorderRadius = 24.0;
@@ -23,7 +22,6 @@ class HomeConstants {
   static const double drawerActionsPaddingH = 12.0;
   static const double drawerActionRadius = 16.0;
 
-  // App bar
   static const Color appBarSurfaceTint = Color(0xFFB8E6DD);
   static const double appBarOverscrollThreshold = 15.0;
   static const double appBarScrolledUnderElevation = 1.5;
@@ -32,7 +30,6 @@ class HomeConstants {
   static const double appBarExpandedBottomPadding = 56.0;
   static const double appBarCompactIconSpacing = 8.0;
 
-  // Floating action button
   static const double fabExpandedWidth = 145.0;
   static const double fabCollapsedWidth = 60.0;
   static const double fabHeight = 60.0;
@@ -46,7 +43,6 @@ class HomeConstants {
   static const double fabTextSpacing = 12.0;
   static const double fabTextFontSize = 15.0;
 
-  // Selection overlay
   static const double selectionOverlayPaddingL = 16.0;
   static const double selectionOverlayPaddingR = 16.0;
   static const double selectionOverlayPaddingB = 24.0;
@@ -60,7 +56,6 @@ class HomeConstants {
   static const double selectionOverlayLightAlpha = 0.35;
   static const double selectionOverlayShadowAlpha = 0.15;
 
-  // Storage progress
   static const double storageProgressHeight = 32.0;
   static const double storageProgressMinIndicator = 0.01;
   static const double storageProgressBorderWidth = 3.0;
@@ -68,7 +63,6 @@ class HomeConstants {
   static const double storageProgressInnerPadding = 4.0;
   static const double storageProgressInnerInset = 8.0;
 
-  // Home shell behavior
   static const double homeScrollCacheExtent = 400.0;
   static const double homeFABExpanded = 130.0;
   static const double homeSelectionExpanded = 140.0;

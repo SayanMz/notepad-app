@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/features/home/home_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 
 class StorageProgressBar extends StatelessWidget {
@@ -20,8 +20,8 @@ class StorageProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = context.isDark;
     final colorScheme = context.colorScheme;
-    final double effectiveProgress = (progress > 0 &&
-            progress < HomeConstants.storageProgressMinIndicator)
+    final double effectiveProgress =
+        (progress > 0 && progress < HomeConstants.storageProgressMinIndicator)
         ? HomeConstants.storageProgressMinIndicator
         : progress;
     return Container(
@@ -36,7 +36,6 @@ class StorageProgressBar extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(height / 2),
       ),
-      // The foolproof way: FractionalBox WITH a direct alignment anchor
       child: RepaintBoundary(
         child: TweenAnimationBuilder<double>(
           tween: Tween<double>(begin: 0.0, end: effectiveProgress),
@@ -47,7 +46,6 @@ class StorageProgressBar extends StatelessWidget {
               alignment: Alignment.centerLeft,
               widthFactor: value.clamp(0.0, 1.0),
               child: Container(
-                // Regular container is fine here because Tween handles the math
                 decoration: BoxDecoration(
                   color: progress > 0.9
                       ? Colors.redAccent

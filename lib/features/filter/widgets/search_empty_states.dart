@@ -1,6 +1,8 @@
+// Empty search states explain whether the user has searched yet or just found no match.
 import 'package:flutter/material.dart';
 import 'package:notepad/features/filter/search_constants.dart';
 
+// Empty search states explain whether the query matched nothing or has not run yet.
 class SearchInitialState extends StatelessWidget {
   const SearchInitialState({super.key});
 
@@ -33,7 +35,6 @@ class SearchEmptyState extends StatelessWidget {
   }
 }
 
-/// Empty-state card shown when no notes match the search.
 class SearchMessage extends StatelessWidget {
   const SearchMessage({
     required this.title,
@@ -51,32 +52,32 @@ class SearchMessage extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: SearchConstants.emptyHorizontalPadding, //
+          horizontal: SearchConstants.emptyHorizontalPadding,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: SearchConstants.emptyIconSize, //
-              color: Colors.grey[500], //
+              size: SearchConstants.emptyIconSize,
+              color: Colors.grey[500],
             ),
-            const SizedBox(height: SearchConstants.emptyTitleGap), //
+            const SizedBox(height: SearchConstants.emptyTitleGap),
             FittedBox(
               child: Text(
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: SearchConstants.emptyTitleFontSize, //
-                  fontWeight: FontWeight.w600, //
+                  fontSize: SearchConstants.emptyTitleFontSize,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const SizedBox(height: SearchConstants.emptySubtitleGap), //
+            const SizedBox(height: SearchConstants.emptySubtitleGap),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]), //
+              style: TextStyle(color: Colors.grey[600]),
             ),
           ],
         ),
@@ -84,3 +85,4 @@ class SearchMessage extends StatelessWidget {
     );
   }
 }
+

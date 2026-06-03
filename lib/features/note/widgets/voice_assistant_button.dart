@@ -4,9 +4,8 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
-// ⚡ IMPORT THE EXACT SATELLITE CONTROLLERS
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 
 class VoiceAssistantButton extends StatefulWidget {
@@ -34,7 +33,6 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
   @override
   void initState() {
     super.initState();
-    // ⚡ Child directly listens to its controller's niche data stream!
     widget.voiceController.isProcessingVoice.addListener(_handleLottieState);
   }
 
@@ -59,7 +57,6 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      // ⚡ Merging the explicit controller streams directly inside the child!
       listenable: Listenable.merge([
         widget.voiceController.isListening,
         widget.voiceController.isProcessingVoice,
@@ -117,21 +114,15 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                           )
                         else if (isPressed)
                           BoxShadow(
-                            // ⚡ Crisp radiant white glow for dark mode, subtle clean drop for light mode
                             color: isDark
-                                ? Colors.white.withValues(
-                                    alpha: 0.65,
-                                  ) // High opacity makes it look like it's emitting light
-                                : Colors.black.withValues(
-                                    alpha: 0.15,
-                                  ), // Clean depth for light mode
+                                ? Colors.white.withValues(alpha: 0.65)
+                                : Colors.black.withValues(alpha: 0.15),
                             blurRadius: isDark
-                                ? UIConstants.voiceButtonPressedShadowBlur +
-                                      6.0 // Extra blur softens the neon edge
+                                ? UIConstants.voiceButtonPressedShadowBlur + 6.0
                                 : UIConstants.voiceButtonPressedShadowBlur,
                             spreadRadius: isDark
                                 ? UIConstants.voiceButtonPressedShadowSpread +
-                                      2.0 // Extra spread pushes the light outward
+                                      2.0
                                 : UIConstants.voiceButtonPressedShadowSpread,
                           ),
                       ],

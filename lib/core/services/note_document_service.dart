@@ -1,13 +1,14 @@
+// Document service converts stored note content into editor-ready documents.
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
-import 'package:notepad/core/data/app_data.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/note/services/document_delta_parser.dart'
     as doc_delta;
-import 'package:notepad/features/note/services/note_html_exporter.dart';
+import 'package:notepad/features/home/services/note_html_exporter.dart';
 import 'package:notepad/features/note/services/note_pdf_exporter.dart';
 
-/// Handles converting notes to PDF/HTML, sharing, and file exports.
+// Converts stored note content into the document shapes the editor needs.
 class NoteDocumentService {
   static pw.Document buildPdfDocument({
     required String title,

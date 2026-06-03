@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' hide SelectionOverlay;
 import 'package:flutter/services.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';

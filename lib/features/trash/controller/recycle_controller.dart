@@ -1,18 +1,17 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/data/notes_repository.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/database/notes_repository.dart';
 
+// Recycle controller isolates deleted-note actions from the page widget.
 class RecycleController extends ChangeNotifier {
   final NoteRepository noteRepository;
 
   RecycleController({required this.noteRepository}) {
-    // Forward repository updates to the UI
     noteRepository.deletedRevision.addListener(_proxyListener);
   }
 
   void _proxyListener() {
-    // Any change in the repo triggers a rebuild for whoever is listening to this controller
     notifyListeners();
   }
 

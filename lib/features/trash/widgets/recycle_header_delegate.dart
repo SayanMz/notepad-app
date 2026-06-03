@@ -1,8 +1,10 @@
+// Sliver header delegate pins the recycle bin title during scroll.
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
+// Sliver header delegate keeps the recycle bin title pinned during scroll.
 class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String title;
   final bool isDark;
@@ -46,16 +48,15 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
       color: isOverlapping
           ? (isDark
                 ? const Color(0xFF2C2C2C)
-                : const Color(0xFFF3F3F3)) // Perfect background tint shift
+                : const Color(0xFFF3F3F3))
           : Theme.of(context).scaffoldBackgroundColor,
       elevation: isOverlapping ? 4.0 : 0.0,
       animationDuration: const Duration(milliseconds: 200),
-      // ⚡ FIX: Dark mode casts a heavy black shadow; Light mode casts a soft charcoal shadow
       shadowColor: isDark
-          ? const Color(0xFF000000).withValues(alpha: 0.65) // Deep contrast ink
+          ? const Color(0xFF000000).withValues(alpha: 0.65)
           : const Color(
               0xFF2C2C2C,
-            ).withValues(alpha: 0.15), // Soft, natural depth
+            ).withValues(alpha: 0.15),
       child: SafeArea(
         bottom: false,
         child: Stack(
@@ -104,3 +105,4 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.forceCentered != forceCentered;
   }
 }
+

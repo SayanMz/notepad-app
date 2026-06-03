@@ -1,7 +1,7 @@
+// Shared animation timings used to keep motion consistent across the app.
 class AnimationConstants {
   AnimationConstants._();
 
-  // Core motion timings
   static const Duration fast = Duration(milliseconds: 200);
   static const Duration medium = Duration(milliseconds: 300);
   static const Duration slow = Duration(milliseconds: 400);
@@ -15,7 +15,6 @@ class AnimationConstants {
   static const Duration extraLong = Duration(milliseconds: 800);
   static const Duration verySlow = Duration(milliseconds: 1200);
 
-  // Shared delays and timeouts
   static const Duration debounceStandard = Duration(milliseconds: 300);
   static const Duration saveIndicator = Duration(seconds: 3);
   static const Duration snackbarShort = Duration(seconds: 2);

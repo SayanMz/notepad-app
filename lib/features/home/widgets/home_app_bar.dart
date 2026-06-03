@@ -1,16 +1,18 @@
+// Home app bar keeps list actions and search entry points in one place.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/core/services/context_extensions.dart';
-import 'package:notepad/core/services/scaffold_messenger_notifier.dart';
-import 'package:notepad/core/services/theme_fader.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/filter/search_page.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/home/services/app_router.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
 
+// App bar actions stay here so the home layout can stay focused on content.
 class HomeAppBar extends StatelessWidget {
   const HomeAppBar({super.key, required this.onOpenDrawer});
   final VoidCallback onOpenDrawer;
@@ -22,8 +24,7 @@ class HomeAppBar extends StatelessWidget {
 
     return SliverAppBar(
       floating: true,
-      stretch:
-          true, // ⚡ This allows the overscroll bounce to physically stretch the height
+      stretch: true,
       automaticallyImplyLeading: false,
       actions: const [SizedBox.shrink()],
       scrolledUnderElevation: HomeConstants.appBarScrolledUnderElevation,
@@ -36,35 +37,27 @@ class HomeAppBar extends StatelessWidget {
           final topPadding = context.topPadding;
           final standardHeight = kToolbarHeight + topPadding;
 
-          // 1. Calculate how many pixels we've pulled past the normal resting height
           final double overscrollDelta = constraints.maxHeight - standardHeight;
 
-          // 2. Calculate the base stretch fraction (0.0 to 1.0)
           final double stretchProgress =
               (overscrollDelta / HomeConstants.appBarOverscrollThreshold).clamp(
                 0.0,
                 1.0,
               );
 
-          // 3. ⚡ STAGGER THE OPACITIES SO THEY NEVER OVERLAP
-          // Toolbar fades out completely in the first half of the pull (stretchProgress from 0.0 -> 0.5)
           final double toolbarOpacity = (1.0 - (stretchProgress * 2.0)).clamp(
             0.0,
             1.0,
           );
-          // Large title fades in only during the second half of the pull (stretchProgress from 0.5 -> 1.0)
           final double largeTitleOpacity = ((stretchProgress - 0.5) * 2.0)
               .clamp(0.0, 1.0);
 
           return Stack(
             children: [
-              // --- STANDARD TOOLBAR ---
               Opacity(
-                opacity: toolbarOpacity, // ⚡ Uses the staggered toolbar phase
+                opacity: toolbarOpacity,
                 child: IgnorePointer(
-                  ignoring:
-                      toolbarOpacity ==
-                      0.0, // Disables touches when fully hidden
+                  ignoring: toolbarOpacity == 0.0,
                   child: SizedBox(
                     height: kToolbarHeight,
                     child: Row(
@@ -149,13 +142,10 @@ class HomeAppBar extends StatelessWidget {
                 ),
               ),
 
-              // --- HIDDEN LARGE TITLE ---
               Opacity(
                 opacity: largeTitleOpacity,
                 child: IgnorePointer(
-                  ignoring:
-                      largeTitleOpacity ==
-                      0.0, // Disables touches when fully hidden
+                  ignoring: largeTitleOpacity == 0.0,
                   child: SafeArea(
                     child: Container(
                       alignment: Alignment.bottomCenter,

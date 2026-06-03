@@ -1,7 +1,8 @@
+// Search results panel keeps summary, filters, and list presentation aligned.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:notepad/core/data/app_data.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/filter/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/filter/models/search_date_selection.dart';
@@ -11,6 +12,7 @@ import 'package:notepad/features/filter/services/smooth_slide_fade.dart';
 import 'package:notepad/features/filter/widgets/search_results_list.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
+// Results panel coordinates the summary, filters, and searchable list sections.
 class SearchResultsPanel extends StatelessWidget {
   const SearchResultsPanel({
     required this.controller,
@@ -75,8 +77,6 @@ class SearchResultsPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. The Quick Chips Section
-        // Merges the scroll visibility (showChips) and filter states (controller)
         ListenableBuilder(
           listenable: Listenable.merge([showChips, controller]),
           builder: (context, _) {
@@ -91,8 +91,6 @@ class SearchResultsPanel extends StatelessWidget {
           },
         ),
 
-        // 2. The Search Results & Metadata Section
-        // Isolates the heavy list building from the chip animations above
         Expanded(
           child: ListenableBuilder(
             listenable: controller,
@@ -158,7 +156,6 @@ class SearchResultsPanel extends StatelessWidget {
   }
 
   Widget _buildChipsSection(BuildContext context) {
-    // We calculate activity states once per build cycle of this section
     final is1DayActive = _isQuickChipActive(controller.filters, 1);
     final is7DaysActive = _isQuickChipActive(controller.filters, 7);
     final is30DaysActive = _isQuickChipActive(controller.filters, 30);
@@ -233,7 +230,6 @@ class SearchResultsPanel extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          // Make text bold or change color when selected
           color: isSelected ? colorScheme.onPrimaryContainer : null,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),

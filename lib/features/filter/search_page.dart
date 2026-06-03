@@ -1,7 +1,8 @@
+// Search page keeps results, filter controls, and empty states together.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/widgets/scroll_to_top_fab.dart';
 import 'package:notepad/features/filter/controllers/search_controller.dart'
     as search_ctrl;
@@ -28,7 +29,6 @@ class _SearchPageState extends State<SearchPage> {
 
   final ValueNotifier<bool> _showHeaders = ValueNotifier(true);
 
-  // ⚡ State controllers for the scroll-to-top FAB tracking mechanics
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<bool> _showScrollToTopBtn = ValueNotifier<bool>(false);
 
@@ -47,8 +47,8 @@ class _SearchPageState extends State<SearchPage> {
     _searchFocusNode.dispose();
     _searchController.dispose();
     _showHeaders.dispose();
-    _scrollController.dispose(); // ⚡ Clean up scroll stream references
-    _showScrollToTopBtn.dispose(); // ⚡ Clean up notifier listeners
+    _scrollController.dispose();
+    _showScrollToTopBtn.dispose();
     super.dispose();
   }
 
@@ -56,23 +56,18 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        // ⚡ UPGRADED: Unified listener to handle pixel counts and directions together
         child: NotificationListener<ScrollNotification>(
           onNotification: (ScrollNotification notification) {
-            // 1. Handle card internal scrolling interaction (Depth == 1)
             if (notification.depth == 1) {
               return true;
             }
 
-            // 2. Handle app main window scrolling (Depth == 0)
             if (notification.depth == 0) {
-              // A) Real-time pixel tracking for the Scroll-To-Top FAB
               final shouldShow = notification.metrics.pixels > 200.0;
               if (_showScrollToTopBtn.value != shouldShow) {
                 _showScrollToTopBtn.value = shouldShow;
               }
 
-              // B) User dynamic velocity tracking for hiding/showing search headers
               if (notification is UserScrollNotification) {
                 if (notification.direction == ScrollDirection.reverse) {
                   _showHeaders.value = false;
@@ -85,7 +80,6 @@ class _SearchPageState extends State<SearchPage> {
           },
           child: Stack(
             children: [
-              // LAYER 1: Main Viewport Content Layout Pipeline
               Column(
                 children: [
                   ValueListenableBuilder<bool>(
@@ -148,8 +142,7 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                   ),
                 ],
-              ), // ⚡ FIX: Closed Column layout boundary here to separate UI layers
-              // LAYER 2: Isolated High-Performance Floating Action Button
+              ),
               ListenableBuilder(
                 listenable: _searchController,
                 builder: (context, _) {
@@ -157,11 +150,9 @@ class _SearchPageState extends State<SearchPage> {
                     scrollController: _scrollController,
                     showScrollToTopBtn: _showScrollToTopBtn,
                     heroTag: 'scrollToTopSearch',
-                    additionalCondition: _searchController
-                        .hasAnyCriteria, // ⚡ Fixed property accessor
+                    additionalCondition: _searchController.hasAnyCriteria,
                     onPressed: () {
-                      _showHeaders.value =
-                          true; // Bring back headers when resetting view frame
+                      _showHeaders.value = true;
                     },
                   );
                 },
@@ -294,7 +285,7 @@ class _SearchPageState extends State<SearchPage> {
         return Align(
           alignment: Alignment.bottomCenter,
           child: Padding(
-            padding: EdgeInsets.only(bottom: bottomInset), // Apply inset here
+            padding: EdgeInsets.only(bottom: bottomInset),
             child: SafeArea(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(

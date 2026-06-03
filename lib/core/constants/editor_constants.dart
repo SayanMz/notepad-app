@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+// Editor sizing and thresholds live here so toolbar and note views stay aligned.
 class EditorConstants {
   EditorConstants._();
 
-  // Selection toolbar
   static const double toolbarHeight = 56.0;
   static const double toolbarCheckboxWidth = 32.0;
   static const double toolbarCheckboxRadius = 4.0;
@@ -17,7 +17,6 @@ class EditorConstants {
   static const double toolbarColorCircleBorderWidth = 2.0;
   static const double toolbarMenuWidth = 190.0;
 
-  // Premium color picker
   static const double pickerWidthFactor = 0.85;
   static const double pickerMinWidth = 280.0;
   static const double pickerMaxWidth = 360.0;
@@ -45,7 +44,6 @@ class EditorConstants {
   static const int pickerRecentPhoneCount = 6;
   static const Color pickerApplyColor = Color(0xFF2C9C8D);
 
-  // Snackbar action chip
   static const double snackbarActionRadius = 20.0;
   static const double snackbarActionPaddingH = 14.0;
   static const double snackbarActionPaddingV = 8.0;

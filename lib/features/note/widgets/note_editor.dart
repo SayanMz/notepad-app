@@ -1,16 +1,18 @@
+// The editor wraps the Quill surface and its layout constraints.
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:notepad/core/services/context_extensions.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+// The editor view wraps the Quill surface and its layout constraints.
 class NoteEditor extends StatefulWidget {
   const NoteEditor({
     super.key,
     required this.controller,
     required this.focusNode,
-    this.scrollController, // ⚡ FIX: Made optional!
+    this.scrollController,
     this.scrollable = true,
     this.expands = true,
     this.showCursor = true,
@@ -18,7 +20,7 @@ class NoteEditor extends StatefulWidget {
 
   final QuillController controller;
   final FocusNode focusNode;
-  final ScrollController? scrollController; // ⚡ Optional reference
+  final ScrollController? scrollController;
   final bool scrollable;
   final bool expands;
   final bool showCursor;
@@ -29,10 +31,8 @@ class NoteEditor extends StatefulWidget {
 
 class _NoteEditorState extends State<NoteEditor> {
   bool get isDark => context.isDark;
-  // ⚡ Internal standalone backup controller for normal editing mode
   ScrollController? _internalScrollController;
 
-  // Helper getter to determine which controller has execution authority
   ScrollController get _effectiveScrollController {
     return widget.scrollController ??
         (_internalScrollController ??= ScrollController());
@@ -42,12 +42,7 @@ class _NoteEditorState extends State<NoteEditor> {
     fontSize: NoteConstants.editorFontSize,
     fontWeight: FontWeight.w400,
     height: NoteConstants.editorLineHeight,
-    color: isDark
-        ? const Color(
-            0xFF94A3B8,
-          ) // ⚡ Premium, comfortable dark mode secondary text
-        : NoteConstants
-              .editorTextColor, // ☀️ Keeps your crisp light mode text color
+    color: isDark ? const Color(0xFF94A3B8) : NoteConstants.editorTextColor,
   );
 
   @override

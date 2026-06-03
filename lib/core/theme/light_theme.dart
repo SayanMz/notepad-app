@@ -2,26 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'app_colors.dart';
 
-/// ---------------------------------------------------------------------------
-/// LIGHT THEME DEFINITION
-/// ---------------------------------------------------------------------------
-///
-/// DESIGN GOALS:
-/// - Clean, minimal, soft UI
-/// - Teal-based branding
-/// - Subtle elevation and borders for structure
 
 class LightTheme {
   static final ThemeData theme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
 
-    /// Global shadow styling
     shadowColor: AppColors.tealDark.withValues(
       alpha: UIConstants.themeShadowAlpha,
     ),
 
-    /// Text selection (cursor + highlight)
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: AppColors.teal,
       selectionColor: AppColors.teal.withValues(
@@ -30,7 +20,6 @@ class LightTheme {
       selectionHandleColor: AppColors.teal,
     ),
 
-    /// Input field styling
     inputDecorationTheme: InputDecorationTheme(
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(UIConstants.themeInputRadius),
@@ -41,16 +30,13 @@ class LightTheme {
       ),
     ),
 
-    /// Background
     scaffoldBackgroundColor: AppColors.lightScaffold,
 
-    /// AppBar
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.lightAppBar,
       foregroundColor: Colors.black,
     ),
 
-    /// Material 3 Color System
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.teal,
       brightness: Brightness.light,
@@ -58,7 +44,6 @@ class LightTheme {
       surface: Colors.white,
     ),
 
-    /// Cards
     cardTheme: CardThemeData(
       color: Colors.white,
       elevation: 0,
@@ -71,7 +56,6 @@ class LightTheme {
       ),
     ),
 
-    /// Floating Action Button
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: AppColors.tealDark,
       foregroundColor: Colors.white,
@@ -79,7 +63,6 @@ class LightTheme {
       highlightElevation: UIConstants.themeFabHighlightElevation,
     ),
 
-    /// SnackBars
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: AppColors.lightSnackBar,
