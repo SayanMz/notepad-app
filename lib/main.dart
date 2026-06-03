@@ -1,176 +1,107 @@
 import 'dart:async';
-
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/data/app_settings_repository.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
+import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
+import 'package:notepad/core/bootstrap/bootstrap_app.dart';
+import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:notepad/core/data/app_data.dart';
 import 'package:notepad/features/home/home_page.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-/// ---------------------------------------------------------------------------
-/// GLOBAL APPLICATION UTILITIES
-/// ---------------------------------------------------------------------------
-
-/// Global key to access the ScaffoldMessenger from anywhere in the app.
-///
-/// WHY THIS EXISTS:
-/// - Enables showing SnackBars from non-UI layers (repositories/services)
-///   without needing a BuildContext.
-/// - Common use case: Undo actions, error messages, confirmations.
-///
-/// ARCHITECTURAL NOTE:
-/// - This introduces a controlled global dependency for UI feedback.
-/// - Acceptable for cross-cutting concerns, but should be used sparingly.
-
-final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-
-Timer? _rootSnackBarTimer;
-
-/// Shows a snackbar through the app-wide messenger and resets any pending hide timer.
-void showRootSnackBar(
-  SnackBar snackBar, {
-  Duration? autoHideAfter,
-}) {
-  final messenger = rootScaffoldMessengerKey.currentState;
-  if (messenger == null) return;
-
-  _rootSnackBarTimer?.cancel();
-  messenger.clearSnackBars();
-  messenger.showSnackBar(snackBar);
-
-  if (autoHideAfter != null) {
-    _rootSnackBarTimer = Timer(autoHideAfter, () {
-      messenger.hideCurrentSnackBar();
-    });
-  }
-}
-
-/// ---------------------------------------------------------------------------
-/// APPLICATION ENTRY POINT
-/// ---------------------------------------------------------------------------
-
+// App startup wires global error handling, storage init, and theme bootstrapping.
 Future<void> main() async {
-  /// Bootstraps the Flutter application.
-  WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  Hive.registerAdapter(NotesSectionAdapter());
-  Hive.registerAdapter(AppSettingsAdapter());
+      if (!kIsWeb) {
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
 
-  await Hive.openBox<NotesSection>('notes_box');
-  await Hive.openBox<AppSettings>('settings_box');
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
 
-  /// This is the first executed function and injects the root widget.
-  await Future.wait([
-    noteRepository.init(), // Handles seed notes + loading
-    appSettingsRepository.load(), // Ensures dark/light mode is ready
-  ]);
-  runApp(const MyApp());
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        debugPrint('Flutter error: ${details.exceptionAsString()}');
+        if (details.stack != null) {
+          debugPrintStack(stackTrace: details.stack);
+        }
+      };
+
+      PlatformDispatcher.instance.onError = (error, stack) {
+        debugPrint('Platform error: $error');
+        debugPrintStack(stackTrace: stack);
+        return true;
+      };
+
+      debugPrint('Starting Notepad bootstrap...');
+
+      final bootstrapper = AppBootstrapper(
+        noteRepository: noteRepository,
+        appSettingsRepository: appSettingsRepository,
+      );
+
+      runApp(
+        BootstrapApp(
+          bootstrapper: bootstrapper.initialize,
+          child: const MyApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      debugPrint('Fatal startup error: $error');
+      debugPrintStack(stackTrace: stack);
+    },
+  );
 }
 
-/// ---------------------------------------------------------------------------
-/// ROOT APPLICATION WIDGET
-/// ---------------------------------------------------------------------------
-
-/// Root widget of the application.
-///
-/// WHY StatefulWidget:
-/// - Handles asynchronous initialization (loading persisted data)
-/// - Triggers UI rebuild once data is ready
-///
-/// RESPONSIBILITIES:
-/// - App lifecycle initialization
-/// - Global configuration (themes, localization, routing)
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    /// -----------------------------------------------------------------------
-    /// REACTIVE ROOT USING LISTENABLE BUILDER
-    /// -----------------------------------------------------------------------
-    ///
-    /// WHY:
-    /// - Listens to appSettingsRepository (ChangeNotifier)
-    /// - Automatically rebuilds when user toggles dark mode
-    ///
-    /// BENEFIT:
-    /// - Instant theme switching without app restart
-    /// - Efficient rebuild (only MaterialApp subtree)
     return ListenableBuilder(
       listenable: appSettingsRepository,
-      builder: (context, child) {
-        return MaterialApp(
-          /// App title (used by OS/task switchers)
-          title: 'My Notepad',
-          supportedLocales: const [Locale('en')],
-
-          /// Theme configuration
-          ///
-          /// NOTE:
-          /// - Themes are now modularized under /theme/
-          /// - Improves maintainability and scalability
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-
-          /// Dynamically selects theme based on user preference
-          themeMode: appSettingsRepository.settings.isDarkMode
-              ? ThemeMode.dark
-              : ThemeMode.light,
-
-          /// Removes debug banner in development
-          debugShowCheckedModeBanner: false,
-
-          /// Root page of the application
-          home: const HomePage(),
-
-          /// Global ScaffoldMessenger for SnackBars
-          ///
-          /// Enables:
-          /// - Undo actions
-          /// - Error notifications
-          /// - Cross-layer UI messaging
-          scaffoldMessengerKey: rootScaffoldMessengerKey,
-
-          /// -----------------------------------------------------------------
-          /// LOCALIZATION CONFIGURATION
-          /// -----------------------------------------------------------------
-          ///
-          /// REQUIRED FOR:
-          /// - flutter_quill (rich text editor)
-          /// - Proper formatting of toolbars, menus, clipboard actions
-          ///
-          /// ALSO ENABLES:
-          /// - Internationalization support (i18n)
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            FlutterQuillLocalizations.delegate,
-          ],
+      builder: (_, settings) {
+        return RepaintBoundary(
+          key: ThemeFader.appBoundaryKey,
+          child: MaterialApp(
+            title: 'My Notepad',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: appSettingsRepository.themeMode,
+            home: const HomePage(),
+            scaffoldMessengerKey: uiNotifier.scaffoldMessengerKey,
+            supportedLocales: const [Locale('en')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              FlutterQuillLocalizations.delegate,
+            ],
+            scrollBehavior: const MaterialScrollBehavior().copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.stylus,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+          ),
         );
       },
     );
   }
 }
-
-/// -------------------------------------------------------------------------
-/// BUILD METHOD
-/// -------------------------------------------------------------------------
-///
-/// Defines:
-/// - Reactive theme switching
-/// - Root MaterialApp configuration
-/// - Localization setup
-
-/*
-📌 Interview Framing Tip:
-
-"This is the root orchestration layer. It handles app bootstrap, async hydration of local persistence, 
-and global reactive theming using a lightweight ChangeNotifier pattern. 
-I intentionally avoided over-engineering state management at this stage."
-*/

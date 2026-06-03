@@ -1,182 +1,239 @@
-// (imports unchanged)
-
+// The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
+import 'dart:async';
+// ignore_for_file: experimental_member_use
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/note/data/note_repository.dart';
-import 'package:notepad/features/note/services/note_document_service.dart';
-import 'package:notepad/features/note/services/note_recovery_service.dart';
-import 'package:notepad/features/note/controllers/note_controller.dart';
+import 'package:notepad/features/note/controllers/note_data_controller.dart';
+import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
+import 'package:notepad/features/note/controllers/note_ui_controller.dart';
+import 'package:notepad/features/note/controllers/note_voice_controller.dart';
+import 'package:notepad/features/note/note_constants.dart';
+import 'package:notepad/core/services/note_document_service.dart';
+import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
 import 'package:notepad/features/note/widgets/note_header.dart';
 import 'package:notepad/features/note/widgets/note_toolbar.dart';
+import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
 
-/// ---------------------------------------------------------------------------
-/// NOTE PAGE (EDITOR SCREEN)
-/// ---------------------------------------------------------------------------
-///
-/// ROLE IN ARCHITECTURE:
-/// - Core feature screen for creating & editing notes
-/// - Integrates:
-///     • Rich text editor (flutter_quill)
-///     • Persistence layer (NoteRepository)
-///     • Recovery system
-///     • Controller abstraction (NoteController)
-///
-/// RESPONSIBILITIES:
-/// - Initialize editor state (new / existing / recovered note)
-/// - Handle user input (title + content)
-/// - Delegate saving & debouncing to controller
-/// - Manage editor lifecycle and focus
-///
-/// DESIGN PRINCIPLES:
-/// - UI delegates logic → NoteController
-/// - Editor state is reactive via controllers
-/// - Lifecycle-aware saving (AppLifecycleListener)
-///
-/// INTERVIEW NOTE:
-/// This is the most complex screen — demonstrates state handling,
-/// editor integration, and lifecycle awareness.
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
+  final bool readOnly;
 
-  /// Supports:
-  /// - Creating new notes
-  /// - Editing existing notes (via noteId)
-  /// - Restoring unsaved drafts (title/content)
-  const NotePage({super.key, this.noteId, this.title = '', this.content = ''});
+  const NotePage({
+    super.key,
+    this.noteId,
+    this.title = '',
+    this.content = '',
+    this.readOnly = false,
+  });
 
   @override
   State<NotePage> createState() => _NotePageState();
 }
 
-class _NotePageState extends State<NotePage> {
-  /// Listens to app lifecycle (background, pause, etc.)
+class _NotePageState extends State<NotePage>
+    with SingleTickerProviderStateMixin {
+  late bool _isReadOnly;
+  late AnimationController _lottieController;
+
   late final AppLifecycleListener _lifecycleListener;
 
-  /// Controller layer handling business logic
-  late final NoteController _noteController;
+  late final NoteDataController _dataController;
+  late final NoteVoiceController _voiceController;
+  late final NoteUIController _uiController;
 
-  /// Title input controller
   late final TextEditingController titleController;
 
-  /// Rich text editor controller (flutter_quill)
   late final QuillController contentController;
 
-  /// Focus control for editor
   final FocusNode _editorFocusNode = FocusNode();
 
-  /// Scroll control for editor
   final ScrollController _editorScrollController = ScrollController();
 
-  /// UI-only state → toggles toolbar visibility
-  bool _isEditing = false;
+  late final NoteToolbarController _toolbarController;
+
+  bool _shouldNudge = true;
+  bool _isHandlingBackNavigation = false;
 
   @override
   void initState() {
     super.initState();
+    _isReadOnly = widget.readOnly;
 
-    // -----------------------------------------------------------------------
-    // 1. CONTROLLER INITIALIZATION
-    // -----------------------------------------------------------------------
-    _noteController = NoteController(
-      recoveryService: NoteRecoveryService(),
+    _dataController = NoteDataController(
       noteRepository: noteRepository,
       noteId: widget.noteId,
     );
-    // -----------------------------------------------------------------------
-    // 2. LOAD NOTE DATA
-    // -----------------------------------------------------------------------
+    _voiceController = NoteVoiceController();
+    _uiController = NoteUIController();
 
+    _initializeControllers();
+    contentController.readOnly = _isReadOnly;
+
+    _lottieController = AnimationController(
+      vsync: this,
+      duration: AnimationConstants.snackbarShort,
+    );
+    _toolbarController = NoteToolbarController();
+
+    _attachListeners();
+    _lifecycleListener = _createLifecycleListener();
+
+    // Warm up the AI service after first paint so editor startup stays responsive.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (!_isReadOnly) {
+        _editorFocusNode.requestFocus();
+      }
+      unawaited(
+        GroqService.warmUp().catchError(
+          (e) => debugPrint('AI Warmup skip: $e'),
+        ),
+      );
+    });
+  }
+
+  Future<void> _showRestoreDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore Note'),
+        content: const Text('Do you want to restore this note?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && widget.noteId != null) {
+      // Restored notes re-enter editable mode immediately so the user can continue typing.
+      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
+      final note = noteRepository.findById(widget.noteId!);
+
+      setState(() {
+        _isReadOnly = false;
+        contentController.readOnly = false;
+      });
+
+      uiNotifier.showSnackBar(
+        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_editorFocusNode.canRequestFocus) {
+          _editorFocusNode.requestFocus();
+        }
+      });
+    }
+  }
+
+  void _initializeControllers() {
     final note = widget.noteId == null
         ? null
         : noteRepository.findById(widget.noteId!);
 
-    /// Initialize title
     titleController = TextEditingController(text: note?.title ?? widget.title);
+    contentController = _createContentController(note);
 
-    /// Initialize content controller
+    _dataController.setInitialSignature(
+      titleController.text,
+      contentController.document,
+    );
+  }
+
+  QuillController _createContentController(NotesSection? note) {
+    // Existing notes load from stored rich content; fresh notes start from plain text or empty state.
     if (note != null) {
-      /// Existing note → decode rich content
-      contentController = QuillController(
+      return QuillController(
         document: Document.fromJson(
           NoteDocumentService.decodeRichContent(note.richContent, note.content),
         ),
         selection: const TextSelection.collapsed(offset: 0),
         keepStyleOnNewLine: false,
-      );
-    } else if (widget.content.isNotEmpty) {
-      /// Recovered draft
-      final recoveredDoc = Document()..insert(0, widget.content);
-
-      contentController = QuillController(
-        document: recoveredDoc,
-        selection: const TextSelection.collapsed(offset: 0),
-        keepStyleOnNewLine: false,
-      );
-    } else {
-      /// New note
-      contentController = QuillController(
-        document: Document(),
-        selection: const TextSelection.collapsed(offset: 0),
-        keepStyleOnNewLine: false,
+        config: const QuillControllerConfig(
+          clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
+        ),
       );
     }
 
-    // -----------------------------------------------------------------------
-    // 3. LISTENERS
-    // -----------------------------------------------------------------------
+    if (widget.content.isNotEmpty) {
+      return QuillController(
+        document: Document()..insert(0, widget.content),
+        selection: const TextSelection.collapsed(offset: 0),
+        keepStyleOnNewLine: false,
+        config: const QuillControllerConfig(
+          clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
+        ),
+      );
+    }
 
-    /// Detect changes in title/content
-    titleController.addListener(_handleEditorChanged);
-    contentController.addListener(_handleEditorChanged);
-
-    /// Lifecycle-based auto-save
-    _lifecycleListener = AppLifecycleListener(
-      onInactive: () => _noteController.saveNote(
-        title: titleController.text,
-        document: contentController.document,
+    return QuillController(
+      document: Document(),
+      selection: const TextSelection.collapsed(offset: 0),
+      config: const QuillControllerConfig(
+        clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
       ),
-      onPause: () => _noteController.saveNote(
-        title: titleController.text,
-        document: contentController.document,
-      ),
-      onDetach: () => _noteController.saveNote(
-        title: titleController.text,
-        document: contentController.document,
-      ),
+      keepStyleOnNewLine: false,
     );
-
-    /// Initial snapshot for change detection
   }
 
-  /// -------------------------------------------------------------------------
-  /// CHANGE HANDLER (AUTO-SAVE TRIGGER)
-  /// -------------------------------------------------------------------------
-  ///
-  /// Delegates:
-  /// - Debouncing
-  /// - Save timing
-  /// to NoteController
+  void _attachListeners() {
+    titleController.addListener(_handleEditorChanged);
+    contentController.addListener(_handleEditorChanged);
+  }
+
+  AppLifecycleListener _createLifecycleListener() {
+    return AppLifecycleListener(
+      // Persist on lifecycle loss because note edits are expected to survive quick app switches.
+      onInactive: () async {
+        await _dataController.saveNote(
+          title: titleController.text,
+          document: contentController.document,
+        );
+      },
+      onPause: () async {
+        await _dataController.saveNote(
+          title: titleController.text,
+          document: contentController.document,
+        );
+      },
+      onDetach: () async {
+        await _dataController.saveNote(
+          title: titleController.text,
+          document: contentController.document,
+        );
+      },
+    );
+  }
+
   void _handleEditorChanged() {
-    _noteController.handleEditorChanged(
+    // Keep the dirty-state and save controls in sync with title or body edits.
+    _dataController.handleEditorChanged(
       title: titleController.text,
       document: contentController.document,
     );
-  }
-
-  /// Toggles editing mode (shows/hides toolbar)
-  void _toggleEditMode() {
-    setState(() => _isEditing = !_isEditing);
+    _uiController.orchestrateButtonVisibility();
   }
 
   @override
   void dispose() {
-    /// Remove listeners to prevent memory leaks
     titleController.removeListener(_handleEditorChanged);
     titleController.dispose();
 
@@ -186,312 +243,193 @@ class _NotePageState extends State<NotePage> {
     _editorFocusNode.dispose();
     _editorScrollController.dispose();
 
-    /// Clean lifecycle + controller
     _lifecycleListener.dispose();
-    _noteController.dispose();
+    _lottieController.dispose();
+    _toolbarController.dispose();
+
+    _dataController.dispose();
+    _voiceController.dispose();
+    _uiController.dispose();
 
     super.dispose();
   }
 
+  Future<void> _handleBackNavigation() async {
+    if (_isHandlingBackNavigation) return;
+    _isHandlingBackNavigation = true;
+
+    _voiceController.stopHardwareListening();
+    _toolbarController.closeAllMenus();
+    final isKeyboardOpen = context.viewInsetsBottom > 0;
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    if (isKeyboardOpen) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Future.delayed(NoteConstants.notePageKeyboardDismissDelay);
+    }
+
+    unawaited(
+      _dataController
+          .saveAndCleanupOnClose(
+            title: titleController.text,
+            document: contentController.document,
+          )
+          .catchError((e) => debugPrint('Background save error: $e')),
+    );
+
+    try {
+      if (!mounted) return;
+      uiNotifier.clearSnackBars();
+      Navigator.of(context).pop();
+    } finally {
+      _isHandlingBackNavigation = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = context.isDark;
 
     return PopScope(
-      /// Save note when navigating back
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        _noteController.saveAndCleanupOnClose(
-          title: titleController.text,
-          document: contentController.document,
-        );
+        if (didPop) return;
+        _handleBackNavigation();
       },
-      child: Scaffold(
-        backgroundColor: isDark
-            ? AppColors.darkScaffold
-            : AppColors.lightScaffold,
-
-        // -------------------------------------------------------------------
-        // APP BAR (UNDO / REDO / EDIT TOGGLE)
-        // -------------------------------------------------------------------
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(kToolbarHeight),
-          child: ListenableBuilder(
-            listenable: contentController,
-
-            /// Rebuild only when editor state changes
-            builder: (context, child) {
-              return NoteAppBar(
-                isEditing: _isEditing,
-                onToggleEdit: _toggleEditMode,
-
-                /// Undo / Redo actions
-                onUndo: () {
-                  if (contentController.hasUndo) {
-                    contentController.undo();
-                  }
-                },
-                onRedo: () {
-                  if (contentController.hasRedo) {
-                    contentController.redo();
-                  }
-                },
-
-                canUndo: contentController.hasUndo,
-                canRedo: contentController.hasRedo,
-                saveState: _noteController.saveState,
-                contentController: contentController,
-              );
-            },
+      child: IgnorePointer(
+        ignoring: _isHandlingBackNavigation,
+        child: Scaffold(
+          backgroundColor: isDark
+              ? AppColors.darkScaffold
+              : AppColors.lightScaffold,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kToolbarHeight),
+            child: _isReadOnly
+                ? NoteAppBar(
+                    key: const ValueKey('readonly_bar'),
+                    saveState: _dataController.saveState,
+                    contentController: contentController,
+                    title: titleController,
+                    isDark: isDark,
+                    readOnly: true,
+                  )
+                : NoteAppBar(
+                    key: const ValueKey('editable_bar'),
+                    saveState: _dataController.saveState,
+                    contentController: contentController,
+                    title: titleController,
+                    isDark: isDark,
+                    readOnly: false,
+                  ),
           ),
-        ),
 
-        // -------------------------------------------------------------------
-        // BODY
-        // -------------------------------------------------------------------
-        body: SafeArea(
-          child: Column(
-            children: [
-              // -------------------------------------------------------------
-              // TOOLBAR (FORMATTING)
-              // -------------------------------------------------------------
-              AnimatedSize(
-                duration: UIConstants.animationMedium,
-                curve: Curves.easeInOutCubic,
-                child: _isEditing
-                    ? Container(
-                        padding: const EdgeInsets.only(
-                          bottom: UIConstants.paddingSM,
-                        ),
-                        child: NoteToolbar(
-                          controller: contentController,
-                          focusNode: _editorFocusNode,
-                          // onConvertToLink: _convertToHyperlink,
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    NoteHeader(
+                      key: ValueKey('header_$_isReadOnly'),
+                      titleController: titleController,
+                      onToggleEdit: _uiController.toggleEditMode,
+                      readOnly: _isReadOnly == true,
+                    ),
 
-              const SizedBox(height: UIConstants.paddingSM),
+                    const SizedBox(height: UIConstants.paddingMD),
 
-              // -------------------------------------------------------------
-              // HEADER (TITLE)
-              // -------------------------------------------------------------
-              NoteHeader(
-                titleController: titleController,
-                onToggleEdit: _toggleEditMode,
-                isEditing: _isEditing,
-              ),
+                    Expanded(
+                      child: _isReadOnly
+                          ? GestureDetector(
+                              onTap: _showRestoreDialog,
+                              behavior: HitTestBehavior.opaque,
+                              child: SingleChildScrollView(
+                                controller: _editorScrollController,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: AbsorbPointer(
+                                  child: NoteEditor(
+                                    controller: contentController,
+                                    focusNode: _editorFocusNode,
+                                    scrollController: _editorScrollController,
+                                    scrollable: false,
+                                    expands: false,
+                                    showCursor: false,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : NoteEditor(
+                              controller: contentController,
+                              focusNode: _editorFocusNode,
+                            ),
+                    ),
 
-              const SizedBox(height: UIConstants.paddingMD),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _uiController.isEditing,
+                      builder: (context, isEditing, child) {
+                        return AnimatedSize(
+                          duration: NoteConstants.notePageToolbarSizeDelay,
+                          curve: Curves.easeInOut,
+                          child: isEditing
+                              ? Container(
+                                  key: const ValueKey('note_toolbar'),
+                                  padding: const EdgeInsets.only(
+                                    bottom: NoteConstants
+                                        .notePageToolbarPaddingBottom,
+                                  ),
+                                  child: NoteToolbar(
+                                    controller: contentController,
+                                    toolbarController: _toolbarController,
+                                    focusNode: _editorFocusNode,
+                                    shouldNudge: _shouldNudge,
+                                    onNudgeComplete: () {
+                                      if (mounted) {
+                                        setState(() {
+                                          _shouldNudge = false;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                )
+                              : const SizedBox(
+                                  key: ValueKey('empty_space'),
+                                  width: double.infinity,
+                                  height: NoteConstants
+                                      .notePageReadonlySpacerHeight,
+                                ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
-              // -------------------------------------------------------------
-              // EDITOR
-              // -------------------------------------------------------------
-              Expanded(
-                child: PlainPasteWrapper(
-                  controller: contentController,
-
-                  /// Custom editor widget
-                  child: NoteEditor(
-                    controller: contentController,
-                    focusNode: _editorFocusNode,
-                    scrollController: _editorScrollController,
+          floatingActionButton: _isReadOnly
+              ? null
+              : ValueListenableBuilder<bool>(
+                  valueListenable: _uiController.isEditing,
+                  builder: (context, isEditing, child) {
+                    return AnimatedScale(
+                      scale: isEditing ? 0.0 : 1.0,
+                      duration: NoteConstants.notePageFabScaleDuration,
+                      curve: Curves.bounceInOut,
+                      child: AnimatedOpacity(
+                        opacity: isEditing ? 0.0 : 1.0,
+                        duration: NoteConstants.notePageFabFadeDuration,
+                        child: child!,
+                      ),
+                    );
+                  },
+                  child: VoiceAssistantButton(
+                    lottieController: _lottieController,
+                    voiceController: _voiceController,
+                    uiController: _uiController,
+                    contentController: contentController,
                   ),
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
-
-  // -------------------------------------------------------------------------
-  // HYPERLINK FEATURE -- DISABLED
-  // -------------------------------------------------------------------------
-  ///
-  /// Converts selected text into a clickable hyperlink.
-  ///
-  /// NOTE:
-  /// - Kept inside UI because it requires dialogs + SnackBars
-  //Future<void> _convertToHyperlink() async {
-  //   final selection = contentController.selection;
-
-  //   int startIndex = selection.baseOffset;
-  //   int textLength = selection.extentOffset - startIndex;
-
-  //   String targetUrl = '';
-
-  //   /// Extract selected or nearby text
-  //   if (textLength > 0) {
-  //     targetUrl = contentController.document.getPlainText(
-  //       startIndex,
-  //       textLength,
-  //     );
-  //   } else {
-  //     final textBefore = contentController.document.getPlainText(0, startIndex);
-
-  //     final lastSpace = textBefore.lastIndexOf(RegExp(r'\s'));
-
-  //     startIndex = lastSpace == -1 ? 0 : lastSpace + 1;
-  //     textLength = selection.baseOffset - startIndex;
-
-  //     if (textLength <= 0) return;
-
-  //     targetUrl = contentController.document.getPlainText(
-  //       startIndex,
-  //       textLength,
-  //     );
-  //   }
-
-  //   /// Validate URL
-  //   if (!_isValidLink(targetUrl)) {
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(
-  //           backgroundColor: AppColors.deleteDarkIcon,
-  //           content: Text('Please enter a valid link'),
-  //         ),
-  //       );
-  //     }
-  //     return;
-  //   }
-  //   //Ensure the link has a valid web protocol
-  //   String finalUrl = targetUrl.trim();
-  //   if (!finalUrl.toLowerCase().startsWith('http://') &&
-  //       !finalUrl.toLowerCase().startsWith('https://')) {
-  //     finalUrl = 'https://$finalUrl';
-  //   }
-
-  //   /// Ask user for display title
-  //   final displayTitle = await _showLinkTitleDialog();
-
-  //   if (displayTitle != null && displayTitle.isNotEmpty) {
-  //     const trailingSpace = ' ';
-  //     final insertedText = '$displayTitle$trailingSpace';
-  //     contentController.replaceText(startIndex, textLength, insertedText, null);
-
-  //     contentController.formatText(
-  //       startIndex,
-  //       displayTitle.length,
-  //       Attribute.fromKeyValue('link', finalUrl),
-  //     );
-  //     contentController.formatText(
-  //       startIndex,
-  //       displayTitle.length,
-  //       Attribute.fromKeyValue('color', AppColors.hyperlinkHex),
-  //     );
-  //     contentController.formatText(
-  //       startIndex,
-  //       displayTitle.length,
-  //       Attribute.underline,
-  //     );
-
-  //     final nextCursorPosition = startIndex + insertedText.length;
-  //     contentController.updateSelection(
-  //       TextSelection.collapsed(offset: nextCursorPosition),
-  //       ChangeSource.local,
-  //     );
-  //     contentController.forceToggledStyle(const Style());
-
-  //     _editorFocusNode.requestFocus();
-  //   }
-  // }
-
-  /// Simple URL validation
-  // bool _isValidLink(String text) {
-  //   return RegExp(
-  //     r'^(https?://)?([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?$',
-  //   ).hasMatch(text.trim());
-  // }
-
-  /// Dialog to enter hyperlink title
-  // Future<String?> _showLinkTitleDialog() {
-  //   final controller = TextEditingController();
-
-  //   return showDialog<String>(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text('Enter Hyperlink Title'),
-  //       content: TextField(
-  //         controller: controller,
-  //         decoration: const InputDecoration(
-  //           hintText: 'e.g., Google or My Website',
-  //         ),
-  //         autofocus: true,
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(context),
-  //           child: const Text('Cancel'),
-  //         ),
-  //         ElevatedButton(
-  //           onPressed: () => Navigator.pop(context, controller.text),
-  //           child: const Text('OK'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 }
-
-/// ---------------------------------------------------------------------------
-/// PLAIN PASTE WRAPPER
-/// ---------------------------------------------------------------------------
-///
-/// PURPOSE:
-/// - Overrides default paste behavior
-/// - Ensures only plain text is pasted (no formatting - from websites)
-///
-/// BENEFIT:
-/// - Prevents unwanted styles from external sources
-class PlainPasteIntent extends Intent {
-  const PlainPasteIntent();
-}
-
-class PlainPasteWrapper extends StatelessWidget {
-  final Widget child;
-  final QuillController controller;
-
-  const PlainPasteWrapper({
-    super.key,
-    required this.child,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.keyV, control: true):
-            PlainPasteIntent(),
-      },
-      child: Actions(
-        actions: {
-          PlainPasteIntent: CallbackAction<PlainPasteIntent>(
-            onInvoke: (_) async {
-              final data = await Clipboard.getData(Clipboard.kTextPlain);
-
-              if (data?.text != null) {
-                final index = controller.selection.baseOffset;
-
-                final length = controller.selection.extentOffset - index;
-
-                controller.replaceText(index, length, data!.text!, null);
-              }
-              return null;
-            },
-          ),
-        },
-        child: child,
-      ),
-    );
-  }
-}
-
-/*
-🧠 INTERVIEW GOLD ANSWER
-
-“I centralized all persistence triggers inside the controller to ensure consistent behavior and 
-make the UI fully declarative.”
-*/

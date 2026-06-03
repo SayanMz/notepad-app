@@ -1,39 +1,52 @@
+// Note header owns title editing and metadata presentation.
 import 'package:flutter/material.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/features/note/note_constants.dart';
 
+// Note header owns title editing and the note metadata strip.
 class NoteHeader extends StatelessWidget {
-  const NoteHeader({
+  NoteHeader({
     super.key,
     required this.titleController,
     required this.onToggleEdit,
-    required this.isEditing,
+    required this.readOnly,
   });
 
   final TextEditingController titleController;
   final VoidCallback onToggleEdit;
-  final bool isEditing;
+  final bool readOnly;
+
+  final ValueNotifier<bool> _isClicked = ValueNotifier(true);
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = context.isDark;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const SizedBox(width: UIConstants.noteHeaderTitleSpacing),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: UIConstants.headerTitlePaddingHorizontal,
+                padding: const EdgeInsets.only(
+                  left: NoteConstants.titlePaddingLeft,
+                  right: NoteConstants.titlePaddingRight,
+                  bottom: NoteConstants.titlePaddingBottom,
                 ),
                 child: TextField(
                   controller: titleController,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: UIConstants.headerTitleFontSize,
+                  textAlign: TextAlign.start,
+                  showCursor: !readOnly,
+                  style: GoogleFonts.inter(
+                    fontSize: NoteConstants.titleFontSize,
+                    height: NoteConstants.titleLineHeight,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: NoteConstants.titleLetterSpacing,
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.95)
+                        : Colors.black87,
                   ),
                   decoration: const InputDecoration(
                     hintText: 'Title',
@@ -44,30 +57,54 @@ class NoteHeader extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              width: UIConstants.noteHeaderTitleSpacing,
-              child: IconButton(
-                onPressed: onToggleEdit,
-                icon: Icon(
-                  Icons.auto_fix_high, // Restored original magic wand icon
-                  color: isDark ? Colors.white : Colors.black,
+            if (!readOnly)
+              Padding(
+                padding: const EdgeInsets.only(
+                  right: NoteConstants.titleIconPaddingRight,
+                ),
+                child: ListenableBuilder(
+                  listenable: _isClicked,
+                  builder: (context, child) {
+                    return IconButton(
+                      onPressed: () {
+                        _isClicked.value = !_isClicked.value;
+
+                        onToggleEdit();
+                      },
+                      icon: ShaderMask(
+                        blendMode: BlendMode.srcIn,
+                        shaderCallback: (Rect bounds) {
+                          final List<Color> gradientColors;
+
+                          if (_isClicked.value) {
+                            gradientColors = isDark
+                                ? [
+                                    const Color(0xFF9D4EDD),
+                                    const Color(0xFF00F5D4),
+                                  ]
+                                : [
+                                    const Color(0xFF6200EE),
+                                    const Color(0xFF03DAC6),
+                                  ];
+                          } else {
+                            gradientColors = isDark
+                                ? [Colors.white, Colors.white70]
+                                : [Colors.black, Colors.black87];
+                          }
+
+                          return LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: gradientColors,
+                          ).createShader(bounds);
+                        },
+                        child: const Icon(Icons.auto_fix_high),
+                      ),
+                    );
+                  },
                 ),
               ),
-            ),
           ],
-        ),
-
-        // Restored original centered half-divider
-        Center(
-          child: SizedBox(
-            width:
-                MediaQuery.of(context).size.width *
-                UIConstants.headerWidthRatio,
-            child: Divider(
-              thickness: UIConstants.headerUnderlineThickness,
-              color: colorScheme.primary.withValues(alpha: 0.6),
-            ),
-          ),
         ),
       ],
     );
