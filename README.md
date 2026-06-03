@@ -1,105 +1,134 @@
 # 📝 Notepad
 
-Hey there! 👋 Welcome to **Notepad**, a simple, buttery-smooth, and local-first note-taking app built with Flutter. 
+Hey there! 👋 Welcome to **Notepad**, a polished, buttery-smooth, and local-first Flutter notes app built around fast writing, structured organization, and reliable data handling.
 
-I built this app because I wanted a place to write that felt fast, clean, and completely dependable. There are no distracting feeds, no forced cloud logins, and no lag—just you and your thoughts, safely stored on your own device.
+Notepad combines a clean, distraction-free editor experience with practical everyday features. Whether you are typing away, using voice-assisted commands, or syncing your encrypted notes to Google Drive, the app is designed to feel fast, completely dependable, and tailored to your workflow.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/ae38b96d-c7fc-4483-9815-17682fd8081e" width="250" alt="Editor Screen" style="margin: 10px;" />
-  <img src="https://github.com/user-attachments/assets/edcaacdc-6a28-4dac-bdbf-854de70830cd" width="250" alt="Home Screen" style="margin: 10px;" />
-  <img src="https://github.com/user-attachments/assets/7fc3c20a-3746-4ec7-b7f0-244898dba152" width="250" alt="Search screen" style="margin: 10px;" />
-    <img src="https://github.com/user-attachments/assets/5dd5e2bf-fc40-44ef-adc6-37b829893977"
-width="250" alt="Home screen" style="margin: 10px;" />
+   <img src="assets/screenshots/home.jpg" width="250" />
+  <img src="assets/screenshots/editor.jpg" width="250" />
+  <img src="assets/screenshots/search.jpg" width="250" />
+  <img src="assets/screenshots/trash.jpg" width="250" />
 </p>
 
+---
+## 📥 Download
 
-## 🧠 Engineering & Architecture Highlights
+[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/latest)
 
-This project was built with a strict focus on robust software engineering principles, prioritizing maintainability, data safety, and performance.
+---
 
-* **Decoupled Architecture:** Strict separation of UI, Controllers, and Repositories. Business logic is completely isolated from the presentation layer.
-* **$O(1)$ Data Layer:** Implemented Hive with an in-memory Map indexing strategy, guaranteeing constant-time performance for lookups and saves, regardless of scale.
-* **Zero-Leak State Management:** Utilized isolated `ValueNotifier` and `ValueListenableBuilder` patterns (e.g., in the SaveIndicator) to prevent unnecessary widget rebuilds and ensure clean memory disposal.
-* **Defensive Programming:** Implemented robust guard clauses, debounced autosaving, and edge-case handling (such as auto-purging completely empty notes upon disposal).
-* **Automated Testing Suite:** The codebase is protected by professional-grade tests:
-    * **Unit Tests:** Verifying pure business logic and state transitions in the Controllers.
-    * **Widget Tests:** Proving isolated UI components render correctly under specific states.
-    * **Data Integrity Tests:** Utilizing mocked, sandboxed Hive environments to mathematically prove sorting invariants and soft-delete logic.
+# Feature Highlights ✨
 
-## ✨ Cool Things It Can Do
+A comprehensive overview of the application's capabilities. 🚀
+
+## Core Features 🛠️
+
+* **Rich-Text Editing:** Create notes with headers, bold styling, hyperlinks, and interactive bullet lists (powered by `flutter_quill`).
+* **Groq LLM Voice Engine:** Voice-assisted command processing. Dictate commands like *"Underline the second instance of dog"* or *"Make the first line green"* to trigger real-time AI document transformations.
+* **Dynamic Full-Text Search:** Instantly locate precise keywords across your entire library with real-time text highlighting inside note previews and useful empty states.
+* **Safe Soft-Deletion:** Accidental deletes drop safely into a dedicated Recycle Bin for single-tap restorations or permanent wipes.
+* **Google Drive Integration:** Authenticate securely via OAuth 2.0 to push secure database backups directly to your cloud tier on-demand.
+
+## Operational & User Experience Features ⚙️
+
+* **Autosave:** Reliable background saving with clear save-status feedback.
+* **Organization:** Tools for pinning, reordering, color updates, and bulk selection of notes.
+* **Security & Privacy:** Encrypted local storage ensures your data remains private.
+* **Flexibility:** Export and share support to easily move your data.
+* **Customization:** Theme switching to adjust the look and feel of the app.
+
+---
 
 
-- **Rich-text editing:** Go crazy with bold, italics, underlines, lists, and strikethroughs.
-- **Worry-free Autosave:** Your changes are saved as you type. You won't lose your work!
-- **Lightning-fast Search:** Find any note instantly, with your keywords highlighted in the results.
-- **Recycle Bin:** Accidentally deleted something? No worries, you can restore it from the bin.
-- **Pin & Select:** Pin your most important notes to the top and use bulk-selection to manage them easily.
-- **Export & Share:** Turn your notes into beautiful PDFs or HTML files, or share them directly with your friends.
-- **100% Offline & Local:** Everything lives directly on your device. No internet required.
+## 🧠 Engineering & Architecture 
+The app doesn't just look clean; it's built to be highly optimized, maintainable, and production-ready underneath. The codebase uses a **Feature-First** structure alongside a strict controller/service/repository split.
 
-## 🎯 Why Build Another Notes App?
+### Structural Breakdown
+- `core/` - Startup logic, persistence, theming, constants, reusable helpers, and shared services.
+- `features/home/` - Orchestrates the main notes dashboard, selection mode, bulk actions, sync entry points
+- `features/note/` - Houses the editor, toolbar, voice AI integration, and export logic.
+- `features/filter/` - Handles search, query states, and filtering UI.
+- `features/trash/` - Manages deleted-note recovery and permanent purging.
 
-There are a million notes apps out there, but this project is tailored for folks who prefer:
-- Writing without distractions in a super clean interface.
-- Keeping their data private and local.
-- Having rich text formatting without the app feeling bloated and heavy.
+### Design
+- Clear separation between UI, controllers, repositories, and services
+- Feature-level controllers that coordinate state without overloading widgets
+- Shared utilities in `core` for startup, storage, theme, and reusable app behavior
+- Encrypted persistence with Hive and secure key storage
+- Search backed by local indexing and note metadata
+- Reusable UI helpers for consistent spacing, motion, and styling
 
-## 🧠 Under the Hood (For the Devs)
+---
 
-I didn't just want the app to look good; I wanted the codebase to be highly optimized and production-ready. Here are a few architectural highlights:
+## 🎯 Why This App Exists
 
-- **Controller Pattern:** Business logic is strictly decoupled from the UI. Thin presentation layers (`HomePage`, `NotePage`) delegate the heavy lifting to dedicated controllers.
-- **Reactive UI:** Leverages `ListenableBuilder` and `ValueNotifier` for precise, granular widget rebuilds without relying on bloated state management libraries or unnecessary `setState()` calls.
-- **O(1) Data Layer:** Uses a `Map`-backed indexing strategy over Hive's NoSQL storage, guaranteeing instantaneous $O(1)$ read/write speeds, even if you have thousands of notes.
-- **Safe Async Handling:** Implements `PopScope` routing and `mounted` guard clauses to completely prevent memory leaks and background crashes during asynchronous database operations.
+There are a million notes apps out there, but this project was built specifically to tackle the real complexity underneath a deceptively simple surface. The goal was an app tailored for folks who believe:
+- Notes should be easy to create, seamlessly supporting both typing and voice-driven interactions.
+- Search must be instantaneous and actually useful.
+- Deletion should be reversible and safe.
+- Storage must be reliable, encrypted, and private.
+- Syncing and backups (like Google Drive) should feel optional, not forced.
 
-## 📁 Project Structure
+---
 
-To keep things scalable and easy to maintain, the code is cleanly separated:
-- `core/` - Shared colors, constants, themes, and global configurations.
-- `home/` - The main dashboard and list view.
-- `note/` - The editor, rich-text toolbar, auto-save logic, and recovery flows.
-- `search/` - The indexing and query UI.
-- `recycle/` - The trash bin and restoration logic.
+## 🛠️ Tech Stack & Architecture
 
-## 🚀 Want to run it locally?
+Click the sections below to see the architectural details of how these systems are integrated:
 
-Awesome! It's super easy to get up and running.
+<details>
+<summary><b>🤖 AI Core Pipeline (Speech-to-Text-to-LLM)</b></summary>
+
+- `speech_to_text`: Local microphone hardware stream processing for automated voice transcription.
+- `Groq LLM API Integration`: Cloud-hosted LLM orchestration. Maps localized semantic voice commands into structured document state mutations via secure REST API endpoints.
+- `flutter_tts`: Real-time synthesized auditory speech responses leveraging forced target high-quality hardware voices.
+</details>
+
+<details>
+<summary><b>💾 Data Architecture (Hybrid Local Storage Engine)</b></summary>
+
+- `sqflite` & `sqlite3_flutter_libs`: Relational storage engine powering a **Hybrid Search Pipeline**. 
+  - *Stage 1:* Virtual FTS (Full-Text Search) tables perform high-speed keyword pruning to return a candidate ID set.
+  - *Stage 2:* In-memory Dart collection filtering (via `note_search_service.dart`) applies complex business logic constraints like date-range boundaries and active/deleted visibility states.
+- `hive` & `hive_flutter`: Low-latency NoSQL key-value cache layer managing live operational document trees.
+</details>
+
+<details>
+<summary><b>🔒 Security & Ecosystem Bridges</b></summary>
+
+- `flutter_secure_storage`: Hardware-isolated keychain encryption for storage of persistent cloud auth tokens.
+- `google_sign_in` & `googleapis`: OAuth 2.0 workflow handling for secure Google Drive binary state synchronization.
+- `flutter_quill`: Advanced text mutation management using incremental delta arrays.
+- `share_plus` & `url_launcher`: Native system tray share sheets and protocol intent handlers.
+</details>
+
+---
+
+## 🚀 Local Setup
+
+<details>
+<summary><b>Show Installation Commands</b></summary>
 
 ### Prerequisites
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (Version 3.0+)
 - Dart SDK
+- A configured `.env` file containing your required Google API keys (for Drive Sync and Voice AI features).
 
-### Installation
+### Installation & Run
 
 1. Clone the repo and install the packages:
 ```bash
 flutter pub get
 ```
 
-2. Run the app:
+2. Spin up the code-generation engine for your local TypeAdapters:
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+3. Run the app:
 ```bash
 flutter run
 ```
 
 *(Want to run it on a specific platform? Use `flutter run -d windows` or `flutter run -d android`)*
-
-## 🛠️ Built With
-
-- **Flutter & Dart** - The core framework and language.
-- **Hive** - Blazing fast, lightweight NoSQL local database.
-- **flutter_quill** - Powering the rich-text editing experience.
-- **share_plus** - For seamless native sharing.
-- **Lottie** - For those beautiful, smooth empty-state animations.
-
-## 🔮 What's Next on the Roadmap?
-
-I'm always looking to improve the app. Here is what I am planning to add next:
-- Optional cloud backup and sync
-- Image and file attachments
-- Tags and advanced filtering
-- Markdown import/export
-- Small AI helpers (like a quick summary or rewrite suggestions)
-
----
-*Built to feel practical, polished, and lightweight. Thanks for checking it out!* 💡
