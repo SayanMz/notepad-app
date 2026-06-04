@@ -40,7 +40,6 @@ A comprehensive overview of the application's capabilities. 🚀
 
 ---
 
-
 ## 🧠 Engineering & Architecture 
 The app doesn't just look clean; it's built to be highly optimized, maintainable, and production-ready underneath. The codebase uses a **Feature-First** structure alongside a strict controller/service/repository split.
 
@@ -69,6 +68,11 @@ There are a million notes apps out there, but this project was built specificall
 - Deletion should be reversible and safe.
 - Storage must be reliable, encrypted, and private.
 - Syncing and backups (like Google Drive) should feel optional, not forced.
+
+---
+### 🎬 Full Application Walkthrough
+
+[Watch Walkthrough Video](https://github.com/SayanMz/notepad-app/releases/download/v2.0.0/Notepad.2.0.mp4)
 
 ---
 
