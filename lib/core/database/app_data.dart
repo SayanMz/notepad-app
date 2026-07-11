@@ -64,6 +64,9 @@ class NotesSection {
   @HiveField(5)
   DateTime updatedAt;
 
+  int get daysLeft => 30 - DateTime.now().difference(updatedAt).inDays;
+  bool get isExpired => DateTime.now().difference(updatedAt).inDays >= 30;
+
   @HiveField(6)
   bool isDeleted;
 

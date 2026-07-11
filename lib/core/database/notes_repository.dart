@@ -1,15 +1,16 @@
 // Repository logic keeps active, deleted, and cached note views in sync.
 import 'dart:async';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
+
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/sqlite_fts_service.dart';
+import 'package:notepad/core/database/storage_service.dart' as db;
 import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
 import 'package:notepad/core/services/repo_services/note_sort_service.dart';
 import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
 import 'package:notepad/core/services/repo_services/seed_data_service.dart';
-import 'package:notepad/core/database/storage_service.dart' as db;
 
 class NoteRepository {
   factory NoteRepository() => _instance;
@@ -70,7 +71,16 @@ class NoteRepository {
       await db.saveNotesBulk({for (var n in _activeNotes) n.id: n});
       await appSettingsRepository.setSeedVersion(_currentSeedVersion);
     } else {
-      for (final note in db.loadAllNotes()) {
+      // 🌟 THE AUTOMATIC TRASH CLEANER
+      final allNotes = db.loadAllNotes();
+      final List<String> expiredNoteIds = [];
+
+      for (final note in allNotes) {
+        if (note.isDeleted && note.isExpired) {
+          expiredNoteIds.add(note.id);
+          continue;
+        }
+
         _cacheMap[note.id] = note;
         note.isDeleted ? _deletedNotes.add(note) : _activeNotes.add(note);
 
@@ -82,6 +92,13 @@ class NoteRepository {
             note.content,
           );
         }
+      }
+      // If any expired trash notes were caught, permanently wipe them from disk storage
+      if (expiredNoteIds.isNotEmpty) {
+        debugPrint(
+          'Auto-Purge: Wiping ${expiredNoteIds.length} expired trash notes permanently.',
+        );
+        await db.deleteNotesBulk(expiredNoteIds.toSet());
       }
     }
 

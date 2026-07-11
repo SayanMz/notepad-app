@@ -177,43 +177,14 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
               child: Card(
                 margin: EdgeInsets.zero,
                 elevation: UIConstants.elevationLow,
+                clipBehavior: Clip
+                    .antiAlias, // 🌟 CRITICAL: Clips the bottom indicator bar to the card's rounded corners
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
                     RecycleConstants.cardRadius,
                   ),
                 ),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      RecycleConstants.cardRadius,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(
-                    RecycleConstants.cardPadding,
-                  ),
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.note.displayTitle,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    subtitleText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                  trailing: IconButton(
-                    onPressed: () =>
-                        widget.onShowActionSheet(context, widget.note),
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: widget.isDark ? Colors.white : Colors.blue,
-                    ),
-                  ),
+                child: InkWell(
                   onLongPress: HapticFeedback.mediumImpact,
                   onTap: () {
                     Navigator.of(context).push(
@@ -223,6 +194,80 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                       ),
                     );
                   },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Core Content Area
+                      Padding(
+                        padding: const EdgeInsets.all(
+                          RecycleConstants.cardPadding,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.note.displayTitle,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8.0),
+                                  Text(
+                                    subtitleText,
+                                    maxLines:
+                                        3, // Increased to match the description style in the screenshot
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => widget.onShowActionSheet(
+                                context,
+                                widget.note,
+                              ),
+                              icon: Icon(
+                                Icons.more_vert,
+                                color: widget.isDark
+                                    ? Colors.white
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 2. 🌟 THE FIX: The Days Remaining Bottom Strip Indicator
+                      Container(
+                        color: widget.isDark
+                            ? Colors.white.withValues(
+                                alpha: 0.12,
+                              ) // Subtle tint for dark mode
+                            : Colors
+                                  .grey[600], // Matches the solid grey indicator strip
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        alignment: Alignment.center,
+                        child: Text(
+                          // Replace this fallback string with your actual model logic when ready (e.g., widget.note.daysLeft)
+                          '${widget.note.daysLeft} days left',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
