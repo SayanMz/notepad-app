@@ -11,6 +11,7 @@ import 'package:notepad/features/filter/search_constants.dart';
 import 'package:notepad/features/filter/services/smooth_slide_fade.dart';
 import 'package:notepad/features/filter/widgets/search_filter_dialog.dart';
 import 'package:notepad/features/filter/widgets/search_results_panel.dart';
+import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/note/note_page.dart';
 
 class SearchPage extends StatefulWidget {
@@ -52,112 +53,132 @@ class _SearchPageState extends State<SearchPage> {
     super.dispose();
   }
 
+  // Intercept the back button action to trigger the visual hide before the animation runs
+  Future<void> _handlePop() async {
+    final isKeyboardOpen = context.viewInsetsBottom > 0;
+
+    if (isKeyboardOpen) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Future.delayed(NoteConstants.notePageKeyboardDismissDelay);
+    }
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (ScrollNotification notification) {
-            if (notification.depth == 1) {
-              return true;
-            }
-
-            if (notification.depth == 0) {
-              final shouldShow = notification.metrics.pixels > 200.0;
-              if (_showScrollToTopBtn.value != shouldShow) {
-                _showScrollToTopBtn.value = shouldShow;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handlePop();
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification notification) {
+              if (notification.depth == 1) {
+                return true;
               }
 
-              if (notification is UserScrollNotification) {
-                if (notification.direction == ScrollDirection.reverse) {
-                  _showHeaders.value = false;
-                } else if (notification.direction == ScrollDirection.forward) {
-                  _showHeaders.value = true;
+              if (notification.depth == 0) {
+                final shouldShow = notification.metrics.pixels > 200.0;
+                if (_showScrollToTopBtn.value != shouldShow) {
+                  _showScrollToTopBtn.value = shouldShow;
+                }
+
+                if (notification is UserScrollNotification) {
+                  if (notification.direction == ScrollDirection.reverse) {
+                    _showHeaders.value = false;
+                  } else if (notification.direction ==
+                      ScrollDirection.forward) {
+                    _showHeaders.value = true;
+                  }
                 }
               }
-            }
-            return false;
-          },
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _showHeaders,
-                    builder: (context, show, _) {
-                      return SmoothSlideFade(
-                        isVisible: show,
-                        child: SizedBox(
-                          key: const ValueKey('search_header'),
-                          width: double.infinity,
-                          child: AppBar(
-                            surfaceTintColor: Colors.transparent,
-                            backgroundColor: Colors.transparent,
-                            elevation: 0,
-                            titleSpacing: 0,
-                            title: Padding(
-                              padding: const EdgeInsets.only(
-                                right: SearchConstants.appBarTitleRightPadding,
-                              ),
-                              child: _buildSearchTextField(),
-                            ),
-                            actions: [
-                              Padding(
+              return false;
+            },
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _showHeaders,
+                      builder: (context, show, _) {
+                        return SmoothSlideFade(
+                          isVisible: show,
+                          child: SizedBox(
+                            key: const ValueKey('search_header'),
+                            width: double.infinity,
+                            child: AppBar(
+                              surfaceTintColor: Colors.transparent,
+                              backgroundColor: Colors.transparent,
+                              elevation: 0,
+                              titleSpacing: 0,
+                              title: Padding(
                                 padding: const EdgeInsets.only(
-                                  right: SearchConstants.appBarActionPadding,
+                                  right:
+                                      SearchConstants.appBarTitleRightPadding,
                                 ),
-                                child: _searchFilter(),
+                                child: _buildSearchTextField(),
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        left: SearchConstants.panelPadding,
-                        top: SearchConstants.panelPadding,
-                        bottom: SearchConstants.panelPadding,
-                      ),
-                      child: SearchResultsPanel(
-                        controller: _searchController,
-                        scrollController: _scrollController,
-                        showChips: _showHeaders,
-                        onClearFilter: () {
-                          _showHeaders.value = true;
-                        },
-                        onNoteTap: (note) async {
-                          await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => NotePage(noteId: note.id),
+                              actions: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    right: SearchConstants.appBarActionPadding,
+                                  ),
+                                  child: _searchFilter(),
+                                ),
+                              ],
                             ),
-                          );
-                          if (!mounted) return;
-                          _searchController.refresh();
-                        },
+                          ),
+                        );
+                      },
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: SearchConstants.panelPadding,
+                          top: SearchConstants.panelPadding,
+                          bottom: SearchConstants.panelPadding,
+                        ),
+                        child: SearchResultsPanel(
+                          controller: _searchController,
+                          scrollController: _scrollController,
+                          showChips: _showHeaders,
+                          onClearFilter: () {
+                            _showHeaders.value = true;
+                          },
+                          onNoteTap: (note) async {
+                            await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => NotePage(noteId: note.id),
+                              ),
+                            );
+                            if (!mounted) return;
+                            _searchController.refresh();
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              ListenableBuilder(
-                listenable: _searchController,
-                builder: (context, _) {
-                  return ScrollToTopFab(
-                    scrollController: _scrollController,
-                    showScrollToTopBtn: _showScrollToTopBtn,
-                    heroTag: 'scrollToTopSearch',
-                    additionalCondition: _searchController.hasAnyCriteria,
-                    onPressed: () {
-                      _showHeaders.value = true;
-                    },
-                  );
-                },
-              ),
-            ],
+                  ],
+                ),
+                ListenableBuilder(
+                  listenable: _searchController,
+                  builder: (context, _) {
+                    return ScrollToTopFab(
+                      scrollController: _scrollController,
+                      showScrollToTopBtn: _showScrollToTopBtn,
+                      heroTag: 'scrollToTopSearch',
+                      additionalCondition: _searchController.hasAnyCriteria,
+                      onPressed: () {
+                        _showHeaders.value = true;
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -105,7 +105,7 @@ class HomeAppBar extends StatelessWidget {
                             uiNotifier.clearSnackBars();
                             await Navigator.push(
                               context,
-                              AppRouter.fade(const SearchPage()),
+                              AppRouter.sharedAxis(const SearchPage()),
                             );
                           },
                         ),

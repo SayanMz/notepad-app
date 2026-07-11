@@ -20,13 +20,10 @@ class NoteVoiceController {
   Timer? _speechTimer;
   String _lastWords = '';
   bool _speechInitialized = false;
+  bool get isSpeechInitialized => _speechInitialized;
 
   final ValueNotifier<bool> isProcessingVoice = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isListening = ValueNotifier<bool>(false);
-
-  NoteVoiceController() {
-    initSpeech();
-  }
 
   Future<void> initSpeech() async {
     if (_speechInitialized) return;
@@ -136,7 +133,8 @@ class NoteVoiceController {
       isProcessingVoice.value = false;
       showErrorSnackBar('AI service error. Try again.');
     } finally {
-      FocusManager.instance.primaryFocus?.unfocus(); }
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
   }
 
   void stopHardwareListening() {

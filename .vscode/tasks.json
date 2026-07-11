@@ -20,6 +20,24 @@
                 "panel": "dedicated"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Auto Backup Watcher",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "taskkill /f /fi \"windowtitle eq Flutter Auto-Watcher Backup*\" 2>nul & C:\\src\\Development\\auto_watch_backup.bat"
+            ],
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
         }
     ]
 }

@@ -82,8 +82,15 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
               child: GestureDetector(
                 onTap: (isProcessing && !isListening)
                     ? null
-                    : () {
+                    : () async {
                         HapticFeedback.lightImpact();
+
+                        // 🌟 THE ISOLATION FIX: Initialize lazily on tap if it's not ready yet
+                        if (!widget.voiceController.isSpeechInitialized) {
+                          widget.voiceController.isProcessingVoice.value = true;
+                          await widget.voiceController.initSpeech();
+                        }
+
                         widget.voiceController.toggleListening(
                           widget.contentController,
                         );

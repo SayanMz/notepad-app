@@ -1,5 +1,6 @@
 // The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 import 'dart:async';
+
 // ignore_for_file: experimental_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -8,6 +9,7 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_data_controller.dart';
@@ -15,7 +17,6 @@ import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/note_editor.dart';
@@ -63,6 +64,7 @@ class _NotePageState extends State<NotePage>
 
   bool _shouldNudge = true;
   bool _isHandlingBackNavigation = false;
+  final ValueNotifier<bool> _isTransitionAnimating = ValueNotifier<bool>(true);
 
   @override
   void initState() {
@@ -92,14 +94,19 @@ class _NotePageState extends State<NotePage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      if (!_isReadOnly) {
-        _editorFocusNode.requestFocus();
-      }
-      unawaited(
-        GroqService.warmUp().catchError(
-          (e) => debugPrint('AI Warmup skip: $e'),
-        ),
-      );
+      ModalRoute.of(context)?.animation?.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _isTransitionAnimating.value = false;
+
+          if (!_isReadOnly) _editorFocusNode.requestFocus();
+
+          unawaited(
+            GroqService.warmUp().catchError(
+              (e) => debugPrint('AI Warmup skip: $e'),
+            ),
+          );
+        }
+      });
     });
   }
 
@@ -260,8 +267,8 @@ class _NotePageState extends State<NotePage>
 
     _voiceController.stopHardwareListening();
     _toolbarController.closeAllMenus();
+
     final isKeyboardOpen = context.viewInsetsBottom > 0;
-    await Future.delayed(const Duration(milliseconds: 100));
 
     if (isKeyboardOpen) {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -324,84 +331,95 @@ class _NotePageState extends State<NotePage>
           ),
 
           body: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    NoteHeader(
-                      key: ValueKey('header_$_isReadOnly'),
-                      titleController: titleController,
-                      onToggleEdit: _uiController.toggleEditMode,
-                      readOnly: _isReadOnly == true,
-                    ),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _isTransitionAnimating,
+              builder: (context, isAnimating, child) {
+                // 🌟 THE FIX: Unmount the tree entirely.
+                // This leaves a pure, lightweight Scaffold background to shrink smoothly.
+                if (isAnimating) return const SizedBox.shrink();
 
-                    const SizedBox(height: UIConstants.paddingMD),
+                return child!;
+              },
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      NoteHeader(
+                        key: ValueKey('header_$_isReadOnly'),
+                        titleController: titleController,
+                        onToggleEdit: _uiController.toggleEditMode,
+                        readOnly: _isReadOnly == true,
+                      ),
 
-                    Expanded(
-                      child: _isReadOnly
-                          ? GestureDetector(
-                              onTap: _showRestoreDialog,
-                              behavior: HitTestBehavior.opaque,
-                              child: SingleChildScrollView(
-                                controller: _editorScrollController,
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                child: AbsorbPointer(
-                                  child: NoteEditor(
-                                    controller: contentController,
-                                    focusNode: _editorFocusNode,
-                                    scrollController: _editorScrollController,
-                                    scrollable: false,
-                                    expands: false,
-                                    showCursor: false,
+                      const SizedBox(height: UIConstants.paddingMD),
+
+                      Expanded(
+                        child: _isReadOnly
+                            ? GestureDetector(
+                                onTap: _showRestoreDialog,
+                                behavior: HitTestBehavior.opaque,
+                                child: SingleChildScrollView(
+                                  controller: _editorScrollController,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  child: AbsorbPointer(
+                                    child: NoteEditor(
+                                      controller: contentController,
+                                      focusNode: _editorFocusNode,
+                                      scrollController: _editorScrollController,
+                                      scrollable: false,
+                                      expands: false,
+                                      showCursor: false,
+                                    ),
                                   ),
                                 ),
+                              )
+                            : NoteEditor(
+                                controller: contentController,
+                                focusNode: _editorFocusNode,
                               ),
-                            )
-                          : NoteEditor(
-                              controller: contentController,
-                              focusNode: _editorFocusNode,
-                            ),
-                    ),
+                      ),
 
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _uiController.isEditing,
-                      builder: (context, isEditing, child) {
-                        return AnimatedSize(
-                          duration: NoteConstants.notePageToolbarSizeDelay,
-                          curve: Curves.easeInOut,
-                          child: isEditing
-                              ? Container(
-                                  key: const ValueKey('note_toolbar'),
-                                  padding: const EdgeInsets.only(
-                                    bottom: NoteConstants
-                                        .notePageToolbarPaddingBottom,
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _uiController.isEditing,
+                        builder: (context, isEditing, child) {
+                          return AnimatedSize(
+                            duration: NoteConstants.notePageToolbarSizeDelay,
+                            curve: Curves.easeInOut,
+                            child: isEditing
+                                ? Container(
+                                    key: const ValueKey('note_toolbar'),
+                                    padding: const EdgeInsets.only(
+                                      bottom: NoteConstants
+                                          .notePageToolbarPaddingBottom,
+                                    ),
+                                    child: NoteToolbar(
+                                      controller: contentController,
+                                      toolbarController: _toolbarController,
+                                      focusNode: _editorFocusNode,
+                                      shouldNudge: _shouldNudge,
+                                      onNudgeComplete: () {
+                                        if (mounted) {
+                                          setState(() {
+                                            _shouldNudge = false;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  )
+                                : const SizedBox(
+                                    key: ValueKey('empty_space'),
+                                    width: double.infinity,
+                                    height: NoteConstants
+                                        .notePageReadonlySpacerHeight,
                                   ),
-                                  child: NoteToolbar(
-                                    controller: contentController,
-                                    toolbarController: _toolbarController,
-                                    focusNode: _editorFocusNode,
-                                    shouldNudge: _shouldNudge,
-                                    onNudgeComplete: () {
-                                      if (mounted) {
-                                        setState(() {
-                                          _shouldNudge = false;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                )
-                              : const SizedBox(
-                                  key: ValueKey('empty_space'),
-                                  width: double.infinity,
-                                  height: NoteConstants
-                                      .notePageReadonlySpacerHeight,
-                                ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
 

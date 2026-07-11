@@ -225,7 +225,10 @@ class _SwipeableNoteItemState extends State<SwipeableNoteItem> {
                         noteId: widget.note.id,
                         onNavigate: (id) async => Navigator.push(
                           context,
-                          AppRouter.slide(NotePage(noteId: id)),
+                          AppRouter.slide(
+                            NotePage(noteId: id),
+                            animateReverse: false,
+                          ),
                         ),
                       );
                     },

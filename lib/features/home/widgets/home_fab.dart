@@ -1,4 +1,3 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
@@ -81,65 +80,80 @@ class _OptimizedMorphCanvas extends StatelessWidget {
 
     const double expandedWidth = HomeConstants.fabExpandedWidth;
     const double collapsedWidth = HomeConstants.fabCollapsedWidth;
-    const double fabHeight = HomeConstants.fabHeight;
+    final double fabHeight = HomeConstants.fabHeight;
 
     return TweenAnimationBuilder<double>(
-      tween: Tween<double>(
-        begin: isExtended ? expandedWidth : collapsedWidth,
-        end: isExtended ? expandedWidth : collapsedWidth,
-      ),
+      tween: Tween<double>(end: isExtended ? expandedWidth : collapsedWidth),
       duration: AnimationConstants.medium,
-      curve: Curves.easeOutBack,
+      curve: Curves.easeOutCubic,
       builder: (context, animatedWidth, child) {
         return SizedBox(
           height: fabHeight,
           width: animatedWidth,
-          child: OpenContainer(
-            // 🛠️ FIX 1: Use shared axis scaling fade, built for expanding components
-            transitionType: ContainerTransitionType.fade,
-            // 🛠️ FIX 2: Give the GPU 350ms to draw the full canvas smoothly
-            transitionDuration: const Duration(milliseconds: 350),
-            openColor: Theme.of(context).scaffoldBackgroundColor,
-            closedColor: fabColor,
-            // 🛠️ FIX 3: Pass your exact fabColor to the mid-transition layer.
-            // This instantly kills that ugly translucent grey block artifact!
-            middleColor: fabColor,
-            closedElevation: isSelectionActive ? 0 : UIConstants.elevationHigh,
-            closedShape: RoundedRectangleBorder(
+          child: RepaintBoundary(
+            child: Material(
+              color: fabColor,
+              elevation: isSelectionActive ? 0 : UIConstants.elevationHigh,
               borderRadius: BorderRadius.circular(
                 HomeConstants.fabClosedRadius,
               ),
-            ),
-            openShape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
-            closedBuilder: (context, openContainer) => RepaintBoundary(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: shouldHide ? null : openContainer,
-                  // 🛠️ FIX 4: Replace default muddy system ripples with a high-fidelity subtle splash
-                  splashColor: contentColor.withValues(alpha: 0.12),
-                  highlightColor: Colors.transparent,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(end: isExtended ? 1.0 : 0.0),
-                    duration: AnimationConstants.fast,
-                    curve: Curves.easeInOutCubic,
-                    builder: (context, animationProgress, _) {
-                      return CustomPaint(
-                        size: Size(animatedWidth, fabHeight),
-                        painter: FluidFabPainter(
-                          contentColor: contentColor,
-                          progress: animationProgress,
-                        ),
-                      );
-                    },
-                  ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(
+                  HomeConstants.fabClosedRadius,
+                ),
+                onTap: shouldHide
+                    ? null
+                    : () {
+                        // 🌟 THE NEW ROUTE RUNNER: Pushes the smooth shared axis page scale transition
+                        Navigator.of(context).push(_createSharedAxisRoute());
+                      },
+                splashColor: contentColor.withValues(alpha: 0.12),
+                highlightColor: Colors.transparent,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(end: isExtended ? 1.0 : 0.0),
+                  duration: AnimationConstants.fast,
+                  curve: Curves.easeInOutCubic,
+                  builder: (context, animationProgress, _) {
+                    return CustomPaint(
+                      size: Size(animatedWidth, fabHeight),
+                      painter: FluidFabPainter(
+                        contentColor: contentColor,
+                        progress: animationProgress,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
-            openBuilder: (context, _) => const NotePage(),
           ),
+        );
+      },
+    );
+  }
+
+  // 🛠️ THE SMOOTHNESS FIX: High-performance Shared Axis Page Scale transition
+  Route _createSharedAxisRoute() {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => const NotePage(),
+      transitionDuration: const Duration(milliseconds: 300),
+      reverseTransitionDuration: const Duration(milliseconds: 250),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        // Shared Axis Scale: Page scales from 0.92 to 1.0 smoothly
+        final scaleTween = Tween<double>(begin: 0.92, end: 1.0).animate(
+          CurvedAnimation(parent: animation, curve: Curves.fastOutSlowIn),
+        );
+
+        // Shared Axis Fade: Page fades in gracefully alongside the scale matrix
+        final fadeTween = Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+          ),
+        );
+
+        return FadeTransition(
+          opacity: fadeTween,
+          child: ScaleTransition(scale: scaleTween, child: child),
         );
       },
     );
