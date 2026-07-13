@@ -2,12 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
-import 'package:notepad/core/extensions/context_extensions.dart';
 
 // Note app bar contains editor actions and read-only state handling.
 class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {

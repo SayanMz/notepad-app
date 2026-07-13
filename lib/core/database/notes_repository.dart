@@ -186,6 +186,7 @@ class NoteRepository {
     required String content,
     String richContent = '',
     final bool notify = false,
+    double scrollOffset = 0.0,
   }) async {
     final existingNote = noteId == null ? null : findById(noteId);
     final now = DateTime.now();
@@ -195,7 +196,8 @@ class NoteRepository {
         ..title = title
         ..content = content
         ..richContent = richContent
-        ..updatedAt = now;
+        ..updatedAt = now
+        ..scrollOffset = scrollOffset;
 
       if (notify) {
         activeRevision.value++;
@@ -223,7 +225,7 @@ class NoteRepository {
       createdAt: now,
       updatedAt: now,
       positionIndex: topUnpinnedIndex,
-    );
+    )..scrollOffset = scrollOffset;
 
     _cacheMap[newNote.id] = newNote;
     await SqliteFtsService.insertOrUpdate(newNote.id, title, content);
@@ -306,8 +308,11 @@ class NoteRepository {
     if (noteIds.isEmpty) return;
 
     _deletedNotes.removeWhere((note) => noteIds.contains(note.id));
-    deletedRevision.value++;
+    for (final id in noteIds) {
+      _cacheMap.remove(id);
+    }
 
+    deletedRevision.value++;
     await db.deleteNotesBulk(noteIds);
   }
 
@@ -367,17 +372,20 @@ class NoteRepository {
     }
   }
 
-  Future<String> exportNotesToBackupString() async {
-    if (_activeNotes.isEmpty) return "";
+  Future<(int, String)> exportNotesToBackupString() async {
+    if (_activeNotes.isEmpty) return (0, "");
     try {
-      return await db.exportNotesToJSON(_activeNotes);
+      final jsonString = await db.exportNotesToJSON(_activeNotes);
+
+      // 2. Return the accurate count mapped to the json string payload
+      return (_activeNotes.length, jsonString);
     } catch (e) {
       debugPrint('Export failed: $e');
-      return "";
+      return (0, "");
     }
   }
 
-  Future<void> importNotesFromBackupString(String jsonString) async {
+  Future<int> importNotesFromBackupString(String jsonString) async {
     List<NotesSection> importedNotes;
 
     try {
@@ -406,6 +414,8 @@ class NoteRepository {
       activeRevision.value++;
       await db.saveNotesBulk(updates);
     }
+
+    return updates.length;
   }
 }
 

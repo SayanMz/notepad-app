@@ -27,13 +27,13 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
       isDeleted: fields[6] as bool,
       isPinned: fields[7] as bool,
       cardColorValue: fields[8] as int,
-    );
+    )..scrollOffset = fields[10] == null ? 0.0 : fields[10] as double;
   }
 
   @override
   void write(BinaryWriter writer, NotesSection obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +53,9 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
       ..writeByte(8)
       ..write(obj.cardColorValue)
       ..writeByte(9)
-      ..write(obj.positionIndex);
+      ..write(obj.positionIndex)
+      ..writeByte(10)
+      ..write(obj.scrollOffset);
   }
 
   @override

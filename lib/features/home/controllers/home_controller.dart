@@ -6,13 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/home/controllers/animation_controller.dart';
+import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
-import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
-import 'package:notepad/core/services/note_document_service.dart';
 
 // Coordinates the home screen list, selection, drag, and deletion flows.
 class HomeController extends ChangeNotifier {
@@ -248,11 +248,16 @@ class HomeController extends ChangeNotifier {
     try {
       isSavingNotifier.value = true;
 
-      final jsonString = await noteRepository.exportNotesToBackupString();
+      final (noteCount, jsonString) = await noteRepository
+          .exportNotesToBackupString();
+
       await googleDriveService.uploadBackup(jsonString);
       await authController.fetchFreshStorageStats();
 
       updateSyncStatus('All saved', color: Colors.green);
+      showSuccessSnackBar(
+        '${noteCount == 1 ? '1 note' : '$noteCount notes'} are now backed up.',
+      );
       debugPrint('Manual backup completed successfully.');
     } catch (e) {
       updateSyncStatus('Sync failed', color: Colors.redAccent);
@@ -273,10 +278,15 @@ class HomeController extends ChangeNotifier {
         return;
       }
 
-      await noteRepository.importNotesFromBackupString(backupJson);
+      final importedNotes = await noteRepository.importNotesFromBackupString(
+        backupJson,
+      );
       await authController.fetchFreshStorageStats();
 
       updateSyncStatus('All saved', color: Colors.green);
+      showSuccessSnackBar(
+        '${importedNotes == 1 ? ' 1 note' : '$importedNotes notes'} have been restored.',
+      );
       debugPrint('Manual restore and data merge completed successfully.');
     } catch (e) {
       updateSyncStatus('Sync failed', color: Colors.redAccent);

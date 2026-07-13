@@ -76,11 +76,14 @@ class NotesSection {
   @HiveField(8)
   int cardColorValue;
 
+  Color get cardColor => Color(cardColorValue);
+  set cardColor(Color color) => cardColorValue = color.toARGB32();
+
   @HiveField(9, defaultValue: 0)
   int positionIndex;
 
-  Color get cardColor => Color(cardColorValue);
-  set cardColor(Color color) => cardColorValue = color.toARGB32();
+  @HiveField(10, defaultValue: 0.0)
+  double scrollOffset = 0.0;
 
   Map<String, dynamic> toJson() => {
     'id': id,
