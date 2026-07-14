@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/notes_repository.dart';
+import 'package:notepad/features/note/services/link_detector_service.dart';
 import 'package:notepad/features/note/widgets/save_indicator.dart';
 
 class NoteDataController {
@@ -13,6 +14,7 @@ class NoteDataController {
   NoteDataController({required this.noteRepository, this.noteId});
 
   Timer? _autosaveDebounce;
+  Timer? _detectionDebounce;
   bool _isSaving = false;
   bool _isDisposed = false;
 
@@ -36,21 +38,28 @@ class NoteDataController {
     return '${title.trim()}\n${jsonEncode(document.toDelta().toJson())}';
   }
 
-  // 🌟 Method 1: Handles purely text typing
   void handleEditorChanged({
     required String title,
     required Document document,
+    required QuillController controller,
+    required DocChange? change,
   }) {
+    if (change != null && change.source != ChangeSource.local) return;
+
     final textUnchanged =
         _lastEditorSignature == _editorSignature(title, document);
-
     if (textUnchanged) return;
 
     _autosaveDebounce?.cancel();
     _autosaveDebounce = Timer(
       AnimationConstants.saveIndicator,
-      () =>
-          saveNote(title: title.trim(), document: document), // Just saves text
+      () => saveNote(title: title.trim(), document: document),
+    );
+
+    _detectionDebounce?.cancel();
+    _detectionDebounce = Timer(
+      const Duration(milliseconds: 600),
+      () => LinkDetectorService.scanAndLinkifyParagraph(controller),
     );
   }
 
@@ -163,6 +172,7 @@ class NoteDataController {
   void dispose() {
     _isDisposed = true;
     _autosaveDebounce?.cancel();
+    _detectionDebounce?.cancel();
     saveState.dispose();
   }
 }

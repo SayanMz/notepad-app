@@ -218,8 +218,24 @@ class _NotePageState extends State<NotePage>
   }
 
   void _attachListeners() {
-    titleController.addListener(_handleEditorChanged);
-    contentController.addListener(_handleEditorChanged);
+    titleController.addListener(() {
+      _dataController.handleEditorChanged(
+        title: titleController.text,
+        document: contentController.document,
+        controller: contentController,
+        change: null,
+      );
+    });
+
+    contentController.changes.listen((DocChange change) {
+      _dataController.handleEditorChanged(
+        title: titleController.text,
+        document: contentController.document,
+        controller: contentController,
+        change: change,
+      );
+      _uiController.orchestrateButtonVisibility();
+    });
   }
 
   AppLifecycleListener _createLifecycleListener() {
@@ -236,14 +252,6 @@ class _NotePageState extends State<NotePage>
       document: contentController.document,
       scrollOffset: _getCurrentScrollOffset(),
     );
-  }
-
-  void _handleEditorChanged() {
-    _dataController.handleEditorChanged(
-      title: titleController.text,
-      document: contentController.document,
-    );
-    _uiController.orchestrateButtonVisibility();
   }
 
   Future<void> _handleBackNavigation() async {
@@ -279,10 +287,7 @@ class _NotePageState extends State<NotePage>
 
   @override
   void dispose() {
-    titleController.removeListener(_handleEditorChanged);
     titleController.dispose();
-
-    contentController.removeListener(_handleEditorChanged);
     contentController.dispose();
 
     _editorFocusNode.dispose();
@@ -365,10 +370,17 @@ class _NotePageState extends State<NotePage>
                           child: ListenableBuilder(
                             listenable: _editorScrollController,
                             builder: (context, child) {
+                              // Check if the keyboard is open using the direct view insets
+                              final double keyboardHeight = View.of(
+                                context,
+                              ).viewInsets.bottom;
+                              final bool isKeyboardOpen = keyboardHeight > 0;
+
                               final double currentOffset =
                                   _editorScrollController.hasClients
                                   ? _editorScrollController.offset
                                   : 0.0;
+
                               final double topFadeStop = currentOffset <= 0.0
                                   ? 0.0
                                   : (currentOffset / 100).clamp(0.0, 0.03);
@@ -387,7 +399,9 @@ class _NotePageState extends State<NotePage>
                                     stops: [0.0, topFadeStop, 0.90, 1.0],
                                   ).createShader(bounds);
                                 },
-                                blendMode: BlendMode.dstIn,
+                                blendMode: isKeyboardOpen
+                                    ? BlendMode.dst
+                                    : BlendMode.dstIn,
                                 child: child!,
                               );
                             },
@@ -414,8 +428,20 @@ class _NotePageState extends State<NotePage>
                                         showCursor:
                                             !_isReadOnly, // Cursor hides natively in read-only
                                       ),
-                                      const SizedBox(
-                                        height: UIConstants.paddingXL,
+                                      Builder(
+                                        builder: (context) {
+                                          final bool isKeyboardOpen =
+                                              View.of(
+                                                context,
+                                              ).viewInsets.bottom >
+                                              0;
+
+                                          return SizedBox(
+                                            height: isKeyboardOpen
+                                                ? 0
+                                                : UIConstants.paddingXL,
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
