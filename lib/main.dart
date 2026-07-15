@@ -13,7 +13,7 @@ import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
-import 'package:notepad/features/home/home_page.dart';
+import 'package:notepad/features/home/splash_page.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // App startup wires global error handling, storage init, and theme bootstrapping.
@@ -67,8 +67,16 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // We reference the bootstrap initialization future directly within the app root state
+  late final Future<void> _initFuture = appSettingsRepository.load();
 
   @override
   Widget build(BuildContext context) {
@@ -77,29 +85,38 @@ class MyApp extends StatelessWidget {
       builder: (_, settings) {
         return RepaintBoundary(
           key: ThemeFader.appBoundaryKey,
-          child: MaterialApp(
-            title: 'My Notepad',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: appSettingsRepository.themeMode,
-            home: const HomePage(),
-            scaffoldMessengerKey: uiNotifier.scaffoldMessengerKey,
-            supportedLocales: const [Locale('en')],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              FlutterQuillLocalizations.delegate,
-            ],
-            scrollBehavior: const MaterialScrollBehavior().copyWith(
-              dragDevices: {
-                PointerDeviceKind.touch,
-                PointerDeviceKind.mouse,
-                PointerDeviceKind.stylus,
-                PointerDeviceKind.trackpad,
-              },
-            ),
+          child: FutureBuilder<void>(
+            future: _initFuture,
+            builder: (context, snapshot) {
+              final isComplete =
+                  snapshot.connectionState == ConnectionState.done;
+
+              return MaterialApp(
+                title: 'My Notepad',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.light,
+                darkTheme: AppTheme.dark,
+                themeMode: appSettingsRepository.themeMode,
+                scaffoldMessengerKey: uiNotifier.scaffoldMessengerKey,
+                supportedLocales: const [Locale('en')],
+                localizationsDelegates: const [
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  FlutterQuillLocalizations.delegate,
+                ],
+                scrollBehavior: const MaterialScrollBehavior().copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.stylus,
+                    PointerDeviceKind.trackpad,
+                  },
+                ),
+                // 🌟 Targeted injection: The splash page lives inside the real app context!
+                home: SplashPage(isInitializationComplete: isComplete),
+              );
+            },
           ),
         );
       },

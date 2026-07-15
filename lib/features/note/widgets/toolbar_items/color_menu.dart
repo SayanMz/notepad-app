@@ -11,12 +11,14 @@ class ColorMenu extends StatefulWidget {
     required this.focusNode,
     required this.isDark,
     required this.toolbarController,
+    required this.selectionStyle,
   });
 
   final QuillController controller;
   final NoteToolbarController toolbarController;
   final FocusNode focusNode;
   final bool isDark;
+  final Style selectionStyle;
 
   @override
   State<ColorMenu> createState() => _ColorMenuState();
@@ -37,6 +39,7 @@ class _ColorMenuState extends State<ColorMenu> {
   @override
   void initState() {
     super.initState();
+    // Register the internal close picker logic with the controller
     widget.toolbarController.register(_closePicker);
   }
 
@@ -45,14 +48,13 @@ class _ColorMenuState extends State<ColorMenu> {
       _overlayEntry?.remove();
       _overlayEntry = null;
     }
+    // Ensure the parent MenuAnchor also closes
     if (_menuController.isOpen) _menuController.close();
   }
 
   void _openPicker() {
-    final currentAttr = widget.controller
-        .getSelectionStyle()
-        .attributes['color'];
-    Color initialColor = currentAttr != null
+    final currentAttr = widget.selectionStyle.attributes['color'];
+    final Color initialColor = currentAttr != null
         ? Color(int.parse(currentAttr.value.replaceFirst('#', '0xff')))
         : (widget.isDark ? Colors.white : Colors.black);
 
@@ -80,6 +82,8 @@ class _ColorMenuState extends State<ColorMenu> {
 
   @override
   Widget build(BuildContext context) {
+    final currentColor = widget.selectionStyle.attributes['color'];
+
     return ToolbarMenuWrapper(
       toolbarController: widget.toolbarController,
       menuController: _menuController,
@@ -101,14 +105,44 @@ class _ColorMenuState extends State<ColorMenu> {
                   context,
                   widget.isDark ? Colors.white : Colors.black,
                   isDefault: true,
+                  currentColor: currentColor,
                 ),
-                _buildColorCircle(context, Colors.red),
-                _buildColorCircle(context, Colors.pinkAccent),
-                _buildColorCircle(context, Colors.amber),
-                _buildColorCircle(context, Colors.green),
-                _buildColorCircle(context, Colors.blue),
-                _buildColorCircle(context, Colors.purple),
-                _buildColorCircle(context, Colors.transparent, isRainbow: true),
+                _buildColorCircle(
+                  context,
+                  Colors.red,
+                  currentColor: currentColor,
+                ),
+                _buildColorCircle(
+                  context,
+                  Colors.pinkAccent,
+                  currentColor: currentColor,
+                ),
+                _buildColorCircle(
+                  context,
+                  Colors.amber,
+                  currentColor: currentColor,
+                ),
+                _buildColorCircle(
+                  context,
+                  Colors.green,
+                  currentColor: currentColor,
+                ),
+                _buildColorCircle(
+                  context,
+                  Colors.blue,
+                  currentColor: currentColor,
+                ),
+                _buildColorCircle(
+                  context,
+                  Colors.purple,
+                  currentColor: currentColor,
+                ),
+                _buildColorCircle(
+                  context,
+                  Colors.transparent,
+                  isRainbow: true,
+                  currentColor: currentColor,
+                ),
               ],
             ),
           ),
@@ -122,67 +156,58 @@ class _ColorMenuState extends State<ColorMenu> {
     Color color, {
     bool isDefault = false,
     bool isRainbow = false,
+    dynamic currentColor,
   }) {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, child) {
-        final hexString =
-            '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
-        final isSelected = isDefault
-            ? widget.controller.getSelectionStyle().attributes['color'] == null
-            : !isRainbow &&
-                  widget.controller
-                          .getSelectionStyle()
-                          .attributes['color']
-                          ?.value ==
-                      hexString;
+    final hexString =
+        '#${(color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+    final isSelected = isDefault
+        ? currentColor == null
+        : !isRainbow && currentColor?.value == hexString;
 
-        return GestureDetector(
-          onTap: () {
-            if (isRainbow) {
-              _toggleCustomPicker();
-            } else {
-              final colorAttr = isDefault
-                  ? Attribute.fromKeyValue('color', null)
-                  : ColorAttribute(hexString);
-              widget.controller.formatSelection(colorAttr);
+    return GestureDetector(
+      onTap: () {
+        if (isRainbow) {
+          _toggleCustomPicker();
+        } else {
+          final colorAttr = isDefault
+              ? Attribute.fromKeyValue('color', null)
+              : ColorAttribute(hexString);
+          widget.controller.formatSelection(colorAttr);
 
-              if (_menuController.isOpen) {
-                _menuController.close();
-              }
+          if (_menuController.isOpen) {
+            _menuController.close();
+          }
 
-              widget.focusNode.requestFocus();
-            }
-          },
-          child: Container(
-            margin: const EdgeInsets.all(UIConstants.toolbarColorCircleMargin),
-            width: UIConstants.toolbarColorCircleSize,
-            height: UIConstants.toolbarColorCircleSize,
-            decoration: BoxDecoration(
-              color: isRainbow ? null : color,
-              gradient: isRainbow
-                  ? const SweepGradient(
-                      colors: [
-                        Colors.red,
-                        Colors.orange,
-                        Colors.yellow,
-                        Colors.green,
-                        Colors.blue,
-                        Colors.indigo,
-                        Colors.purple,
-                        Colors.red,
-                      ],
-                    )
-                  : null,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected ? Colors.lightGreenAccent : Colors.white,
-                width: UIConstants.toolbarColorCircleBorderWidth,
-              ),
-            ),
-          ),
-        );
+          widget.focusNode.requestFocus();
+        }
       },
+      child: Container(
+        margin: const EdgeInsets.all(UIConstants.toolbarColorCircleMargin),
+        width: UIConstants.toolbarColorCircleSize,
+        height: UIConstants.toolbarColorCircleSize,
+        decoration: BoxDecoration(
+          color: isRainbow ? null : color,
+          gradient: isRainbow
+              ? const SweepGradient(
+                  colors: [
+                    Colors.red,
+                    Colors.orange,
+                    Colors.yellow,
+                    Colors.green,
+                    Colors.blue,
+                    Colors.indigo,
+                    Colors.purple,
+                    Colors.red,
+                  ],
+                )
+              : null,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? Colors.lightGreenAccent : Colors.white,
+            width: UIConstants.toolbarColorCircleBorderWidth,
+          ),
+        ),
+      ),
     );
   }
 }

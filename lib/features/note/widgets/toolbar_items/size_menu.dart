@@ -10,12 +10,14 @@ class SizeMenu extends StatefulWidget {
     required this.isDark,
     required this.focusNode,
     required this.toolbarController,
+    required this.selectionStyle,
   });
 
   final QuillController controller;
   final NoteToolbarController toolbarController;
   final bool isDark;
   final FocusNode focusNode;
+  final Style selectionStyle;
 
   static const List<double> standardSizes = [
     8,
@@ -63,144 +65,129 @@ class _SizeMenuState extends State<SizeMenu> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = context.colorScheme;
+    final style = widget.selectionStyle;
+    final double currentSize =
+        double.tryParse(style.attributes['size']?.value.toString() ?? '16') ??
+        16.0;
+    final String headingLabel = SizeMenu.headingLabels[currentSize] ?? 'H';
 
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, child) {
-        final style = widget.controller.getSelectionStyle();
-        final double currentSize =
-            double.tryParse(
-              style.attributes['size']?.value.toString() ?? '16',
-            ) ??
-            16.0;
-
-        final String headingLabel = SizeMenu.headingLabels[currentSize] ?? 'H';
-
-        return ToolbarMenuWrapper(
-          toolbarController: widget.toolbarController,
-          menuController: _parentMenuController,
-          child: MenuAnchor(
-            controller: _parentMenuController,
-            alignmentOffset: const Offset(0, -125),
-            builder: (context, controller, child) => IconButton(
-              icon: Icon(
-                Icons.text_fields,
-                color: controller.isOpen
-                    ? Colors.blueAccent
-                    : (widget.isDark ? Colors.white : Colors.black54),
-              ),
-              onPressed: () =>
-                  controller.isOpen ? controller.close() : controller.open(),
-            ),
-            menuChildren: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 120, maxHeight: 48),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Expanded(
-                      child: MenuAnchor(
-                        controller: _headingMenuController,
-                        alignmentOffset: const Offset(-55, -200),
-                        builder: (context, innerMenu, _) => TextButton(
-                          onPressed: () => innerMenu.isOpen
-                              ? innerMenu.close()
-                              : innerMenu.open(),
-                          child: Row(
-                            children: [
-                              Text(
-                                headingLabel,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Icon(Icons.arrow_drop_up, size: 18),
-                            ],
-                          ),
-                        ),
-                        menuChildren: [
-                          _buildSizeItem(
-                            'H1 (Title)',
-                            32.0,
-                            currentSize,
-                            colorScheme,
-                          ),
-                          _buildSizeItem(
-                            'H2 (Header)',
-                            28.0,
-                            currentSize,
-                            colorScheme,
-                          ),
-                          _buildSizeItem(
-                            'H3 (Sub)',
-                            24.0,
-                            currentSize,
-                            colorScheme,
-                          ),
-                          _buildSizeItem(
-                            'H4 (Small)',
-                            20.0,
-                            currentSize,
-                            colorScheme,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Container(
-                      width: 1,
-                      height: 20,
-                      color: widget.isDark ? Colors.white24 : Colors.black12,
-                    ),
-
-                    Expanded(
-                      child: MenuAnchor(
-                        controller: _sizeMenuController,
-                        alignmentOffset: const Offset(-55, -250),
-                        builder: (context, innerMenu, _) => TextButton(
-                          onPressed: () => innerMenu.isOpen
-                              ? innerMenu.close()
-                              : innerMenu.open(),
-                          child: Row(
-                            children: [
-                              Text(
-                                '${currentSize.toInt()}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Icon(Icons.arrow_drop_up, size: 18),
-                            ],
-                          ),
-                        ),
-                        menuChildren: [
-                          SizedBox(
-                            height: 240,
-                            child: SingleChildScrollView(
-                              child: Column(
-                                children: SizeMenu.standardSizes
-                                    .map(
-                                      (size) => _buildSizeItem(
-                                        '${size.toInt()}',
-                                        size,
-                                        currentSize,
-                                        colorScheme,
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return ToolbarMenuWrapper(
+      toolbarController: widget.toolbarController,
+      menuController: _parentMenuController,
+      child: MenuAnchor(
+        controller: _parentMenuController,
+        alignmentOffset: const Offset(0, -125),
+        builder: (context, controller, child) => IconButton(
+          icon: Icon(
+            Icons.text_fields,
+            color: controller.isOpen
+                ? Colors.blueAccent
+                : (widget.isDark ? Colors.white : Colors.black54),
           ),
-        );
-      },
+          onPressed: () =>
+              controller.isOpen ? controller.close() : controller.open(),
+        ),
+        menuChildren: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 120, maxHeight: 48),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Expanded(
+                  child: MenuAnchor(
+                    controller: _headingMenuController,
+                    alignmentOffset: const Offset(-55, -200),
+                    builder: (context, innerMenu, _) => TextButton(
+                      onPressed: () => innerMenu.isOpen
+                          ? innerMenu.close()
+                          : innerMenu.open(),
+                      child: Row(
+                        children: [
+                          Text(
+                            headingLabel,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const Icon(Icons.arrow_drop_up, size: 18),
+                        ],
+                      ),
+                    ),
+                    menuChildren: [
+                      _buildSizeItem(
+                        'H1 (Title)',
+                        32.0,
+                        currentSize,
+                        colorScheme,
+                      ),
+                      _buildSizeItem(
+                        'H2 (Header)',
+                        28.0,
+                        currentSize,
+                        colorScheme,
+                      ),
+                      _buildSizeItem(
+                        'H3 (Sub)',
+                        24.0,
+                        currentSize,
+                        colorScheme,
+                      ),
+                      _buildSizeItem(
+                        'H4 (Small)',
+                        20.0,
+                        currentSize,
+                        colorScheme,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 20,
+                  color: widget.isDark ? Colors.white24 : Colors.black12,
+                ),
+                Expanded(
+                  child: MenuAnchor(
+                    controller: _sizeMenuController,
+                    alignmentOffset: const Offset(-55, -250),
+                    builder: (context, innerMenu, _) => TextButton(
+                      onPressed: () => innerMenu.isOpen
+                          ? innerMenu.close()
+                          : innerMenu.open(),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${currentSize.toInt()}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const Icon(Icons.arrow_drop_up, size: 18),
+                        ],
+                      ),
+                    ),
+                    menuChildren: [
+                      SizedBox(
+                        height: 240,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: SizeMenu.standardSizes
+                                .map(
+                                  (size) => _buildSizeItem(
+                                    '${size.toInt()}',
+                                    size,
+                                    currentSize,
+                                    colorScheme,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

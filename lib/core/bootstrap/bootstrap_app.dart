@@ -1,27 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 
-// Bootstrap shell swaps between loading, error, and the real app content.
-class BootstrapLoadingView extends StatelessWidget {
-  const BootstrapLoadingView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: UIConstants.paddingLG),
-            Text('Starting Notepad...'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class BootstrapErrorView extends StatelessWidget {
   const BootstrapErrorView({
     super.key,
@@ -63,7 +42,6 @@ class BootstrapErrorView extends StatelessWidget {
   }
 }
 
-// Bootstrap shell swaps between loading, error, and the real app content.
 class BootstrapApp extends StatefulWidget {
   const BootstrapApp({
     super.key,
@@ -98,13 +76,6 @@ class _BootstrapAppState extends State<BootstrapApp> {
     return FutureBuilder<void>(
       future: _bootstrapFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: BootstrapLoadingView(),
-          );
-        }
-
         if (snapshot.hasError) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -116,6 +87,7 @@ class _BootstrapAppState extends State<BootstrapApp> {
           );
         }
 
+        // Pass the actual app tree forward, keeping track of the loading status
         return widget.child;
       },
     );

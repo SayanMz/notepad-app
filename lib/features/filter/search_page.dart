@@ -1,7 +1,6 @@
 // Search page keeps results, filter controls, and empty states together.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/widgets/scroll_to_top_fab.dart';
 import 'package:notepad/features/filter/controllers/search_controller.dart'
@@ -253,8 +252,12 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _openSearchFilterDialog() async {
-    FocusScope.of(context).unfocus();
-    await Future.delayed(const Duration(milliseconds: 50));
+    final isKeyboardOpen = context.viewInsetsBottom > 0;
+
+    if (isKeyboardOpen) {
+      FocusScope.of(context).unfocus();
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
 
     final result = await showGeneralDialog<SearchFilters>(
       context: context,
@@ -263,7 +266,7 @@ class _SearchPageState extends State<SearchPage> {
       barrierColor: Colors.black.withValues(
         alpha: SearchConstants.dialogBarrierAlpha,
       ),
-      transitionDuration: AnimationConstants.snappy,
+      transitionDuration: const Duration(milliseconds: 350),
       pageBuilder: (context, animation, secondaryAnimation) {
         return _buildResponsiveDialogWrapper(
           child: SearchFilterBottomSheet(
@@ -272,20 +275,28 @@ class _SearchPageState extends State<SearchPage> {
         );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final curvedAnimation = CurvedAnimation(
+        final bool isClosing = animation.status == AnimationStatus.reverse;
+
+        final CurvedAnimation curvedAnimation = CurvedAnimation(
           parent: animation,
-          curve: Curves.easeOutCubic,
+          curve: isClosing
+              ? Curves.easeInOutCubic
+              : const Cubic(0.2, 0.0, 0.0, 1.0),
         );
 
+        final Animation<Offset> slidePosition = Tween<Offset>(
+          begin: const Offset(0.0, 0.4),
+          end: Offset.zero,
+        ).animate(curvedAnimation);
+
         return FadeTransition(
-          opacity: curvedAnimation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.1),
-              end: Offset.zero,
-            ).animate(curvedAnimation),
-            child: child,
+          opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: isClosing ? Curves.easeOutCubic : const Interval(0.0, 0.5),
+            ),
           ),
+          child: SlideTransition(position: slidePosition, child: child),
         );
       },
     );
@@ -293,9 +304,11 @@ class _SearchPageState extends State<SearchPage> {
     if (result != null) {
       _searchController.applyFilters(result);
     }
-    Future.delayed(const Duration(milliseconds: 0), () {
-      FocusScope.of(context).unfocus();
-    });
+    if (mounted) {
+      Future.delayed(const Duration(milliseconds: 0), () {
+        FocusScope.of(context).unfocus();
+      });
+    }
   }
 
   Widget _buildResponsiveDialogWrapper({required Widget child}) {

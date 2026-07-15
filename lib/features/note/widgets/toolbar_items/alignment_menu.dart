@@ -10,63 +10,57 @@ class AlignmentMenu extends StatelessWidget {
     required this.isDark,
     required this.toolbarController,
     required this.menuController,
+    required this.selectionStyle,
   });
 
   final QuillController controller;
   final NoteToolbarController toolbarController;
   final MenuController menuController;
   final bool isDark;
+  final Style selectionStyle;
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, child) {
-        final currentAlign = controller
-            .getSelectionStyle()
-            .attributes[Attribute.align.key]
-            ?.value;
+    final currentAlign = selectionStyle.attributes[Attribute.align.key]?.value;
 
-        return ToolbarMenuWrapper(
-          toolbarController: toolbarController,
-          menuController: menuController,
-          child: MenuAnchor(
-            controller: menuController,
-            alignmentOffset: const Offset(15, -220),
-            builder: (context, controller, child) => IconButton(
-              icon: const Icon(
-                Icons.format_align_justify,
-                color: Colors.blueAccent,
-              ),
-              onPressed: () =>
-                  controller.isOpen ? controller.close() : controller.open(),
-            ),
-            menuChildren: [
-              _buildItem(
-                context,
-                Icons.format_align_left,
-                'left',
-                'Left',
-                currentAlign,
-              ),
-              _buildItem(
-                context,
-                Icons.format_align_center,
-                'center',
-                'Center',
-                currentAlign,
-              ),
-              _buildItem(
-                context,
-                Icons.format_align_right,
-                'right',
-                'Right',
-                currentAlign,
-              ),
-            ],
+    return ToolbarMenuWrapper(
+      toolbarController: toolbarController,
+      menuController: menuController,
+      child: MenuAnchor(
+        controller: menuController,
+        alignmentOffset: const Offset(15, -220),
+        builder: (context, controller, child) => IconButton(
+          icon: const Icon(
+            Icons.format_align_justify,
+            color: Colors.blueAccent,
           ),
-        );
-      },
+          onPressed: () =>
+              controller.isOpen ? controller.close() : controller.open(),
+        ),
+        menuChildren: [
+          _buildItem(
+            context,
+            Icons.format_align_left,
+            'left',
+            'Left',
+            currentAlign,
+          ),
+          _buildItem(
+            context,
+            Icons.format_align_center,
+            'center',
+            'Center',
+            currentAlign,
+          ),
+          _buildItem(
+            context,
+            Icons.format_align_right,
+            'right',
+            'Right',
+            currentAlign,
+          ),
+        ],
+      ),
     );
   }
 

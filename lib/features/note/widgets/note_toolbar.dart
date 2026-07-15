@@ -81,30 +81,75 @@ class _NoteToolbarState extends State<NoteToolbar> {
         builder: (context, constraints) {
           final double itemWidth =
               constraints.maxWidth / NoteConstants.toolbarItemWidthDivisor;
-          return _buildScrollableRow(itemWidth);
+
+          return ListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) {
+              final selectionStyle = widget.controller.getSelectionStyle();
+              final attributes = selectionStyle.attributes;
+              final currentList = attributes['list']?.value;
+              final isBold = attributes.containsKey(Attribute.bold.key);
+              final isItalic = attributes.containsKey(Attribute.italic.key);
+              final isUnderline = attributes.containsKey(
+                Attribute.underline.key,
+              );
+              final isStrike = attributes.containsKey(
+                Attribute.strikeThrough.key,
+              );
+              final isLink = attributes.containsKey('link');
+              final isCheckbox =
+                  currentList == 'unchecked' || currentList == 'checked';
+
+              return _buildScrollableRow(
+                itemWidth,
+                selectionStyle: selectionStyle,
+                isBold: isBold,
+                isItalic: isItalic,
+                isUnderline: isUnderline,
+                isStrike: isStrike,
+                isCheckbox: isCheckbox,
+                isLink: isLink,
+              );
+            },
+          );
         },
       ),
     );
   }
 
-  Widget _buildScrollableRow(double itemWidth) {
+  Widget _buildScrollableRow(
+    double itemWidth, {
+    required Style selectionStyle,
+    required bool isBold,
+    required bool isItalic,
+    required bool isUnderline,
+    required bool isStrike,
+    required bool isCheckbox,
+    required bool isLink,
+  }) {
     final List<Widget> items = [
-      _buildToggle(Icons.format_bold, Attribute.bold),
-      _buildToggle(Icons.format_italic, Attribute.italic),
-      _buildToggle(Icons.format_underlined, Attribute.underline),
-      _buildToggle(Icons.format_strikethrough, Attribute.strikeThrough),
-      _buildCheckbox(),
+      _buildToggle(Icons.format_bold, Attribute.bold, isBold),
+      _buildToggle(Icons.format_italic, Attribute.italic, isItalic),
+      _buildToggle(Icons.format_underlined, Attribute.underline, isUnderline),
+      _buildToggle(
+        Icons.format_strikethrough,
+        Attribute.strikeThrough,
+        isStrike,
+      ),
+      _buildCheckbox(isCheckbox),
       SizeMenu(
         controller: widget.controller,
         isDark: isDark,
         focusNode: widget.focusNode,
         toolbarController: widget.toolbarController,
+        selectionStyle: selectionStyle,
       ),
       ColorMenu(
         controller: widget.controller,
         focusNode: widget.focusNode,
         isDark: isDark,
         toolbarController: widget.toolbarController,
+        selectionStyle: selectionStyle,
       ),
       ListMenu(
         controller: widget.controller,
@@ -112,14 +157,16 @@ class _NoteToolbarState extends State<NoteToolbar> {
         focusNode: widget.focusNode,
         toolbarController: widget.toolbarController,
         menuController: _listMenuCtrl,
+        selectionStyle: selectionStyle,
       ),
       AlignmentMenu(
         controller: widget.controller,
         isDark: isDark,
         toolbarController: widget.toolbarController,
         menuController: _alignMenuCtrl,
+        selectionStyle: selectionStyle,
       ),
-      _buildLinkButton(),
+      _buildLinkButton(isLink),
     ];
 
     return ShaderMask(
@@ -151,81 +198,53 @@ class _NoteToolbarState extends State<NoteToolbar> {
     );
   }
 
-  Widget _buildToggle(IconData icon, Attribute attr) {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, _) {
-        final isSelected = widget.controller
-            .getSelectionStyle()
-            .attributes
-            .containsKey(attr.key);
-        return IconButton(
-          icon: Icon(
-            icon,
-            color: isSelected
-                ? Colors.blueAccent
-                : (isDark ? Colors.white : Colors.black54),
-          ),
-          onPressed: () {
-            widget.focusNode.requestFocus();
-            widget.controller.formatSelection(
-              isSelected ? Attribute.clone(attr, null) : attr,
-            );
-          },
+  Widget _buildToggle(IconData icon, Attribute attr, bool isSelected) {
+    return IconButton(
+      icon: Icon(
+        icon,
+        color: isSelected
+            ? Colors.blueAccent
+            : (isDark ? Colors.white : Colors.black54),
+      ),
+      onPressed: () {
+        widget.focusNode.requestFocus();
+        widget.controller.formatSelection(
+          isSelected ? Attribute.clone(attr, null) : attr,
         );
       },
     );
   }
 
-  Widget _buildCheckbox() {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, _) {
-        final val = widget.controller
-            .getSelectionStyle()
-            .attributes['list']
-            ?.value;
-        final isSelected = (val == 'unchecked' || val == 'checked');
-        return IconButton(
-          icon: Icon(
-            Icons.check_box_outlined,
-            color: isSelected
-                ? Colors.blueAccent
-                : (isDark ? Colors.white : Colors.black54),
-          ),
-          onPressed: () {
-            widget.controller.formatSelection(
-              isSelected
-                  ? Attribute.clone(Attribute.list, null)
-                  : Attribute.unchecked,
-            );
-          },
+  Widget _buildCheckbox(bool isSelected) {
+    return IconButton(
+      icon: Icon(
+        Icons.check_box_outlined,
+        color: isSelected
+            ? Colors.blueAccent
+            : (isDark ? Colors.white : Colors.black54),
+      ),
+      onPressed: () {
+        widget.controller.formatSelection(
+          isSelected
+              ? Attribute.clone(Attribute.list, null)
+              : Attribute.unchecked,
         );
       },
     );
   }
 
-  Widget _buildLinkButton() {
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, child) {
-        final isLink = widget.controller
-            .getSelectionStyle()
-            .attributes
-            .containsKey('link');
-        return IconButton(
-          icon: Icon(
-            Icons.link,
-            color: isLink
-                ? Colors.blueAccent
-                : (isDark ? Colors.white : Colors.black54),
-          ),
-          onPressed: () => HyperlinkHandler.convertToHyperlink(
-            context: context,
-            controller: widget.controller,
-          ),
-        );
-      },
+  Widget _buildLinkButton(bool isLink) {
+    return IconButton(
+      icon: Icon(
+        Icons.link,
+        color: isLink
+            ? Colors.blueAccent
+            : (isDark ? Colors.white : Colors.black54),
+      ),
+      onPressed: () => HyperlinkHandler.convertToHyperlink(
+        context: context,
+        controller: widget.controller,
+      ),
     );
   }
 
