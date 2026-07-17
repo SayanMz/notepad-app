@@ -25,7 +25,7 @@ class NoteEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: UIConstants.paddingS),
           Text(
-            "It’s awfully quiet in here",
+            'It’s awfully quiet in here',
             textAlign: TextAlign.center,
             style: GoogleFonts.outfit(
               fontSize: UIConstants.noteCardPreviewTitleFontSize,
@@ -42,7 +42,7 @@ class NoteEmptyState extends StatelessWidget {
               horizontal: SearchConstants.emptyHorizontalPadding,
             ),
             child: Text(
-              "Feed me some notes so I can keep them safe for you.",
+              'Feed me some notes so I can keep them safe for you.',
               textAlign: TextAlign.center,
               style: GoogleFonts.roboto(
                 fontSize: 14,

@@ -154,7 +154,7 @@ class NoteRepository {
     try {
       await db.saveNotesBulk(bulkUpdates);
     } catch (e) {
-      debugPrint("Reorder Save Error: $e");
+      debugPrint('Reorder Save Error: $e');
     }
   }
 
@@ -206,7 +206,7 @@ class NoteRepository {
       unawaited(
         db
             .saveNote(existingNote)
-            .catchError((e) => debugPrint("Disk Write Error: $e")),
+            .catchError((e) => debugPrint('Disk Write Error: $e')),
       );
 
       await SqliteFtsService.insertOrUpdate(existingNote.id, title, content);
@@ -239,7 +239,7 @@ class NoteRepository {
     unawaited(
       db
           .saveNote(newNote)
-          .catchError((e) => debugPrint("Disk Write Error: $e")),
+          .catchError((e) => debugPrint('Disk Write Error: $e')),
     );
     return newNote;
   }
@@ -373,7 +373,7 @@ class NoteRepository {
   }
 
   Future<(int, String)> exportNotesToBackupString() async {
-    if (_activeNotes.isEmpty) return (0, "");
+    if (_activeNotes.isEmpty) return (0, '');
     try {
       final jsonString = await db.exportNotesToJSON(_activeNotes);
 
@@ -381,7 +381,7 @@ class NoteRepository {
       return (_activeNotes.length, jsonString);
     } catch (e) {
       debugPrint('Export failed: $e');
-      return (0, "");
+      return (0, '');
     }
   }
 

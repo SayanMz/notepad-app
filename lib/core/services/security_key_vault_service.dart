@@ -9,10 +9,7 @@ class SecureKeyVaultService {
   static const String _encryptionKeyToken = 'secure_persistence_encryption_key';
 
   static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences:
-          true,
-    ),
+    aOptions: AndroidOptions(),
   );
 
   static Future<List<int>> getOrCreateEncryptionKey() async {
@@ -45,4 +42,3 @@ class SecureKeyVaultService {
     }
   }
 }
-

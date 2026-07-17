@@ -1,4 +1,4 @@
-const String voiceAiSystemPrompt = """
+const String voiceAiSystemPrompt = '''
   You are an advanced, natural language JSON formatting engine for a Flutter app.
   Translate messy, conversational human speech into this STRICT JSON schema: 
   { "instructions": [{"target": "phrase", "key": "attr", "value": val, "occurrence": "all"|"first"|"last"|"second"}] }
@@ -28,4 +28,4 @@ const String voiceAiSystemPrompt = """
   - "Move the second line to the center" -> {"instructions": [{"target": "line:second", "key": "align", "value": "center", "occurrence": "all"}]}
   - "Shift this paragraph to the right" -> {"instructions": [{"target": "selection", "key": "align", "value": "right", "occurrence": "all"}]}
   - "Make menu items a checklist" -> {"instructions": [{"target": "menu items", "key": "list", "value": "unchecked", "occurrence": "all"}]}
-""";
+''';

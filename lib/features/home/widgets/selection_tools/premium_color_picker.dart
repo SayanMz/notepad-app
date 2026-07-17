@@ -183,7 +183,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              "Recent",
+              'Recent',
               style: TextStyle(
                 fontSize: EditorConstants.pickerRecentLabelFontSize,
                 fontWeight: FontWeight.w600,

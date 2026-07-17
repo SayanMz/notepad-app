@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
@@ -171,7 +172,7 @@ class _RecyclePageState extends State<RecyclePage> {
 
   @override
   Widget build(BuildContext context) {
-    const notesEmptyText = "Your trash is beautifully empty.";
+    const notesEmptyText = 'Your trash is beautifully empty.';
     final cardWidth =
         context.screenSize.width - (RecycleConstants.listPadding * 2);
 
@@ -204,7 +205,9 @@ class _RecyclePageState extends State<RecyclePage> {
                             decelerationRate: ScrollDecelerationRate.fast,
                             parent: ClampingScrollPhysics(),
                           ),
-                    cacheExtent: HomeConstants.homeScrollCacheExtent,
+                    scrollCacheExtent: ScrollCacheExtent.pixels(
+                      HomeConstants.homeScrollCacheExtent,
+                    ),
                     slivers: [
                       SliverPersistentHeader(
                         pinned: true,

@@ -43,22 +43,22 @@ class SeedDataService {
       NotesSection(
         title: 'AI Playground',
         content:
-            "List items: \n"
-            "A\n"
-            "B\n"
-            "C\n"
-            "D\n"
-            "\n"
-            "Now say: \n"
-            "Make list items a list\n"
-            "Make b brown\n"
-            "Make the 2nd line blue\n"
-            "Make the bottom line bold\n"
-            "Make the starting line bold\n"
-            "Shift the first line to middle\n"
-            "Selection highlighter: \n"
-            "Select any porion text and say:\n"
-            "make these look gold\n"
+            'List items: \n'
+            'A\n'
+            'B\n'
+            'C\n'
+            'D\n'
+            '\n'
+            'Now say: \n'
+            'Make list items a list\n'
+            'Make b brown\n'
+            'Make the 2nd line blue\n'
+            'Make the bottom line bold\n'
+            'Make the starting line bold\n'
+            'Shift the first line to middle\n'
+            'Selection highlighter: \n'
+            'Select any porion text and say:\n'
+            'make these look gold\n'
             "select entire 'List items' and say 'make this sentence a list item'",
         cardColorValue: 0xFFEBCB8B,
       ),

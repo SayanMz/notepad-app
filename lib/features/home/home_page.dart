@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide SelectionOverlay;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
@@ -91,7 +92,9 @@ class _HomePageState extends State<HomePage> {
                       controller: _scrollController,
                       key: ValueKey(_controller.activeNotes.isEmpty),
                       physics: _getScrollPhysics,
-                      cacheExtent: context.screenSize.height * 0.40,
+                      scrollCacheExtent: ScrollCacheExtent.pixels(
+                        context.screenSize.height * 0.40,
+                      ),
                       slivers: [
                         HomeAppBar(
                           onOpenDrawer: () =>

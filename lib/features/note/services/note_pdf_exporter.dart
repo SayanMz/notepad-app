@@ -86,7 +86,7 @@ class NotePdfExporter {
       ).save(),
     );
 
-    return FilePicker.platform.saveFile(
+    return FilePicker.saveFile(
       dialogTitle: 'Save note as PDF',
       fileName: '${doc_delta.safeFileTitle(title)}.pdf',
       type: FileType.custom,

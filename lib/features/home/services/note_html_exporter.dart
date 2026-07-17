@@ -47,7 +47,7 @@ class NoteHtmlExporter {
     final bytes = Uint8List.fromList(
       utf8.encode(buildHtmlDocument(title: title, richContent: richContent)),
     );
-    return FilePicker.platform.saveFile(
+    return FilePicker.saveFile(
       dialogTitle: 'Save note as HTML',
       fileName: '${doc_delta.safeFileTitle(title)}.html',
       type: FileType.custom,

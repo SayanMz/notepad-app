@@ -122,7 +122,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
                               children: [
                                 SizedBox(width: 4),
                                 Text(
-                                  "•  •  •",
+                                  '•  •  •',
                                   style: TextStyle(
                                     color: Colors.grey,
                                     fontSize: 9,

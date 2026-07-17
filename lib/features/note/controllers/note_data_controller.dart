@@ -141,7 +141,7 @@ class NoteDataController {
       }
     } catch (e) {
       saveState.value = SaveState.idle;
-      debugPrint("Data Controller Save Error: $e");
+      debugPrint('Data Controller Save Error: $e');
     } finally {
       _isSaving = false;
     }

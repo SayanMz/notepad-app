@@ -35,7 +35,7 @@ class NoteList extends StatelessWidget {
     return SliverMainAxisGroup(
       slivers: [
         if (pinnedNotes.isNotEmpty) ...[
-          _buildSectionHeader(context, "PINNED (${pinnedNotes.length})"),
+          _buildSectionHeader(context, 'PINNED (${pinnedNotes.length})'),
           SliverPadding(
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.listPadding,
@@ -55,8 +55,7 @@ class NoteList extends StatelessWidget {
                   ),
                 );
               },
-              onReorder: (int oldIndex, int newIndex) {
-                if (oldIndex < newIndex) newIndex -= 1;
+              onReorderItem: (int oldIndex, int newIndex) {
                 controller.handlePinnedReorder(oldIndex, newIndex);
               },
               onReorderStart: (index) {
@@ -71,7 +70,7 @@ class NoteList extends StatelessWidget {
 
         if (unpinnedNotes.isNotEmpty) ...[
           if (pinnedNotes.isNotEmpty)
-            _buildSectionHeader(context, "OTHERS (${unpinnedNotes.length})"),
+            _buildSectionHeader(context, 'OTHERS (${unpinnedNotes.length})'),
           SliverPadding(
             padding: const EdgeInsets.symmetric(
               horizontal: UIConstants.listPadding,
@@ -91,8 +90,7 @@ class NoteList extends StatelessWidget {
                   ),
                 );
               },
-              onReorder: (int oldIndex, int newIndex) {
-                if (oldIndex < newIndex) newIndex -= 1;
+              onReorderItem: (int oldIndex, int newIndex) {
                 controller.handleUnpinnedReorder(oldIndex, newIndex);
               },
             ),

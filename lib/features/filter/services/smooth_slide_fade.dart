@@ -28,7 +28,7 @@ class SmoothSlideFade extends StatelessWidget {
           ),
           child: SizeTransition(
             sizeFactor: animation,
-            axisAlignment: -1.0,
+            alignment: Alignment.topCenter,
             child: child,
           ),
         );
@@ -39,4 +39,3 @@ class SmoothSlideFade extends StatelessWidget {
     );
   }
 }
-

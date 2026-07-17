@@ -40,7 +40,7 @@ class SaveIndicator extends StatelessWidget {
                     ),
                     SizedBox(width: UIConstants.saveIndicatorSpacingSmall),
                     Text(
-                      "Saving...",
+                      'Saving...',
                       style: TextStyle(
                         fontSize: UIConstants.saveIndicatorTextFontSize,
                       ),
@@ -57,7 +57,7 @@ class SaveIndicator extends StatelessWidget {
                     ),
                     SizedBox(width: UIConstants.saveIndicatorSpacingTiny),
                     Text(
-                      "Saved",
+                      'Saved',
                       style: TextStyle(
                         fontSize: UIConstants.saveIndicatorTextFontSize,
                       ),
