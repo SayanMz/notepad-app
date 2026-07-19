@@ -30,7 +30,6 @@ class _SearchPageState extends State<SearchPage> {
   final ValueNotifier<bool> _showHeaders = ValueNotifier(true);
 
   final ScrollController _scrollController = ScrollController();
-  final ValueNotifier<bool> _showScrollToTopBtn = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -48,7 +47,6 @@ class _SearchPageState extends State<SearchPage> {
     _searchController.dispose();
     _showHeaders.dispose();
     _scrollController.dispose();
-    _showScrollToTopBtn.dispose();
     super.dispose();
   }
 
@@ -80,11 +78,6 @@ class _SearchPageState extends State<SearchPage> {
               }
 
               if (notification.depth == 0) {
-                final shouldShow = notification.metrics.pixels > 200.0;
-                if (_showScrollToTopBtn.value != shouldShow) {
-                  _showScrollToTopBtn.value = shouldShow;
-                }
-
                 if (notification is UserScrollNotification) {
                   if (notification.direction == ScrollDirection.reverse) {
                     _showHeaders.value = false;
@@ -167,8 +160,8 @@ class _SearchPageState extends State<SearchPage> {
                   builder: (context, _) {
                     return ScrollToTopFab(
                       scrollController: _scrollController,
-                      showScrollToTopBtn: _showScrollToTopBtn,
                       heroTag: 'scrollToTopSearch',
+                      behavior: FabScrollBehavior.autoDimOnIdle,
                       additionalCondition: _searchController.hasAnyCriteria,
                       onPressed: () {
                         _showHeaders.value = true;

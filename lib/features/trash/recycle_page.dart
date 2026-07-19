@@ -1,4 +1,3 @@
-// Recycle bin keeps deleted notes available for restore or permanent deletion.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -16,7 +15,7 @@ import 'package:notepad/features/trash/widgets/recycle_empty_state.dart';
 import 'package:notepad/features/trash/widgets/recycle_header_delegate.dart';
 import 'package:notepad/features/trash/widgets/recycle_notes_sliver_list.dart';
 
-// Recycle bin page keeps deleted notes searchable, sortable, and restorable.
+// Recycle bin keeps deleted notes available for restore or permanent deletion.
 class RecyclePage extends StatefulWidget {
   const RecyclePage({super.key});
 
@@ -31,6 +30,7 @@ class _RecyclePageState extends State<RecyclePage> {
   final ScrollController _scrollController = ScrollController();
 
   final ValueNotifier<bool> _showScrollToTopBtn = ValueNotifier<bool>(false);
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -40,6 +40,7 @@ class _RecyclePageState extends State<RecyclePage> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _showScrollToTopBtn.dispose();
@@ -172,7 +173,7 @@ class _RecyclePageState extends State<RecyclePage> {
 
   @override
   Widget build(BuildContext context) {
-    const notesEmptyText = 'Your trash is beautifully empty.';
+    const notesEmptyText = 'Recycle bin is empty';
     final cardWidth =
         context.screenSize.width - (RecycleConstants.listPadding * 2);
 
@@ -188,60 +189,45 @@ class _RecyclePageState extends State<RecyclePage> {
 
             return Stack(
               children: [
-                NotificationListener<ScrollNotification>(
-                  onNotification: (ScrollNotification notification) {
-                    final shouldShow = notification.metrics.pixels > 200.0;
-
-                    if (_showScrollToTopBtn.value != shouldShow) {
-                      _showScrollToTopBtn.value = shouldShow;
-                    }
-                    return false;
-                  },
-                  child: CustomScrollView(
-                    controller: _scrollController,
-                    physics: isEmpty
-                        ? const NeverScrollableScrollPhysics()
-                        : const BouncingScrollPhysics(
-                            decelerationRate: ScrollDecelerationRate.fast,
-                            parent: ClampingScrollPhysics(),
-                          ),
-                    scrollCacheExtent: ScrollCacheExtent.pixels(
-                      HomeConstants.homeScrollCacheExtent,
-                    ),
-                    slivers: [
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: SmoothHeaderDelegate(
-                          title: 'Recycle Bin',
-                          isDark: isDark,
-                          forceCentered: isEmpty,
-                          onEmptyBin: _handleEmptyRecycleBin,
+                CustomScrollView(
+                  controller: _scrollController,
+                  physics: isEmpty
+                      ? const NeverScrollableScrollPhysics()
+                      : const BouncingScrollPhysics(
+                          decelerationRate: ScrollDecelerationRate.fast,
+                          parent: ClampingScrollPhysics(),
                         ),
-                      ),
-                      if (isEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: RecycleEmptyState(
-                            text: notesEmptyText,
-                            isDark: isDark,
-                          ),
-                        )
-                      else
-                        RecycleNotesSliverList(
-                          controller: _controller,
-                          isDark: isDark,
-                          cardWidth: cardWidth,
-                          onRestore: _handleRestoreNote,
-                          onShowActionSheet: _showNoteActionSheet,
-                        ),
-                    ],
+                  scrollCacheExtent: ScrollCacheExtent.pixels(
+                    HomeConstants.homeScrollCacheExtent,
                   ),
+                  slivers: [
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: SmoothHeaderDelegate(
+                        title: 'Recycle Bin',
+                        forceCentered: isEmpty,
+                        onEmptyBin: _handleEmptyRecycleBin,
+                      ),
+                    ),
+                    if (isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: RecycleEmptyState(text: notesEmptyText),
+                      )
+                    else
+                      RecycleNotesSliverList(
+                        controller: _controller,
+                        cardWidth: cardWidth,
+                        onRestore: _handleRestoreNote,
+                        onShowActionSheet: _showNoteActionSheet,
+                      ),
+                  ],
                 ),
 
                 ScrollToTopFab(
                   scrollController: _scrollController,
-                  showScrollToTopBtn: _showScrollToTopBtn,
                   heroTag: 'scrollToTopRecycle',
+                  behavior: FabScrollBehavior.persistentWhileScrolling,
                 ),
               ],
             );

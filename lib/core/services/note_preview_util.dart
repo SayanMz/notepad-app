@@ -1,15 +1,12 @@
 // Preview helpers extract short snippets from plain text and rich content.
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
   final trimmed = content.trim();
   if (trimmed.isEmpty) return [PreviewLine('No additional text')];
 
-  final List<PreviewLine> extractedLines = maxLines != null
-      ? List.from([], growable: true)
-      : [];
+  final List<PreviewLine> extractedLines = [];
 
   try {
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
@@ -88,10 +85,7 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
     _parsePlainTextLines(content, extractedLines, maxLines);
   }
 
-  return extractedLines
-      .where((line) => line.text.isNotEmpty)
-      .toList()
-      .cast<PreviewLine>();
+  return extractedLines.where((line) => line.text.isNotEmpty).toList();
 }
 
 void _parsePlainTextLines(
@@ -286,4 +280,3 @@ class PreviewLine {
 
   PreviewLine(this.text, {this.isList = false, this.listMarker});
 }
-

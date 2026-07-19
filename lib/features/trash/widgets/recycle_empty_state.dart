@@ -1,19 +1,13 @@
-// Empty recycle state explains when there are no deleted notes to restore.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
-// Empty recycle state explains when no deleted notes are available.
+// Empty recycle state explains that no deleted notes are available.
 class RecycleEmptyState extends StatefulWidget {
   final String text;
-  final bool isDark;
 
-  const RecycleEmptyState({
-    required this.text,
-    required this.isDark,
-    super.key,
-  });
+  const RecycleEmptyState({required this.text, super.key});
 
   @override
   State<RecycleEmptyState> createState() => _RecycleEmptyStateState();
@@ -25,11 +19,11 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = context.colorScheme.primary;
+    final isDark = context.isDark;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           RepaintBoundary(
             child: GestureDetector(
@@ -41,53 +35,26 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    AnimatedContainer(
-                      duration: AnimationConstants.slow,
-                      curve: Curves.easeOutBack,
-                      width: _isPressed
-                          ? RecycleConstants.emptyRippleOuterPressedSize
-                          : RecycleConstants.emptyRippleOuterSize,
-                      height: _isPressed
-                          ? RecycleConstants.emptyRippleOuterPressedSize
-                          : RecycleConstants.emptyRippleOuterSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: primaryColor.withValues(
-                          alpha: widget.isDark ? 0.04 : 0.03,
-                        ),
-                      ),
+                    _buildRipple(
+                      RecycleConstants.emptyRippleOuterSize,
+                      RecycleConstants.emptyRippleOuterPressedSize,
+                      context.isDark ? 0.04 : 0.03,
+                      AnimationConstants.slow,
+                      Curves.easeOutBack,
                     ),
-                    AnimatedContainer(
-                      duration: AnimationConstants.medium,
-                      curve: Curves.easeOutCubic,
-                      width: _isPressed
-                          ? RecycleConstants.emptyRippleMiddlePressedSize
-                          : RecycleConstants.emptyRippleMiddleSize,
-                      height: _isPressed
-                          ? RecycleConstants.emptyRippleMiddlePressedSize
-                          : RecycleConstants.emptyRippleMiddleSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: primaryColor.withValues(
-                          alpha: widget.isDark ? 0.06 : 0.05,
-                        ),
-                      ),
+                    _buildRipple(
+                      RecycleConstants.emptyRippleMiddleSize,
+                      RecycleConstants.emptyRippleMiddlePressedSize,
+                      context.isDark ? 0.06 : 0.05,
+                      AnimationConstants.medium,
+                      Curves.easeOutCubic,
                     ),
-                    AnimatedContainer(
-                      duration: AnimationConstants.fast,
-                      curve: Curves.decelerate,
-                      width: _isPressed
-                          ? RecycleConstants.emptyRippleInnerPressedSize
-                          : RecycleConstants.emptyRippleInnerSize,
-                      height: _isPressed
-                          ? RecycleConstants.emptyRippleInnerPressedSize
-                          : RecycleConstants.emptyRippleInnerSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: primaryColor.withValues(
-                          alpha: widget.isDark ? 0.09 : 0.08,
-                        ),
-                      ),
+                    _buildRipple(
+                      RecycleConstants.emptyRippleInnerSize,
+                      RecycleConstants.emptyRippleInnerPressedSize,
+                      context.isDark ? 0.09 : 0.08,
+                      AnimationConstants.fast,
+                      Curves.decelerate,
                     ),
                     AnimatedScale(
                       duration: AnimationConstants.fast,
@@ -97,7 +64,7 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
                         Icons.delete_sweep_rounded,
                         size: RecycleConstants.emptyStateIconSize,
                         color: primaryColor.withValues(
-                          alpha: widget.isDark
+                          alpha: isDark
                               ? RecycleConstants.emptyStateIconDarkAlpha
                               : RecycleConstants.emptyStateIconLightAlpha,
                         ),
@@ -116,8 +83,8 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
             child: Text(
               widget.text,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: widget.isDark
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: isDark
                     ? Colors.white.withValues(
                         alpha: RecycleConstants.emptyStateBodyDarkAlpha,
                       )
@@ -131,6 +98,25 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRipple(
+    double size,
+    double pressedSize,
+    double alpha,
+    Duration duration,
+    Curve curve,
+  ) {
+    return AnimatedContainer(
+      duration: duration,
+      curve: curve,
+      width: _isPressed ? pressedSize : size,
+      height: _isPressed ? pressedSize : size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: context.colorScheme.primary.withValues(alpha: alpha),
       ),
     );
   }

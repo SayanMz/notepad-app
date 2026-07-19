@@ -1,21 +1,19 @@
-// Sliver header delegate pins the recycle bin title during scroll.
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
 // Sliver header delegate keeps the recycle bin title pinned during scroll.
 class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String title;
-  final bool isDark;
   final bool forceCentered;
-  final VoidCallback? onEmptyBin;
+  final VoidCallback onEmptyBin;
 
   SmoothHeaderDelegate({
     required this.title,
-    required this.isDark,
     required this.forceCentered,
-    this.onEmptyBin,
+    required this.onEmptyBin,
   });
 
   @override
@@ -29,6 +27,7 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final bool isDark = context.isDark;
     final bool isOverlapping = shrinkOffset > 0.0;
     final double horizontalSlide = forceCentered
         ? 0.0
@@ -46,17 +45,13 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
 
     return Material(
       color: isOverlapping
-          ? (isDark
-                ? const Color(0xFF2C2C2C)
-                : const Color(0xFFF3F3F3))
-          : Theme.of(context).scaffoldBackgroundColor,
+          ? (isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF3F3F3))
+          : context.colorScheme.surface,
       elevation: isOverlapping ? 4.0 : 0.0,
       animationDuration: const Duration(milliseconds: 200),
       shadowColor: isDark
           ? const Color(0xFF000000).withValues(alpha: 0.65)
-          : const Color(
-              0xFF2C2C2C,
-            ).withValues(alpha: 0.15),
+          : const Color(0xFF2C2C2C).withValues(alpha: 0.15),
       child: SafeArea(
         bottom: false,
         child: Stack(
@@ -76,7 +71,7 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
                 ),
               ),
             ),
-            if (!forceCentered && onEmptyBin != null)
+            if (!forceCentered)
               Align(
                 alignment: Alignment.centerRight,
                 child: Padding(
@@ -105,4 +100,3 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.forceCentered != forceCentered;
   }
 }
-

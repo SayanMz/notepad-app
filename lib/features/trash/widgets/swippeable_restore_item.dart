@@ -1,4 +1,3 @@
-// Swipe-to-restore rows need gesture handling and delete affordances together.
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/note_page.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
@@ -14,17 +14,15 @@ import 'package:notepad/features/trash/recycle_constants.dart';
 // Swipe actions restore or permanently delete notes from the recycle bin.
 class SwipeableRestoreItem extends StatefulWidget {
   const SwipeableRestoreItem({
-    required this.note,
-    required this.isDark,
-    required this.onRestore,
-    required this.onShowActionSheet,
     required ValueKey<String> key,
     required this.cardWidth,
+    required this.note,
+    required this.onRestore,
+    required this.onShowActionSheet,
   }) : super(key: key);
 
-  final NotesSection note;
-  final bool isDark;
   final double cardWidth;
+  final NotesSection note;
   final void Function(NotesSection) onRestore;
   final void Function(BuildContext, NotesSection) onShowActionSheet;
 
@@ -33,6 +31,9 @@ class SwipeableRestoreItem extends StatefulWidget {
 }
 
 class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
+  bool get isDark => context.isDark;
+  double get cardWidth => widget.cardWidth;
+
   final ValueNotifier<double> _dragProgress = ValueNotifier<double>(0.0);
   final ValueNotifier<bool> _isConfirmed = ValueNotifier<bool>(false);
 
@@ -43,18 +44,13 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
     super.dispose();
   }
 
-  double get cardWidth => widget.cardWidth;
-
   @override
   Widget build(BuildContext context) {
     final previewLines = widget.note.getPreview(
-      1,
+      3,
       normalizedContent: widget.note.content,
     );
-
-    final subtitleText = previewLines.isNotEmpty
-        ? previewLines.first.text
-        : 'No additional text';
+    final subtitleText = previewLines.map((line) => line.text).join('\n');
 
     return Padding(
       padding: const EdgeInsets.all(RecycleConstants.cardMargin),
@@ -71,7 +67,7 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                 horizontal: UIConstants.paddingXXS,
               ),
               elevation: 0,
-              color: widget.isDark
+              color: isDark
                   ? AppColors.recycleSwipeDark
                   : AppColors.recycleSwipeLight,
               shape: RoundedRectangleBorder(
@@ -124,7 +120,7 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                       ..rotateZ(angle)
                       ..scaleByDouble(scale, scale, scale, 1);
 
-                    final baseColor = widget.isDark
+                    final baseColor = isDark
                         ? AppColors.recycleRestoreDark
                         : AppColors.recycleRestoreLight;
 
@@ -177,15 +173,17 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
               child: Card(
                 margin: EdgeInsets.zero,
                 elevation: UIConstants.elevationLow,
-                clipBehavior: Clip
-                    .antiAlias, // 🌟 CRITICAL: Clips the bottom indicator bar to the card's rounded corners
+                // 🌟 CRITICAL: Clips the bottom indicator bar to the card's rounded corners
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
                     RecycleConstants.cardRadius,
                   ),
                 ),
                 child: InkWell(
-                  onLongPress: HapticFeedback.mediumImpact,
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact();
+                  },
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -219,8 +217,7 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                                   const SizedBox(height: 8.0),
                                   Text(
                                     subtitleText,
-                                    maxLines:
-                                        3, // Increased to match the description style in the screenshot
+                                    maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       color: Colors.grey[600],
@@ -237,27 +234,21 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                               ),
                               icon: Icon(
                                 Icons.more_vert,
-                                color: widget.isDark
-                                    ? Colors.white
-                                    : Colors.grey[600],
+                                color: isDark ? Colors.white : Colors.grey[600],
                               ),
                             ),
                           ],
                         ),
                       ),
 
-                      // 2. 🌟 THE FIX: The Days Remaining Bottom Strip Indicator
+                      // 2. The Days Remaining Bottom Strip Indicator
                       Container(
-                        color: widget.isDark
-                            ? Colors.white.withValues(
-                                alpha: 0.12,
-                              ) // Subtle tint for dark mode
-                            : Colors
-                                  .grey[600], // Matches the solid grey indicator strip
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : Colors.grey[600],
                         padding: const EdgeInsets.symmetric(vertical: 6.0),
                         alignment: Alignment.center,
                         child: Text(
-                          // Replace this fallback string with your actual model logic when ready (e.g., widget.note.daysLeft)
                           '${widget.note.daysLeft} days left',
                           style: const TextStyle(
                             color: Colors.white,
