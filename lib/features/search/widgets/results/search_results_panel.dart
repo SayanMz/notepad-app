@@ -1,22 +1,19 @@
-// Search results panel keeps summary, filters, and list presentation aligned.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/features/filter/controllers/search_controller.dart'
+import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
-import 'package:notepad/features/filter/models/search_date_selection.dart';
-import 'package:notepad/features/filter/models/search_filters.dart';
-import 'package:notepad/features/filter/search_constants.dart';
-import 'package:notepad/features/filter/services/smooth_slide_fade.dart';
-import 'package:notepad/features/filter/widgets/search_results_list.dart';
+import 'package:notepad/features/search/models/search_date_selection.dart';
+import 'package:notepad/features/search/models/search_filters.dart';
+import 'package:notepad/features/search/search_constants.dart';
+import 'package:notepad/features/search/services/smooth_slide_fade.dart';
+import 'package:notepad/features/search/widgets/results/search_results_list.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
-// Results panel coordinates the summary, filters, and searchable list sections.
+// Coordinates search result summary, quick filters, and the results list.
 class SearchResultsPanel extends StatelessWidget {
   const SearchResultsPanel({
     required this.controller,
-    required this.onNoteTap,
     required this.showChips,
     required this.onClearFilter,
     required this.scrollController,
@@ -24,7 +21,6 @@ class SearchResultsPanel extends StatelessWidget {
   });
 
   final search_ctrl.SearchController controller;
-  final Future<void> Function(NotesSection note) onNoteTap;
   final ValueNotifier<bool> showChips;
   final VoidCallback onClearFilter;
   final ScrollController scrollController;
@@ -102,7 +98,6 @@ class SearchResultsPanel extends StatelessWidget {
                   Expanded(
                     child: SearchResultsList(
                       controller: controller,
-                      onNoteTap: onNoteTap,
                       scrollController: scrollController,
                     ),
                   ),
@@ -245,3 +240,4 @@ class SearchResultsPanel extends StatelessWidget {
     );
   }
 }
+

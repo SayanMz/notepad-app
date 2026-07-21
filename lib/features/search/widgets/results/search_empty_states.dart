@@ -1,8 +1,7 @@
-// Empty search states explain whether the user has searched yet or just found no match.
 import 'package:flutter/material.dart';
-import 'package:notepad/features/filter/search_constants.dart';
+import 'package:notepad/features/search/search_constants.dart';
 
-// Empty search states explain whether the query matched nothing or has not run yet.
+// Empty search states explain whether the user has searched yet or just found no match.
 class SearchInitialState extends StatelessWidget {
   const SearchInitialState({super.key});
 

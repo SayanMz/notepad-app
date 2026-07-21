@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/features/filter/search_constants.dart';
+import 'package:notepad/features/search/search_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 
 class NoteEmptyState extends StatelessWidget {

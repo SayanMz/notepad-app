@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/filter/controllers/search_controller.dart';
-import 'package:notepad/features/filter/models/search_date_selection.dart';
-import 'package:notepad/features/filter/models/search_filters.dart';
+import 'package:notepad/features/search/controllers/search_controller.dart';
+import 'package:notepad/features/search/models/search_date_selection.dart';
+import 'package:notepad/features/search/models/search_filters.dart';
 
 void main() {
   test('SearchController exposes empty state by default', () {
@@ -35,4 +35,3 @@ void main() {
     controller.dispose();
   });
 }
-

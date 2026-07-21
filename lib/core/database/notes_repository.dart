@@ -4,13 +4,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
 import 'package:notepad/core/database/storage_service.dart' as db;
 import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
 import 'package:notepad/core/services/repo_services/note_sort_service.dart';
 import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
 import 'package:notepad/core/services/repo_services/seed_data_service.dart';
+import 'package:notepad/core/database/sqlite_fts_service.dart';
 
 class NoteRepository {
   factory NoteRepository() => _instance;
@@ -61,11 +61,7 @@ class NoteRepository {
 
       for (final note in _activeNotes) {
         _cacheMap[note.id] = note;
-        await SqliteFtsService.insertOrUpdate(
-          note.id,
-          note.title,
-          note.content,
-        );
+        await SqliteFtsService.insertOrUpdate(note);
       }
 
       await db.saveNotesBulk({for (var n in _activeNotes) n.id: n});
@@ -86,11 +82,7 @@ class NoteRepository {
 
         // Deleted notes stay out of FTS so search only scans active content.
         if (!note.isDeleted) {
-          await SqliteFtsService.insertOrUpdate(
-            note.id,
-            note.title,
-            note.content,
-          );
+          await SqliteFtsService.insertOrUpdate(note);
         }
       }
       // If any expired trash notes were caught, permanently wipe them from disk storage
@@ -120,6 +112,7 @@ class NoteRepository {
         debugPrint('Maintenance failed, will retry next launch: $e');
       }
     }
+    //await SqliteFtsService.reindexAllNotes(_activeNotes);
   }
 
   NotesSection? findById(String id) => _cacheMap[id] ?? db.getNoteById(id);
@@ -209,7 +202,7 @@ class NoteRepository {
             .catchError((e) => debugPrint('Disk Write Error: $e')),
       );
 
-      await SqliteFtsService.insertOrUpdate(existingNote.id, title, content);
+      await SqliteFtsService.insertOrUpdate(existingNote);
       return existingNote;
     }
 
@@ -228,7 +221,7 @@ class NoteRepository {
     )..scrollOffset = scrollOffset;
 
     _cacheMap[newNote.id] = newNote;
-    await SqliteFtsService.insertOrUpdate(newNote.id, title, content);
+    await SqliteFtsService.insertOrUpdate(newNote);
     NoteSortService.insertSorted(_activeNotes, newNote);
 
     _rebuildSubListPointersOnly();
@@ -262,7 +255,7 @@ class NoteRepository {
       // Restoring puts the note back into the active ordering and search index.
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
-      await SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
+      await SqliteFtsService.insertOrUpdate(note);
     }
 
     _rebuildSubListPointersOnly();

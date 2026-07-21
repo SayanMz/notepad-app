@@ -1,5 +1,4 @@
-// Search state tracks the query text and active filters.
-import 'package:notepad/features/filter/models/search_filters.dart';
+import 'package:notepad/features/search/models/search_filters.dart';
 
 // Search state tracks query text and the active filter set.
 class SearchState {

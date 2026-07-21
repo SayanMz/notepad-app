@@ -6,7 +6,7 @@ import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
-import 'package:notepad/features/home/services/app_router.dart';
+import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/features/home/widgets/note_list_items/animated_trash_icon.dart';
 import 'package:notepad/features/home/widgets/note_list_items/note_card.dart';
 import 'package:notepad/features/note/note_page.dart';

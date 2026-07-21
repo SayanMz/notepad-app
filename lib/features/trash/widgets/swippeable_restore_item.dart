@@ -7,6 +7,7 @@ import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/note_page.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
@@ -186,9 +187,8 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                   },
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            NotePage(noteId: widget.note.id, readOnly: true),
+                      AppRouter.slide(
+                        NotePage(noteId: widget.note.id, readOnly: true),
                       ),
                     );
                   },

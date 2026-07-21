@@ -1,10 +1,10 @@
-// Search cards compress matches, snippets, and metadata into one row.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
-import 'package:notepad/features/filter/search_constants.dart';
+import 'package:notepad/features/search/search_constants.dart';
 
+// Search result card highlights matches, snippets, and note metadata in one tile.
 class SearchResultCard extends StatefulWidget {
   const SearchResultCard({
     required this.note,
@@ -172,3 +172,4 @@ class _SearchResultCardState extends State<SearchResultCard> {
     );
   }
 }
+

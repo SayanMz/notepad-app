@@ -1,5 +1,4 @@
-// Date selection captures the active time window used by search.
-// Date selections capture the time window used by search filtering.
+// SearchDateSelection stores the active date and time window used for search filters.
 class SearchDateSelection {
   const SearchDateSelection({
     this.year,
@@ -38,4 +37,3 @@ class SearchDateSelection {
     );
   }
 }
-

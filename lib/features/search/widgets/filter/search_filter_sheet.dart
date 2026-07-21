@@ -1,13 +1,13 @@
-// Search filters live in a dialog so query refinement stays focused.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/filter/models/search_date_selection.dart';
-import 'package:notepad/features/filter/models/search_filters.dart';
-import 'package:notepad/features/filter/search_constants.dart';
+import 'package:notepad/features/search/models/search_date_selection.dart';
+import 'package:notepad/features/search/models/search_filters.dart';
+import 'package:notepad/features/search/search_constants.dart';
 
+// Search filter sheet owns date-range criteria editing and submission.
 class SearchFilterBottomSheet extends StatefulWidget {
   const SearchFilterBottomSheet({required this.initialFilters, super.key});
 
@@ -59,7 +59,8 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     _filterState = widget.initialFilters;
   }
 
-  int? _parseSelection(String? selectedString, List<String> items) {
+  //Converts month or numeric string items into their corresponding integer values.
+  int? _parseFromUi(String? selectedString, List<String> items) {
     if (selectedString == null) return null;
 
     if (items == _monthItems) {
@@ -70,7 +71,8 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     return int.tryParse(selectedString);
   }
 
-  String? _getFormattedValue(int? modelValue, List<String> availableItems) {
+  //Formats model integers into zero-padded strings or month abbreviations for dropdown matching.
+  String? _formatForUi(int? modelValue, List<String> availableItems) {
     if (modelValue == null || availableItems.isEmpty) return null;
 
     if (availableItems == _monthItems) {
@@ -85,10 +87,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     return modelValue.toString().padLeft(padding, '0');
   }
 
-  void _submitFilters() {
-    Navigator.pop(context, _filterState);
-  }
-
+  //Validates completeness of filter inputs and chronological order before enabling submission.
   bool get _isSubmitEnabled {
     if (!_filterState.start.hasValues) return false;
     if (!_filterState.isRangeSearch) return true;
@@ -102,6 +101,10 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
         (selection.minute ?? 0);
 
     return score(_filterState.start) < score(_filterState.end);
+  }
+
+  void _submitFilters() {
+    Navigator.pop(context, _filterState);
   }
 
   @override
@@ -173,10 +176,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               flex: 2,
               child: _buildDropdown(
                 hintText: 'HH',
-                selectedValue: _getFormattedValue(
-                  _filterState.end.hour,
-                  _hourItems,
-                ),
+                selectedValue: _formatForUi(_filterState.end.hour, _hourItems),
                 items: _hourItems,
                 onChanged: (value) =>
                     _updateSelection(isRangeSearch: true, hour: value),
@@ -187,7 +187,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               flex: 2,
               child: _buildDropdown(
                 hintText: 'MM',
-                selectedValue: _getFormattedValue(
+                selectedValue: _formatForUi(
                   _filterState.end.minute,
                   _minuteItems,
                 ),
@@ -207,6 +207,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     final squircleShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(SearchConstants.filterButtonRadius),
     );
+
     return Row(
       children: [
         Expanded(
@@ -287,10 +288,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
           flex: 2,
           child: _buildDropdown(
             hintText: 'HH',
-            selectedValue: _getFormattedValue(
-              _filterState.start.hour,
-              _hourItems,
-            ),
+            selectedValue: _formatForUi(_filterState.start.hour, _hourItems),
             items: _hourItems,
             onChanged: (value) => _updateSelection(hour: value),
           ),
@@ -300,7 +298,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
           flex: 2,
           child: _buildDropdown(
             hintText: 'MM',
-            selectedValue: _getFormattedValue(
+            selectedValue: _formatForUi(
               _filterState.start.minute,
               _minuteItems,
             ),
@@ -354,6 +352,47 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     );
   }
 
+  Widget _buildDateRow({bool isRangeSearch = false}) {
+    final currentSelection = !isRangeSearch
+        ? _filterState.start
+        : _filterState.end;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildDropdown(
+            hintText: 'DD',
+            selectedValue: _formatForUi(currentSelection.day, _dayItems),
+            items: _dayItems,
+            onChanged: (value) =>
+                _updateSelection(isRangeSearch: isRangeSearch, day: value),
+          ),
+        ),
+        const SizedBox(width: SearchConstants.filterSectionGap),
+        Expanded(
+          child: _buildDropdown(
+            hintText: 'MM',
+            selectedValue: _formatForUi(currentSelection.month, _monthItems),
+            items: _monthItems,
+            onChanged: (value) =>
+                _updateSelection(isRangeSearch: isRangeSearch, month: value),
+          ),
+        ),
+        const SizedBox(width: SearchConstants.filterSectionGap),
+        Expanded(
+          flex: 2,
+          child: _buildDropdown(
+            hintText: 'YYYY',
+            selectedValue: _formatForUi(currentSelection.year, _yearItems),
+            items: _yearItems,
+            onChanged: (value) =>
+                _updateSelection(isRangeSearch: isRangeSearch, year: value),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _updateSelection({
     bool isRangeSearch = false,
     String? day,
@@ -367,69 +406,17 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
         : _filterState.end;
 
     final updatedSelection = targetSelection.copyWith(
-      day: _parseSelection(day, _dayItems) ?? targetSelection.day,
-      month: _parseSelection(month, _monthItems) ?? targetSelection.month,
-      year: _parseSelection(year, _yearItems) ?? targetSelection.year,
-      hour: _parseSelection(hour, _hourItems) ?? targetSelection.hour,
-      minute: _parseSelection(minute, _minuteItems) ?? targetSelection.minute,
+      day: _parseFromUi(day, _dayItems) ?? targetSelection.day,
+      month: _parseFromUi(month, _monthItems) ?? targetSelection.month,
+      year: _parseFromUi(year, _yearItems) ?? targetSelection.year,
+      hour: _parseFromUi(hour, _hourItems) ?? targetSelection.hour,
+      minute: _parseFromUi(minute, _minuteItems) ?? targetSelection.minute,
     );
 
     _filterState = !isRangeSearch
         ? _filterState.copyWith(start: updatedSelection)
         : _filterState.copyWith(end: updatedSelection);
   }
-
-  Widget _buildDateRow({bool isRangeSearch = false}) {
-    final currentSelection = !isRangeSearch
-        ? _filterState.start
-        : _filterState.end;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildDropdown(
-            hintText: 'DD',
-            selectedValue: _getFormattedValue(currentSelection.day, _dayItems),
-            items: _dayItems,
-            onChanged: (value) =>
-                _updateSelection(isRangeSearch: isRangeSearch, day: value),
-          ),
-        ),
-        const SizedBox(width: SearchConstants.filterSectionGap),
-        Expanded(
-          child: _buildDropdown(
-            hintText: 'MM',
-            selectedValue: _getFormattedValue(
-              currentSelection.month,
-              _monthItems,
-            ),
-            items: _monthItems,
-            onChanged: (value) =>
-                _updateSelection(isRangeSearch: isRangeSearch, month: value),
-          ),
-        ),
-        const SizedBox(width: SearchConstants.filterSectionGap),
-        Expanded(
-          flex: 2,
-          child: _buildDropdown(
-            hintText: 'YYYY',
-            selectedValue: _getFormattedValue(
-              currentSelection.year,
-              _yearItems,
-            ),
-            items: _yearItems,
-            onChanged: (value) =>
-                _updateSelection(isRangeSearch: isRangeSearch, year: value),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(String title) => Text(
-    title,
-    style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
-  );
 
   Widget _buildDragHandle() => Center(
     child: GestureDetector(
@@ -455,6 +442,11 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
         ),
       ),
     ),
+  );
+
+  Widget _buildSectionTitle(String title) => Text(
+    title,
+    style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
   );
 
   Widget _buildDropdown({
@@ -517,3 +509,4 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     });
   }
 }
+

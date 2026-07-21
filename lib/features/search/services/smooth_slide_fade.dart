@@ -1,4 +1,3 @@
-// Smooth slide-fade transition is reused across search navigation.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 

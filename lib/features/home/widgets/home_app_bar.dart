@@ -7,9 +7,9 @@ import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/filter/search_page.dart';
+import 'package:notepad/features/search/search_page.dart';
 import 'package:notepad/features/home/home_constants.dart';
-import 'package:notepad/features/home/services/app_router.dart';
+import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
 
 // App bar actions stay here so the home layout can stay focused on content.

@@ -1,13 +1,13 @@
-// Search controller coordinates filters, results, and query state.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/features/filter/models/search_filters.dart';
-import 'package:notepad/features/filter/models/search_state.dart';
-import 'package:notepad/features/filter/services/note_search_service.dart';
+import 'package:notepad/features/search/models/search_filters.dart';
+import 'package:notepad/features/search/models/search_state.dart';
+import 'package:notepad/features/search/services/note_search_service.dart';
 
+// Search controller coordinates filters, results, and query state.
 class SearchController extends ChangeNotifier {
   final TextEditingController textController = TextEditingController();
 
@@ -63,3 +63,4 @@ class SearchController extends ChangeNotifier {
     super.dispose();
   }
 }
+

@@ -1,7 +1,6 @@
-// Search filters model the date, pin, and delete toggles in the dialog.
-import 'package:notepad/features/filter/models/search_date_selection.dart';
+import 'package:notepad/features/search/models/search_date_selection.dart';
 
-// Search filters model the checkbox and chip state shown in the dialog.
+// SearchFilters stores the active date-range criteria and range mode for search.
 class SearchFilters {
   const SearchFilters({
     this.isRangeSearch = false,

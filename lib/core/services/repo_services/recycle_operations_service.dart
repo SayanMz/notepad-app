@@ -34,7 +34,7 @@ class RecycleOperationsService {
           note.updatedAt = now;
           updates[note.id] = note;
           currentActive.add(note);
-          SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
+          SqliteFtsService.insertOrUpdate(note);
           return true;
         }
         return false;

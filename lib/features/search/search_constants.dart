@@ -1,4 +1,3 @@
-// Search constants keep filter sizing and thresholds in one place.
 import 'package:flutter/material.dart';
 
 // Search thresholds and sizing constants are centralized for the filter UI.
@@ -69,4 +68,3 @@ class SearchConstants {
   static const double resultSubtitleBottomPadding = 2.0;
   static const Color highlightYellow = Color(0xFFFFF176);
 }
-
