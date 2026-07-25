@@ -7,7 +7,7 @@ import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/core/services/ui_management/scroll_to_top_fab.dart';
+import 'package:notepad/features/trash/widgets/scroll_to_top_fab.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/trash/controller/recycle_controller.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';

@@ -57,7 +57,7 @@ class HomeConstants {
   static const double selectionOverlayShadowAlpha = 0.15;
 
   static const double storageProgressHeight = 32.0;
-  static const double storageProgressMinIndicator = 0.01;
+  static const double storageProgressMinIndicator = 0.04;
   static const double storageProgressBorderWidth = 3.0;
   static const double storageProgressNearCompleteThreshold = 0.9;
   static const double storageProgressInnerPadding = 4.0;

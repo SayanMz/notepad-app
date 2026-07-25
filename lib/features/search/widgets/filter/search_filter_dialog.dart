@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
@@ -33,11 +34,15 @@ class SearchFilterActionButton extends StatelessWidget {
   }
 
   Future<void> _openSearchFilterDialog(BuildContext context) async {
-    if (context.viewInsetsBottom > 0) {
-      FocusScope.of(context).unfocus();
+    final isInputFocused =
+        FocusManager.instance.primaryFocus?.hasFocus ?? false;
+
+    if (isInputFocused) {
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
+      await Future.delayed(const Duration(milliseconds: 50));
+      FocusManager.instance.primaryFocus?.unfocus();
       await Future.delayed(const Duration(milliseconds: 250));
     }
-
     if (!context.mounted) return;
 
     final result = await showGeneralDialog<SearchFilters>(
@@ -102,4 +107,3 @@ class SearchFilterActionButton extends StatelessWidget {
     );
   }
 }
-

@@ -5,8 +5,8 @@ void main() {
   test('buildHtmlDocument wraps the note in a valid HTML shell', () {
     final html = NoteHtmlExporter.buildHtmlDocument(
       title: 'My <Note>',
-      richContent: [
-        {'insert': 'Hello world\n'},
+      richContent: const [
+        <String, dynamic>{'insert': 'Hello world\n'},
       ],
     );
 
@@ -18,8 +18,8 @@ void main() {
   test('buildHtmlDocument falls back to Untitled note for blank titles', () {
     final html = NoteHtmlExporter.buildHtmlDocument(
       title: '   ',
-      richContent: [
-        {'insert': 'Body\n'},
+      richContent: const [
+        <String, dynamic>{'insert': 'Body\n'},
       ],
     );
 
@@ -27,4 +27,3 @@ void main() {
     expect(html, contains('<h1 style="text-align: center;">Untitled note</h1>'));
   });
 }
-

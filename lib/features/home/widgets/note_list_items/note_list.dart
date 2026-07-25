@@ -1,15 +1,21 @@
-// Note list assembles the active and deleted sections for the home screen.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/note_list_items/note_empty_state.dart';
 import 'package:notepad/features/home/widgets/note_list_items/swipeable_note_item.dart';
 
-// Builds the active and deleted note sections with drag and selection behavior.
+// Home note list that shows pinned and regular notes, with reordering and empty-state handling.
 class NoteList extends StatelessWidget {
-  const NoteList({super.key, required this.controller});
+  const NoteList({
+    super.key,
+    required this.controller,
+    required this.fabController,
+  });
+
   final HomeController controller;
+  final HomeFabController fabController;
 
   @override
   Widget build(BuildContext context) {
@@ -44,30 +50,28 @@ class NoteList extends StatelessWidget {
               itemCount: pinnedNotes.length,
               itemBuilder: (context, index) {
                 final note = pinnedNotes[index];
-                return RepaintBoundary(
+
+                return SwipeableNoteItem(
                   key: ValueKey(note.id),
-                  child: SwipeableNoteItem(
-                    index: index,
-                    note: note,
-                    controller: controller,
-                    animationController: controller.animationController,
-                    maxPreviewLines: maxPreviewLines,
-                  ),
+                  index: index,
+                  note: note,
+                  controller: controller,
+                  animationController: controller.animationController,
+                  maxPreviewLines: maxPreviewLines,
                 );
               },
               onReorderItem: (int oldIndex, int newIndex) {
                 controller.handlePinnedReorder(oldIndex, newIndex);
               },
               onReorderStart: (index) {
-                controller.setDraggingState(true);
+                fabController.setDraggingState(true);
               },
               onReorderEnd: (index) {
-                controller.setDraggingState(false);
+                fabController.setDraggingState(false);
               },
             ),
           ),
         ],
-
         if (unpinnedNotes.isNotEmpty) ...[
           if (pinnedNotes.isNotEmpty)
             _buildSectionHeader(context, 'OTHERS (${unpinnedNotes.length})'),
@@ -79,19 +83,24 @@ class NoteList extends StatelessWidget {
               itemCount: unpinnedNotes.length,
               itemBuilder: (context, index) {
                 final note = unpinnedNotes[index];
-                return RepaintBoundary(
+
+                return SwipeableNoteItem(
                   key: ValueKey(note.id),
-                  child: SwipeableNoteItem(
-                    index: index,
-                    note: note,
-                    controller: controller,
-                    animationController: controller.animationController,
-                    maxPreviewLines: maxPreviewLines,
-                  ),
+                  index: index,
+                  note: note,
+                  controller: controller,
+                  animationController: controller.animationController,
+                  maxPreviewLines: maxPreviewLines,
                 );
               },
               onReorderItem: (int oldIndex, int newIndex) {
                 controller.handleUnpinnedReorder(oldIndex, newIndex);
+              },
+              onReorderStart: (index) {
+                fabController.setDraggingState(true);
+              },
+              onReorderEnd: (index) {
+                fabController.setDraggingState(false);
               },
             ),
           ),

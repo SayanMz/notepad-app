@@ -5,6 +5,7 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/features/search/search_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 
+// Friendly empty state shown when there are no notes to display.
 class NoteEmptyState extends StatelessWidget {
   const NoteEmptyState({super.key});
 

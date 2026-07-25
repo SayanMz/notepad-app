@@ -1,4 +1,3 @@
-// Selection toolbar groups bulk actions and color edits away from the list.
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,19 +6,13 @@ import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
-import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/selection_tools/premium_color_picker.dart';
 
-// Bulk actions and selection editing live in this toolbar instead of the list itself.
+// Selection toolbar for bulk actions such as pinning, sharing, and color changes.
 class SelectionToolbar extends StatefulWidget {
-  const SelectionToolbar({
-    super.key,
-    required this.controller,
-    required this.selectionController,
-  });
+  const SelectionToolbar({super.key, required this.controller});
   final HomeController controller;
-  final SelectionController selectionController;
 
   @override
   State<SelectionToolbar> createState() => _SelectionToolbarState();
@@ -62,7 +55,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
 
     final homeController = widget.controller;
-    final selectionCtrl = widget.selectionController;
+    final selectionCtrl = widget.controller.selectionController;
 
     return Container(
       height: EditorConstants.toolbarHeight,
@@ -121,6 +114,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
             onPressed: () => homeController.shareSelectedNotes(
               onError: (errorMessage) {
                 if (!mounted) return;
+
                 showErrorSnackBar(
                   'Could not share selected notes: $errorMessage',
                 );
@@ -145,42 +139,34 @@ class _SelectionToolbarState extends State<SelectionToolbar>
   Widget _buildColorCircle() {
     return GestureDetector(
       onTap: () => _openPremiumColorPicker(),
-      child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _rotationController,
-          builder: (context, child) {
-            return Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: EditorConstants.toolbarColorCircleMargin,
-              ),
-              width: EditorConstants.toolbarColorCircleSize,
-              height: EditorConstants.toolbarColorCircleSize,
-              decoration: BoxDecoration(
-                gradient: SweepGradient(
-                  transform: GradientRotation(
-                    _rotationController.value * 2 * math.pi,
-                  ),
-                  colors: const [
-                    Color(0xFFFFF59D),
-                    Color(0xFFFFCC80),
-                    Color(0xFFEF9A9A),
-                    Color(0xFFCE93D8),
-                    Color(0xFF90CAF9),
-                    Color(0xFFA5D6A7),
-                    Color(0xFFE0E0E0),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-                shape: BoxShape.circle,
-              ),
-            );
-          },
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: EditorConstants.toolbarColorCircleMargin,
+        ),
+        width: EditorConstants.toolbarColorCircleSize,
+        height: EditorConstants.toolbarColorCircleSize,
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          shape: BoxShape.circle,
+        ),
+        child: ClipOval(
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _rotationController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: SweepGradientPainter(_rotationController.value),
+                  child: child,
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -195,9 +181,6 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         screenSize.width > EditorConstants.pickerRecentDesktopBreakpoint
         ? EditorConstants.pickerRecentDesktopCount
         : EditorConstants.pickerRecentPhoneCount;
-    final Color initialColor = recentColors.isEmpty
-        ? Colors.red
-        : recentColors[0];
 
     final Color? resultColor = await showGeneralDialog<Color>(
       context: context,
@@ -207,10 +190,8 @@ class _SelectionToolbarState extends State<SelectionToolbar>
       transitionDuration: const Duration(milliseconds: 150),
       pageBuilder: (context, animation, secondaryAnimation) {
         return PremiumColorPicker(
-          initialColor: initialColor,
-          recentColors: recentColors,
-          isDark: isDark,
-          maxColors: maxColors,
+          initialColor: recentColors[0],
+          recentColors: recentColors.take(maxColors).toList(),
           dialogOffsetNotifier: dialogOffsetNotifier,
           onPreviewChanged: (color) =>
               widget.controller.updateSelectedColors(color),
@@ -229,7 +210,37 @@ class _SelectionToolbarState extends State<SelectionToolbar>
     } else {
       widget.controller.restoreColors(originalColors);
     }
-
     _rotationController.repeat();
+  }
+}
+
+class SweepGradientPainter extends CustomPainter {
+  SweepGradientPainter(this.rotationValue);
+
+  final double rotationValue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..shader = SweepGradient(
+        transform: GradientRotation(rotationValue * 2 * math.pi),
+        colors: const [
+          Color(0xFFFFF59D),
+          Color(0xFFFFCC80),
+          Color(0xFFEF9A9A),
+          Color(0xFFCE93D8),
+          Color(0xFF90CAF9),
+          Color(0xFFA5D6A7),
+          Color(0xFFE0E0E0),
+        ],
+      ).createShader(rect);
+
+    canvas.drawCircle(size.center(Offset.zero), size.width / 2, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant SweepGradientPainter oldDelegate) {
+    return oldDelegate.rotationValue != rotationValue;
   }
 }

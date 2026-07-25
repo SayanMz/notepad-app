@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/services/ui_management/scroll_to_top_fab.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
@@ -96,7 +95,6 @@ class _SearchPageState extends State<SearchPage> {
                     Expanded(child: _buildResultsPanel()),
                   ],
                 ),
-                _buildScrollToTopFab(),
               ],
             ),
           ),
@@ -137,19 +135,6 @@ class _SearchPageState extends State<SearchPage> {
         scrollController: _scrollController,
         showChips: _showHeaders,
         onClearFilter: () => _showHeaders.value = true,
-      ),
-    );
-  }
-
-  Widget _buildScrollToTopFab() {
-    return ListenableBuilder(
-      listenable: _searchController,
-      builder: (context, _) => ScrollToTopFab(
-        scrollController: _scrollController,
-        heroTag: 'scrollToTopSearch',
-        behavior: FabScrollBehavior.autoDimOnIdle,
-        additionalCondition: _searchController.hasAnyCriteria,
-        onPressed: () => _showHeaders.value = true,
       ),
     );
   }

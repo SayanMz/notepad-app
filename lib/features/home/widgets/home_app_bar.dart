@@ -1,4 +1,3 @@
-// Home app bar keeps list actions and search entry points in one place.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
@@ -12,7 +11,7 @@ import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
 
-// App bar actions stay here so the home layout can stay focused on content.
+// Top home bar with search, trash, theme toggle, and drawer access.
 class HomeAppBar extends StatelessWidget {
   const HomeAppBar({super.key, required this.onOpenDrawer});
   final VoidCallback onOpenDrawer;

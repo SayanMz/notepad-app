@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart' hide SelectionOverlay;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
+import 'package:notepad/features/home/controllers/animation_controller.dart';
+import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/controllers/home_fab_controller.dart';
+import 'package:notepad/features/home/controllers/selection_controller.dart';
+import 'package:notepad/features/home/controllers/sync_controller.dart';
+import 'package:notepad/features/home/widgets/drawer_items/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
-import 'package:notepad/features/home/widgets/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';
-import 'package:notepad/features/home/widgets/note_list.dart';
-import 'package:notepad/features/home/widgets/selection_overlay.dart';
+import 'package:notepad/features/home/widgets/note_list_items/note_list.dart';
+import 'package:notepad/features/home/widgets/selection_tools/selection_overlay.dart';
 
+// Home page shell that coordinates note browsing, actions, and list state.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -18,22 +25,28 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  late ScrollController _scrollController;
+  late final ScrollController _scrollController;
+  late final SelectionController _selectionController;
+  late final AnimationControllerState _animationController;
+  late final HomeFabController _fabController;
+  late final AuthController _authController;
+  late final SyncController _syncController;
   late final HomeController _controller;
 
   bool _handleScroll(Notification notification) {
     if (!mounted) return false;
 
-    return _controller.handleFabScroll(notification);
+    return _fabController.handleScroll(
+      notification,
+      isSelectionMode: _selectionController.isSelectionMode,
+    );
   }
 
-  ScrollPhysics get _getScrollPhysics {
-    if (_controller.activeNotes.isEmpty) {
+  ScrollPhysics get _scrollPhysics {
+    if (noteRepository.activeNotes.isEmpty) {
       return const NeverScrollableScrollPhysics();
     }
-    if (_controller.selectionController.isSelectionMode) {
+    if (_selectionController.isSelectionMode) {
       return const AlwaysScrollableScrollPhysics();
     }
     return const BouncingScrollPhysics();
@@ -42,13 +55,26 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _controller = HomeController();
     _scrollController = ScrollController();
+    _selectionController = SelectionController();
+    _animationController = AnimationControllerState();
+    _fabController = HomeFabController();
+    _authController = authController;
+    _syncController = SyncController(authController: _authController);
+    _controller = HomeController(
+      selectionController: _selectionController,
+      animationController: _animationController,
+    );
+    _authController.initialize();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _syncController.dispose();
+    _fabController.dispose();
+    _selectionController.dispose();
+    _animationController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -57,74 +83,96 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isDark = context.isDark;
 
+    return SelectionPopScope(
+      selectionController: _selectionController,
+      builder: (context, isSelectionMode) {
+        return NotificationListener<Notification>(
+          onNotification: _handleScroll,
+          child: Scaffold(
+            backgroundColor: isDark
+                ? AppColors.darkScaffold
+                : AppColors.lightScaffold,
+            endDrawer: HomeDrawer(
+              authController: _authController,
+              syncController: _syncController,
+            ),
+            body: Stack(
+              children: [
+                SafeArea(
+                  child: ListenableBuilder(
+                    listenable: noteRepository.activeRevision,
+                    builder: (context, child) {
+                      return CustomScrollView(
+                        controller: _scrollController,
+                        physics: _scrollPhysics,
+                        scrollCacheExtent: ScrollCacheExtent.pixels(
+                          context.screenSize.height * 0.40,
+                        ),
+                        slivers: [
+                          HomeAppBar(
+                            onOpenDrawer: () =>
+                                Scaffold.of(context).openEndDrawer(),
+                          ),
+                          NoteList(
+                            controller: _controller,
+                            fabController: _fabController,
+                          ),
+                          SliverPadding(
+                            padding: EdgeInsets.only(
+                              bottom: isSelectionMode ? 90 : 80,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                SelectionOverlay(controller: _controller),
+                HomeFab(
+                  fabController: _fabController,
+                  selectionController: _selectionController,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class SelectionPopScope extends StatelessWidget {
+  const SelectionPopScope({
+    super.key,
+    required this.selectionController,
+    required this.builder,
+  });
+
+  final SelectionController selectionController;
+  final Widget Function(BuildContext context, bool isSelectionMode) builder;
+
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, child) {
+      listenable: selectionController,
+      builder: (context, _) {
+        final isSelectionMode = selectionController.isSelectionMode;
+
         return PopScope(
-          canPop: !_controller.selectionController.isSelectionMode,
+          canPop: !isSelectionMode,
           onPopInvokedWithResult: (didPop, result) {
             if (didPop) return;
 
-            if (_controller.selectionController.isSelectionMode) {
-              final selectedCount =
-                  _controller.selectionController.selectionCount;
-
-              if (selectedCount > 0) {
+            if (isSelectionMode) {
+              if (selectionController.selectionCount > 0) {
                 HapticFeedback.mediumImpact();
-                _controller.selectionController.clearSelection();
+                selectionController.clearSelection();
               } else {
-                _controller.selectionController.exitSelectionMode();
+                selectionController.exitSelectionMode();
               }
             }
           },
-          child: NotificationListener<Notification>(
-            onNotification: _handleScroll,
-            child: Scaffold(
-              key: _scaffoldKey,
-              backgroundColor: isDark
-                  ? AppColors.darkScaffold
-                  : AppColors.lightScaffold,
-              endDrawer: HomeDrawer(controller: _controller),
-              body: Stack(
-                children: [
-                  SafeArea(
-                    child: CustomScrollView(
-                      controller: _scrollController,
-                      key: ValueKey(_controller.activeNotes.isEmpty),
-                      physics: _getScrollPhysics,
-                      scrollCacheExtent: ScrollCacheExtent.pixels(
-                        context.screenSize.height * 0.40,
-                      ),
-                      slivers: [
-                        HomeAppBar(
-                          onOpenDrawer: () =>
-                              _scaffoldKey.currentState?.openEndDrawer(),
-                        ),
-                        NoteList(controller: _controller),
-                        SliverPadding(
-                          padding: EdgeInsets.only(
-                            bottom:
-                                _controller.selectionController.isSelectionMode
-                                ? 90
-                                : 80,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SelectionOverlay(
-                    controller: _controller,
-                    selectionController: _controller.selectionController,
-                  ),
-                  HomeFab(
-                    controller: _controller,
-                    selectionController: _controller.selectionController,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          child: builder(context, isSelectionMode),
         );
       },
     );

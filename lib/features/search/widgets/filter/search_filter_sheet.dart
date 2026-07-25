@@ -87,12 +87,13 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     return modelValue.toString().padLeft(padding, '0');
   }
 
-  //Validates completeness of filter inputs and chronological order before enabling submission.
+  //Ensures filter inputs are complete and chronologically ordered before enabling submission.
   bool get _isSubmitEnabled {
     if (!_filterState.start.hasValues) return false;
     if (!_filterState.isRangeSearch) return true;
     if (!_filterState.end.hasValues) return false;
 
+    // Converts date components into a single comparable integer weight.
     int score(SearchDateSelection selection) =>
         (selection.year ?? 0) * 100000000 +
         (selection.month ?? 0) * 1000000 +
@@ -509,4 +510,3 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
     });
   }
 }
-

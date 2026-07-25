@@ -4,6 +4,7 @@ import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 
+// Animated progress bar that updates and animates Google Drive storage usage each time it opens.
 class StorageProgressBar extends StatelessWidget {
   final double progress;
   final Color color;
@@ -24,6 +25,7 @@ class StorageProgressBar extends StatelessWidget {
         (progress > 0 && progress < HomeConstants.storageProgressMinIndicator)
         ? HomeConstants.storageProgressMinIndicator
         : progress;
+
     return Container(
       height: height,
       width: double.infinity,

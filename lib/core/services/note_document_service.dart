@@ -67,7 +67,7 @@ class NoteDocumentService {
 
   static String buildHtmlDocument({
     required String title,
-    required List<dynamic> richContent,
+    required List<Map<String, dynamic>> richContent,
   }) {
     return NoteHtmlExporter.buildHtmlDocument(
       title: title,
@@ -77,7 +77,7 @@ class NoteDocumentService {
 
   static Future<String?> saveNoteAsHtml({
     required String title,
-    required List<dynamic> richContent,
+    required List<Map<String, dynamic>> richContent,
   }) {
     return NoteHtmlExporter.saveNoteAsHtml(
       title: title,

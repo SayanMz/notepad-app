@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/home_page.dart';
 
+// Startup splash that waits for initialization and animation before entering home.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key, required this.isInitializationComplete});
 
@@ -15,10 +15,8 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animationController;
-  bool _isTransitioning = false;
-  bool _animationFinished = false;
 
-  // 🌟 FIX 1: Add a loading state to hide the naked text
+  bool _animationFinished = false;
   bool _isLoaded = false;
 
   @override
@@ -28,34 +26,21 @@ class _SplashPageState extends State<SplashPage>
   }
 
   @override
-  void didUpdateWidget(covariant SplashPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isInitializationComplete && _animationFinished) {
-      _navigateToHome();
-    }
-  }
-
-  @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
   }
 
   void _navigateToHome() {
-    if (_isTransitioning || !mounted) return;
-    _isTransitioning = true;
+    if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        // 🌟 FIX 1: The Silver Bullet.
-        // Setting this to false prevents Flutter from blacking out the outgoing route.
-        // The SplashPage will now stay perfectly visible underneath while HomePage fades in!
         opaque: false,
         pageBuilder: (context, animation, secondaryAnimation) =>
             const HomePage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
-            // 🌟 FIX 2: Apply a smooth deceleration curve so the fade feels organic, not linear.
             opacity: CurvedAnimation(
               parent: animation,
               curve: Curves.easeOutCubic,
@@ -63,7 +48,6 @@ class _SplashPageState extends State<SplashPage>
             child: child,
           );
         },
-        // 🌟 FIX 3: A 700ms duration makes the cross-fade highly visible and luxurious.
         transitionDuration: const Duration(milliseconds: 700),
       ),
     );
@@ -71,7 +55,7 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
@@ -96,14 +80,9 @@ class _SplashPageState extends State<SplashPage>
                     _isLoaded = true;
                   });
 
-                  // 🌟 FIX 4: Stop exactly at 0.82 (Frame 130).
-                  // The pencil mathematically scales to 0 at this exact frame in your JSON file.
-                  // It will look like it finishes writing and pops out of existence cleanly.
                   _animationController.animateTo(0.82).then((_) {
                     _animationFinished = true;
-                    if (widget.isInitializationComplete) {
-                      _navigateToHome();
-                    }
+                    _checkAndNavigate();
                   });
                 },
               ),
@@ -122,5 +101,17 @@ class _SplashPageState extends State<SplashPage>
         ),
       ),
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant SplashPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _checkAndNavigate();
+  }
+
+  void _checkAndNavigate() {
+    if (widget.isInitializationComplete && _animationFinished) {
+      _navigateToHome();
+    }
   }
 }

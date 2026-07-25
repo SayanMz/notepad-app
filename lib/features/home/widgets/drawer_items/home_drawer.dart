@@ -1,18 +1,23 @@
-// Home drawer mixes navigation, sync, and account state.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/auth_controller.dart';
+import 'package:notepad/features/home/controllers/sync_controller.dart';
 import 'package:notepad/features/home/widgets/drawer_items/spinning_sync_icon.dart';
 import 'package:notepad/features/home/widgets/drawer_items/storage_progress_bar.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 
-// Drawer content is split out because it carries navigation and account state.
+// Drawer area for cloud sync status, account actions, and storage progress.
 class HomeDrawer extends StatelessWidget {
-  final HomeController controller;
-  const HomeDrawer({super.key, required this.controller});
+  const HomeDrawer({
+    super.key,
+    required this.authController,
+    required this.syncController,
+  });
+
+  final AuthController authController;
+  final SyncController syncController;
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +31,7 @@ class HomeDrawer extends StatelessWidget {
       child: Align(
         alignment: Alignment.topRight,
         child: ListenableBuilder(
-          listenable: controller.authController,
-
+          listenable: Listenable.merge([authController, syncController]),
           builder: (context, _) {
             return Material(
               elevation: HomeConstants.drawerElevation,
@@ -54,14 +58,15 @@ class HomeDrawer extends StatelessWidget {
                       children: [
                         _HomeDrawerHeader(
                           isDark: isDark,
-                          controller: controller,
+                          authController: authController,
+                          syncController: syncController,
                         ),
                         const SizedBox(height: UIConstants.paddingSM),
                         _HomeDrawerActions(
                           isDark: isDark,
-                          controller: controller.authController,
-                          onBackup: () => controller.executeBackup(),
-                          onRestore: () => controller.executeRestore(),
+                          controller: authController,
+                          onBackup: () => syncController.executeBackup(),
+                          onRestore: () => syncController.executeRestore(),
                         ),
                         const SizedBox(
                           height: HomeConstants.drawerHeaderSectionGap,
@@ -80,14 +85,20 @@ class HomeDrawer extends StatelessWidget {
 }
 
 class _HomeDrawerHeader extends StatelessWidget {
-  const _HomeDrawerHeader({required this.isDark, required this.controller});
+  const _HomeDrawerHeader({
+    required this.isDark,
+    required this.authController,
+    required this.syncController,
+  });
+
   final bool isDark;
-  final HomeController controller;
+  final AuthController authController;
+  final SyncController syncController;
 
   @override
   Widget build(BuildContext context) {
-    final stats = controller.authController.storageStats;
-    final bool isLoggedIn = controller.authController.isAuthenticated;
+    final stats = authController.storageStats;
+    final bool isLoggedIn = authController.isAuthenticated;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -110,7 +121,7 @@ class _HomeDrawerHeader extends StatelessWidget {
           ),
           const SizedBox(height: HomeConstants.drawerHeaderSectionGap),
           Text(
-            controller.authController.displayName ?? 'Not signed in',
+            authController.displayName ?? 'Not signed in',
             style: TextStyle(
               fontSize: HomeConstants.drawerHeaderTitleFontSize,
               fontWeight: FontWeight.w700,
@@ -118,8 +129,7 @@ class _HomeDrawerHeader extends StatelessWidget {
           ),
           const SizedBox(height: HomeConstants.drawerHeaderTightGap),
           Text(
-            controller.authController.displayEmail ??
-                'Connect Google Drive to sync',
+            authController.displayEmail ?? 'Connect Google Drive to sync',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
@@ -135,44 +145,32 @@ class _HomeDrawerHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: HomeConstants.drawerHeaderSectionGap),
-          ListenableBuilder(
-            listenable: Listenable.merge([
-              controller.syncStatusNotifier,
-              controller.statusColorNotifier,
-              controller.isSavingNotifier,
-            ]),
-            builder: (context, _) {
-              final isSaving = controller.isSavingNotifier.value;
-              final statusColor = controller.statusColorNotifier.value;
-              final statusText = controller.syncStatusNotifier.value;
-              return Row(
-                children: [
-                  if (isSaving)
-                    const SpinningSyncIcon()
-                  else
-                    Icon(
-                      Icons.sync,
-                      size: 18,
-                      color:
-                          statusColor ??
-                          (isDark ? Colors.white70 : Colors.black54),
-                    ),
-                  const SizedBox(width: UIConstants.paddingSM),
-                  Text(
-                    !isLoggedIn
-                        ? 'Cloud sync'
-                        : isSaving
-                        ? 'Working...'
-                        : statusText,
-                    style: TextStyle(
-                      color:
-                          statusColor ??
-                          (isDark ? Colors.white70 : Colors.black54),
-                    ),
-                  ),
-                ],
-              );
-            },
+          Row(
+            children: [
+              if (syncController.isSaving)
+                const SpinningSyncIcon()
+              else
+                Icon(
+                  Icons.sync,
+                  size: 18,
+                  color:
+                      syncController.statusColor ??
+                      (isDark ? Colors.white70 : Colors.black54),
+                ),
+              const SizedBox(width: UIConstants.paddingSM),
+              Text(
+                !isLoggedIn
+                    ? 'Cloud sync'
+                    : syncController.isSaving
+                    ? 'Working...'
+                    : syncController.statusText,
+                style: TextStyle(
+                  color:
+                      syncController.statusColor ??
+                      (isDark ? Colors.white70 : Colors.black54),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -225,7 +223,6 @@ class _HomeDrawerActions extends StatelessWidget {
             icon: isLoggedIn
                 ? Icons.exit_to_app_rounded
                 : Icons.account_circle_outlined,
-
             title: isLoggedIn ? 'Sign out' : 'Sign in',
             subtitle: isLoggedIn
                 ? 'Disconnect this Google account'

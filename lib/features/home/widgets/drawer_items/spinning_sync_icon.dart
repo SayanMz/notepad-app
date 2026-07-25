@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
+// Simple rotating icon shown while cloud sync is working.
 class SpinningSyncIcon extends StatefulWidget {
   const SpinningSyncIcon({super.key});
 
@@ -32,10 +33,7 @@ class _SpinningSyncIconState extends State<SpinningSyncIcon>
     return RepaintBoundary(
       child: RotationTransition(
         turns: _controller,
-        child: const Icon(
-          Icons.sync,
-          color: Colors.lightBlueAccent,
-        ),
+        child: const Icon(Icons.sync, color: Colors.lightBlueAccent),
       ),
     );
   }

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
+import 'package:notepad/core/services/note_preview_util.dart';
 
-/// Note cards assemble preview text, checklist snippets, and state badges in one place.
+/// Note card that shows the title, edit time, preview text, and selection state.
 class NoteCard extends StatelessWidget {
   const NoteCard({
     super.key,
@@ -19,18 +19,16 @@ class NoteCard extends StatelessWidget {
     required this.isSelected,
     required this.colorNotifier,
     required this.maxPreviewLines,
-    required this.selectionMode,
   });
 
   final int index;
   final NotesSection note;
   final bool isSelectionMode;
+  final bool isSelected;
   final bool isVaporizing;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback onPin;
-  final bool isSelected;
-  final bool selectionMode;
   final ValueNotifier<int> colorNotifier;
   final int maxPreviewLines;
 
@@ -43,7 +41,7 @@ class NoteCard extends StatelessWidget {
     final regularTextWidgets = cachedLines
         .where((line) => !line.isList)
         .take(maxPreviewLines)
-        .map((line) => _PreviewLine(line: line.text, width: screenWidth));
+        .map((line) => _NotePreviewLine(line: line.text, width: screenWidth));
 
     final checklistItems = cachedLines
         .where((line) => line.isList)
@@ -51,7 +49,8 @@ class NoteCard extends StatelessWidget {
         .take(maxPreviewLines)
         .toList();
 
-    final List<Widget> finalCardLayoutWidgets = [
+    // Dynamically builds card content by conditionally stacking text lines and checklist items
+    final List<Widget> cardPreviewElements = [
       if (regularTextWidgets.isNotEmpty)
         Flexible(
           fit: FlexFit.loose,
@@ -68,11 +67,12 @@ class NoteCard extends StatelessWidget {
       if (checklistItems.isNotEmpty)
         _ChecklistPreviewGroup(
           items: checklistItems,
-          selectionMode: selectionMode,
+          isSelectionMode: isSelectionMode,
         ),
     ];
 
     final bool showAsSelected = isSelectionMode && isSelected;
+
     return AnimatedScale(
       scale: isVaporizing ? 0.0 : (showAsSelected ? 0.96 : 1.0),
       duration: const Duration(milliseconds: 300),
@@ -133,13 +133,15 @@ class NoteCard extends StatelessWidget {
                       child: ListenableBuilder(
                         listenable: colorNotifier,
                         builder: (context, child) {
-                          return AnimatedContainer(
-                            duration: UIConstants.animationMedium,
-                            decoration: BoxDecoration(
-                              color: !context.isDark
-                                  ? note.cardColor
-                                  : note.cardColor.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(2),
+                          return RepaintBoundary(
+                            child: AnimatedContainer(
+                              duration: UIConstants.animationMedium,
+                              decoration: BoxDecoration(
+                                color: !context.isDark
+                                    ? note.cardColor
+                                    : note.cardColor.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
                           );
                         },
@@ -154,40 +156,42 @@ class NoteCard extends StatelessWidget {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              AnimatedSwitcher(
-                                duration: UIConstants.animationMedium,
-                                transitionBuilder: (child, animation) =>
-                                    ScaleTransition(
-                                      scale: animation,
-                                      child: child,
-                                    ),
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.fastOutSlowIn,
                                 child: isSelectionMode
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: UIConstants.paddingMD,
-                                        ),
-                                        child: Icon(
-                                          showAsSelected
-                                              ? Icons.check_circle
-                                              : Icons.radio_button_unchecked,
-                                          color: showAsSelected
-                                              ? context.colorScheme.primary
-                                                    .withValues(alpha: 0.6)
-                                              : Colors.grey,
+                                    ? ClipRect(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: UIConstants.paddingMD,
+                                          ),
+                                          child: Icon(
+                                            showAsSelected
+                                                ? Icons.check_circle
+                                                : Icons.radio_button_unchecked,
+                                            key: ValueKey(showAsSelected),
+                                            color: showAsSelected
+                                                ? context.colorScheme.primary
+                                                      .withValues(alpha: 0.6)
+                                                : Colors.grey,
+                                          ),
                                         ),
                                       )
                                     : const SizedBox.shrink(),
                               ),
                               Expanded(
                                 child: AnimatedPadding(
-                                  duration: UIConstants.animationMedium,
-                                  curve: Curves.easeOutCubic,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: const Interval(
+                                    0.5,
+                                    1.0,
+                                    curve: Curves.easeOutCubic,
+                                  ),
                                   padding: EdgeInsets.only(
                                     left: isSelectionMode ? 0.0 : 4.0,
                                   ),
                                   child: Text(
                                     note.displayTitle,
-
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize:
@@ -212,12 +216,8 @@ class NoteCard extends StatelessWidget {
                                       icon: Icon(
                                         Icons.push_pin,
                                         size: UIConstants.iconSM,
-                                        color: note.isPinned
-                                            ? context.colorScheme.primary
-                                                  .withValues(alpha: 0.8)
-                                            : Colors.grey.withValues(
-                                                alpha: 0.4,
-                                              ),
+                                        color: context.colorScheme.primary
+                                            .withValues(alpha: 0.8),
                                       ),
                                       onPressed: isSelectionMode ? null : onPin,
                                     ),
@@ -247,7 +247,7 @@ class NoteCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: UIConstants.paddingSM),
-                          ...finalCardLayoutWidgets,
+                          ...cardPreviewElements,
                         ],
                       ),
                     ),
@@ -264,10 +264,11 @@ class NoteCard extends StatelessWidget {
 
 class _ChecklistPreviewGroup extends StatelessWidget {
   final List<String> items;
-  final bool selectionMode;
+  final bool isSelectionMode;
+
   const _ChecklistPreviewGroup({
     required this.items,
-    required this.selectionMode,
+    required this.isSelectionMode,
   });
 
   @override
@@ -280,7 +281,7 @@ class _ChecklistPreviewGroup extends StatelessWidget {
         },
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          physics: selectionMode
+          physics: isSelectionMode
               ? NeverScrollableScrollPhysics()
               : const ClampingScrollPhysics(),
 
@@ -309,7 +310,7 @@ class _ChecklistPreviewGroup extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.check_circle_outline,
+                            Icons.lightbulb_outline,
                             size: 14,
                             color: context.colorScheme.primary.withValues(
                               alpha: 0.8,
@@ -339,8 +340,8 @@ class _ChecklistPreviewGroup extends StatelessWidget {
   }
 }
 
-class _PreviewLine extends StatelessWidget {
-  const _PreviewLine({required this.line, required this.width});
+class _NotePreviewLine extends StatelessWidget {
+  const _NotePreviewLine({required this.line, required this.width});
   final String line;
   final double width;
 

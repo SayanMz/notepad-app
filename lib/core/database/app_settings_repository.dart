@@ -6,10 +6,16 @@ import 'package:notepad/core/database/storage_service.dart' as db;
 // Keeps local app settings in memory and mirrors them back to disk.
 class AppSettingsRepository extends ChangeNotifier {
   AppSettings _settings = const AppSettings();
+  bool _isLoaded = false;
 
   AppSettings get settings => _settings;
-  ThemeMode get themeMode =>
-      _settings.isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
+  ThemeMode get themeMode {
+    // Before disk read completes, fall back to the phone's system dark/light mode
+    if (!_isLoaded) return ThemeMode.system;
+
+    return _settings.isDarkMode ? ThemeMode.dark : ThemeMode.light;
+  }
 
   Future<void> addRecentColor(Color color, int maxColors) async {
     final updatedValues = List<int>.from(_settings.recentColorValues);
@@ -31,6 +37,8 @@ class AppSettingsRepository extends ChangeNotifier {
       debugPrint('Settings load failed, resetting to defaults: $e');
       _settings = const AppSettings();
       await persist();
+    } finally {
+      _isLoaded = true;
       notifyListeners();
     }
   }

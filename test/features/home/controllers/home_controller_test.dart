@@ -1,47 +1,46 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
-import 'package:notepad/features/home/home_constants.dart';
+import 'package:notepad/features/home/controllers/selection_controller.dart';
+
+HomeController _buildController() {
+  return HomeController(
+    selectionController: SelectionController(),
+    animationController: AnimationControllerState(),
+  );
+}
 
 void main() {
-  test('updateFabState keeps FAB state and position in sync', () {
-    final controller = HomeController();
+  test('openNote forwards the provided note id', () async {
+    final controller = _buildController();
+    String? receivedId;
 
-    expect(controller.isFabExtended.value, isTrue);
-    expect(controller.fabAlignX.value, 0.0);
+    await controller.openNote(
+      noteId: 'note-1',
+      onNavigate: (noteId) async {
+        receivedId = noteId;
+      },
+    );
 
-    controller.updateFabState(extend: false);
-    expect(controller.isFabExtended.value, isFalse);
-    expect(controller.fabAlignX.value, HomeConstants.fabAlignCollapsedX);
-
-    controller.updateFabState(extend: true);
-    expect(controller.isFabExtended.value, isTrue);
-    expect(controller.fabAlignX.value, HomeConstants.fabAlignExpandedX);
-
-    controller.setDraggingState(true);
-    expect(controller.isDraggingNote, isTrue);
+    expect(receivedId, 'note-1');
 
     controller.dispose();
   });
 
-  test('updateSyncStatus stores the message immediately and resets later', () async {
-    final controller = HomeController();
+  test('updateSelectedColors notifies local color listeners', () {
+    final controller = _buildController();
+    final previousTick = controller.colorChangeNotifier.value;
 
-    controller.updateSyncStatus('Backed up', color: null);
-    expect(controller.syncStatusNotifier.value, 'Backed up');
+    controller.updateSelectedColors(Colors.red);
 
-    await Future.delayed(
-      AnimationConstants.snackbarLong + const Duration(milliseconds: 50),
-    );
-
-    expect(controller.syncStatusNotifier.value, 'Ready to sync');
-    expect(controller.statusColorNotifier.value, isNull);
+    expect(controller.colorChangeNotifier.value, previousTick + 1);
 
     controller.dispose();
   });
 
   test('executeBulkDelete is a no-op when nothing is selected', () async {
-    final controller = HomeController();
+    final controller = _buildController();
 
     await controller.executeBulkDelete();
 
@@ -51,7 +50,7 @@ void main() {
   });
 
   test('shareSelectedNotes returns quietly when nothing is selected', () async {
-    final controller = HomeController();
+    final controller = _buildController();
     var errorCalled = false;
 
     await controller.shareSelectedNotes(

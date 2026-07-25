@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 
+/// Inherited widget that exposes the bootstrapper completion status down the tree.
+class BootstrapScope extends InheritedWidget {
+  const BootstrapScope({
+    super.key,
+    required this.isInitializationComplete,
+    required super.child,
+  });
+
+  final bool isInitializationComplete;
+
+  static BootstrapScope? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<BootstrapScope>();
+  }
+
+  @override
+  bool updateShouldNotify(BootstrapScope oldWidget) {
+    return isInitializationComplete != oldWidget.isInitializationComplete;
+  }
+}
+
 class BootstrapErrorView extends StatelessWidget {
   const BootstrapErrorView({
     super.key,
@@ -87,8 +107,12 @@ class _BootstrapAppState extends State<BootstrapApp> {
           );
         }
 
-        // Pass the actual app tree forward, keeping track of the loading status
-        return widget.child;
+        final isComplete = snapshot.connectionState == ConnectionState.done;
+
+        return BootstrapScope(
+          isInitializationComplete: isComplete,
+          child: widget.child,
+        );
       },
     );
   }
