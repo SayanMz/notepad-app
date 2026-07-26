@@ -63,12 +63,6 @@ class NoteList extends StatelessWidget {
               onReorderItem: (int oldIndex, int newIndex) {
                 controller.handlePinnedReorder(oldIndex, newIndex);
               },
-              onReorderStart: (index) {
-                fabController.setDraggingState(true);
-              },
-              onReorderEnd: (index) {
-                fabController.setDraggingState(false);
-              },
             ),
           ),
         ],
@@ -95,12 +89,6 @@ class NoteList extends StatelessWidget {
               },
               onReorderItem: (int oldIndex, int newIndex) {
                 controller.handleUnpinnedReorder(oldIndex, newIndex);
-              },
-              onReorderStart: (index) {
-                fabController.setDraggingState(true);
-              },
-              onReorderEnd: (index) {
-                fabController.setDraggingState(false);
               },
             ),
           ),

@@ -4,13 +4,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/sqlite_fts_service.dart';
 import 'package:notepad/core/database/storage_service.dart' as db;
 import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
 import 'package:notepad/core/services/repo_services/note_sort_service.dart';
 import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
 import 'package:notepad/core/services/repo_services/seed_data_service.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
 
 class NoteRepository {
   factory NoteRepository() => _instance;
@@ -61,10 +61,10 @@ class NoteRepository {
 
       for (final note in _activeNotes) {
         _cacheMap[note.id] = note;
-        await SqliteFtsService.insertOrUpdate(note);
       }
 
       await db.saveNotesBulk({for (var n in _activeNotes) n.id: n});
+      await SqliteFtsService.reindexAllNotes(_activeNotes);
       await appSettingsRepository.setSeedVersion(_currentSeedVersion);
     } else {
       // 🌟 THE AUTOMATIC TRASH CLEANER
@@ -79,12 +79,10 @@ class NoteRepository {
 
         _cacheMap[note.id] = note;
         note.isDeleted ? _deletedNotes.add(note) : _activeNotes.add(note);
-
-        // Deleted notes stay out of FTS so search only scans active content.
-        if (!note.isDeleted) {
-          await SqliteFtsService.insertOrUpdate(note);
-        }
       }
+
+      await SqliteFtsService.reindexAllNotes(_activeNotes);
+
       // If any expired trash notes were caught, permanently wipe them from disk storage
       if (expiredNoteIds.isNotEmpty) {
         debugPrint(
@@ -406,6 +404,8 @@ class NoteRepository {
       _sortAndRebuildCache();
       activeRevision.value++;
       await db.saveNotesBulk(updates);
+
+      await SqliteFtsService.reindexAllNotes(_activeNotes);
     }
 
     return updates.length;

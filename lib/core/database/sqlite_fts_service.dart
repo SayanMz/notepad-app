@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-// Mirrors active note content into SQLite FTS for fast text search.
+// Mirrors active note content into SQLite for fast text search using standard SQL.
 class SqliteFtsService {
   static const String _dbName = 'notes_search.db';
   static const String _tableName = 'notes_fts';
@@ -21,74 +21,55 @@ class SqliteFtsService {
       _db = await _initDb();
       return _db!;
     } catch (e) {
-      debugPrint('SqliteFtsService: database init failed: $e');
-      rethrow;
+      debugPrint('SqliteFtsService: database init failed: $e. Rebuilding...');
+      final directory = await getApplicationDocumentsDirectory();
+      final path = join(directory.path, _dbName);
+      await deleteDatabase(path);
+
+      _db = await _initDb();
+      return _db!;
     }
   }
 
   static Future<Database> _initDb() async {
-    try {
-      final directory = await getApplicationDocumentsDirectory();
-      final path = join(directory.path, _dbName);
+    final directory = await getApplicationDocumentsDirectory();
+    final path = join(directory.path, _dbName);
 
-      return await openDatabase(
-        path,
-        version: 2,
-        onCreate: (db, version) async {
-          await db.execute('''
-            CREATE VIRTUAL TABLE $_tableName USING fts5(
-              id UNINDEXED,
-              title,
-              content,
-              updated_at
-            )
-          ''');
-        },
-        onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion < 2) {
-            await db.execute('DROP TABLE IF EXISTS $_tableName');
-            await db.execute('''
-        CREATE VIRTUAL TABLE $_tableName USING fts5(
-          id UNINDEXED,
-          title,
-          content,
-          updated_at
-        )
-      ''');
-          }
-        },
-      );
-    } catch (e) {
-      debugPrint('SqliteFtsService: failed to open FTS database: $e');
-      rethrow;
-    }
+    return await openDatabase(
+      path,
+      version: 3,
+      onCreate: (db, version) async {
+        // Standard table (no virtual tables or FTS extensions needed)
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS $_tableName (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            content TEXT,
+            updated_at TEXT
+          )
+        ''');
+      },
+    );
   }
 
   static Future<void> insertOrUpdate(NotesSection note) async {
-    if (note.id.trim().isEmpty) {
-      debugPrint('SqliteFtsService: skipped insertOrUpdate for empty note id.');
-      return;
-    }
+    if (note.id.trim().isEmpty) return;
 
     try {
       final db = await database;
-      await db.delete(_tableName, where: 'id = ?', whereArgs: [note.id]);
       await db.insert(_tableName, {
         'id': note.id,
         'title': note.title,
         'content': note.content,
         'updated_at': note.updatedAt.toIso8601String(),
-      });
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       debugPrint('SqliteFtsService: insertOrUpdate failed for ${note.id}: $e');
     }
   }
 
   static Future<void> remove(String id) async {
-    if (id.trim().isEmpty) {
-      debugPrint('SqliteFtsService: skipped remove for empty id.');
-      return;
-    }
+    if (id.trim().isEmpty) return;
 
     try {
       final db = await database;
@@ -127,17 +108,16 @@ class SqliteFtsService {
   }
 
   static Future<Set<String>> searchIds(String query) async {
-    final normalizedQuery = query.trim();
-    if (normalizedQuery.isEmpty) return <String>{};
-
-    final sanitizedQuery = normalizedQuery.replaceAll(RegExp(r'[^\w\s]'), '');
-    if (sanitizedQuery.trim().isEmpty) return <String>{};
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return <String>{};
 
     try {
       final db = await database;
-      final List<Map<String, dynamic>> maps = await db.rawQuery(
-        'SELECT id FROM $_tableName WHERE $_tableName MATCH ?',
-        ['${sanitizedQuery.trim()}*'],
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        columns: ['id'],
+        where: 'title LIKE ? OR content LIKE ?',
+        whereArgs: ['%$cleanQuery%', '%$cleanQuery%'],
       );
 
       return maps
@@ -156,23 +136,21 @@ class SqliteFtsService {
     DateTime start,
     DateTime end,
   ) async {
-    final normalizedQuery = query.trim();
-    if (normalizedQuery.isEmpty) return const {};
     if (start.isAfter(end)) return const {};
 
-    final sanitizedQuery = normalizedQuery.replaceAll(RegExp(r'[^\w\s]'), '');
-    if (sanitizedQuery.trim().isEmpty) return const {};
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) return const {};
 
     try {
       final db = await database;
-      final results = await db.rawQuery(
-        '''
-      SELECT id FROM $_tableName
-      WHERE $_tableName MATCH ?
-      AND updated_at BETWEEN ? AND ?
-      ''',
-        [
-          '${sanitizedQuery.trim()}*',
+      final results = await db.query(
+        _tableName,
+        columns: ['id'],
+        where:
+            '(title LIKE ? OR content LIKE ?) AND updated_at BETWEEN ? AND ?',
+        whereArgs: [
+          '%$cleanQuery%',
+          '%$cleanQuery%',
           start.toIso8601String(),
           end.toIso8601String(),
         ],
@@ -201,7 +179,7 @@ class SqliteFtsService {
           'title': note.title,
           'content': note.content,
           'updated_at': note.updatedAt.toIso8601String(),
-        });
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
       await batch.commit(noResult: true);

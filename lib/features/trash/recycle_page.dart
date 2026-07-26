@@ -36,15 +36,25 @@ class _RecyclePageState extends State<RecyclePage> {
   void initState() {
     super.initState();
     _controller = RecycleController(noteRepository: noteRepository);
+    _controller.addListener(_handleRecycleStateChanged);
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
     _controller.dispose();
+    _controller.removeListener(_handleRecycleStateChanged);
     _scrollController.dispose();
     _showScrollToTopBtn.dispose();
     super.dispose();
+  }
+
+  void _handleRecycleStateChanged() {
+    if (_controller.isEmpty && _scrollController.hasClients) {
+      if (_scrollController.offset > 0) {
+        _scrollController.jumpTo(0.0);
+      }
+    }
   }
 
   Future<void> _handleRestoreNote(NotesSection note) async {

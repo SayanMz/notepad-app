@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
@@ -103,21 +102,39 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
+  double _lastPixelOffset = 0.0;
+
   bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification.depth == 1) return true;
+    if (notification.depth == 1) {
+      return true; //For nested viewport's scroll notification handling
+    }
     if (notification.depth != 0) return false;
 
-    if (notification.metrics.pixels <= 0) {
+    final metrics = notification.metrics;
+    final currentPixels = metrics.pixels;
+    final maxScroll = metrics.maxScrollExtent;
+
+    // Always show headers at the top
+    if (currentPixels <= 0) {
       _showHeaders.value = true;
+      _lastPixelOffset = 0.0;
+      return false;
+    }
+    // Always hide headers at the bottom
+    if (currentPixels >= maxScroll - 40) {
+      _showHeaders.value = false;
       return false;
     }
 
-    if (notification is UserScrollNotification) {
-      if (notification.direction == ScrollDirection.forward) {
-        _showHeaders.value = true;
-      } else if (notification.direction == ScrollDirection.reverse) {
-        _showHeaders.value = false;
+    // Only toggle header if scroll delta is greater than 15 pixels
+    final delta = currentPixels - _lastPixelOffset;
+    if (delta.abs() > 15) {
+      if (delta > 0 && _showHeaders.value) {
+        _showHeaders.value = false; // Scrolling down -> hide header
+      } else if (delta < 0 && !_showHeaders.value) {
+        _showHeaders.value = true; // Scrolling up -> show header
       }
+      _lastPixelOffset = currentPixels;
     }
 
     return false;

@@ -22,7 +22,10 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      if (!kIsWeb) {
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux)) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }

@@ -21,14 +21,14 @@ class SmoothSlideFade extends StatelessWidget {
       switchOutCurve: Curves.easeInOutCubic,
       transitionBuilder: (Widget child, Animation<double> animation) {
         return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: const Interval(0.4, 1.0, curve: Curves.easeIn),
-          ),
+          opacity: animation, // 👈 Smooth continuous fade
           child: SizeTransition(
             sizeFactor: animation,
             alignment: Alignment.topCenter,
-            child: child,
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: child,
+            ),
           ),
         );
       },

@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:universal_platform/universal_platform.dart';
 
 // Google Drive sync boundary that keeps backup and restore concerns out of the UI.
 class GoogleDriveService {
@@ -28,21 +29,24 @@ class GoogleDriveService {
     final existing = _initializing;
     if (existing != null) return existing;
 
-    final future = _googleSignIn.initialize(
-      clientId: UniversalPlatform.isWindows ? _clientId : null,
-      serverClientId: UniversalPlatform.isAndroid ? _serverClientId : null,
-    ).then((_) {
-      _initialized = true;
-    }).whenComplete(() {
-      _initializing = null;
-    });
+    final future = _googleSignIn
+        .initialize(
+          clientId: Platform.isWindows ? _clientId : null,
+          serverClientId: Platform.isAndroid ? _serverClientId : null,
+        )
+        .then((_) {
+          _initialized = true;
+        })
+        .whenComplete(() {
+          _initializing = null;
+        });
 
     _initializing = future;
     return future;
   }
 
   Future<bool> signIn() async {
-    if (_clientId.isEmpty && UniversalPlatform.isWindows) {
+    if (_clientId.isEmpty && Platform.isWindows) {
       throw Exception('Missing GOOGLE_CLIENT_ID in .env');
     }
 

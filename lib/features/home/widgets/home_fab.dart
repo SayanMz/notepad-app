@@ -26,17 +26,14 @@ class HomeFab extends StatelessWidget {
     return SafeArea(
       child: ListenableBuilder(
         listenable: Listenable.merge([
-          fabController.isDragging,
           fabController.alignX,
           fabController.isExtended,
         ]),
         builder: (context, _) {
           final bool isSelectionActive = selectionController.isSelectionMode;
-          final bool isDraggingActive = fabController.isDragging.value;
-          final bool shouldHide = isSelectionActive || isDraggingActive;
 
           return AnimatedSlide(
-            offset: shouldHide ? const Offset(0, 2.0) : Offset.zero,
+            offset: isSelectionActive ? const Offset(0, 2.0) : Offset.zero,
             duration: AnimationConstants.medium,
             curve: Curves.fastOutSlowIn,
             child: AnimatedAlign(
@@ -47,7 +44,7 @@ class HomeFab extends StatelessWidget {
                 HomeConstants.fabAlignDefaultY,
               ),
               child: IgnorePointer(
-                ignoring: shouldHide,
+                ignoring: isSelectionActive,
                 child: _OptimizedMorphCanvas(
                   isExtended: fabController.isExtended.value,
                 ),

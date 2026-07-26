@@ -66,6 +66,7 @@ class _HomePageState extends State<HomePage> {
       animationController: _animationController,
     );
     _authController.initialize();
+    noteRepository.activeRevision.addListener(_handleNotesChanged);
   }
 
   @override
@@ -76,7 +77,16 @@ class _HomePageState extends State<HomePage> {
     _selectionController.dispose();
     _animationController.dispose();
     _scrollController.dispose();
+    noteRepository.activeRevision.removeListener(_handleNotesChanged);
     super.dispose();
+  }
+
+  void _handleNotesChanged() {
+    if (_controller.activeNotes.isEmpty && _scrollController.hasClients) {
+      if (_scrollController.offset > 0) {
+        _scrollController.jumpTo(0.0);
+      }
+    }
   }
 
   @override

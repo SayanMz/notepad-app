@@ -9,15 +9,9 @@ class HomeFabController {
   final ValueNotifier<double> alignX = ValueNotifier(
     HomeConstants.fabAlignExpandedX,
   );
-  final ValueNotifier<bool> isDragging = ValueNotifier(false);
 
   /// Accumulates scroll distance across frames to prevent micro-scroll jitter.
   double _accumulatedDelta = 0.0;
-
-  void setDraggingState(bool dragging) {
-    if (isDragging.value == dragging) return;
-    isDragging.value = dragging;
-  }
 
   /// Synchronizes expansion state with horizontal alignment.
   void updateState({required bool extend}) {
@@ -81,6 +75,5 @@ class HomeFabController {
   void dispose() {
     isExtended.dispose();
     alignX.dispose();
-    isDragging.dispose();
   }
 }

@@ -79,7 +79,7 @@ class HomeController {
   Future<void> executeBulkDelete() async {
     if (selectedIds.isEmpty) return;
 
-    final movedNoteIds = selectedIds;
+    final movedNoteIds = Set<String>.from(selectedIds);
     final int selectedCount = movedNoteIds.length;
 
     await animationController.triggerVaporizeAnimation(movedNoteIds);

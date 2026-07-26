@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/search/search_page.dart';
 import 'package:notepad/features/home/home_constants.dart';
-import 'package:notepad/core/services/ui_management/app_router.dart';
+import 'package:notepad/features/search/search_page.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
 
 // Top home bar with search, trash, theme toggle, and drawer access.
@@ -24,6 +24,7 @@ class HomeAppBar extends StatelessWidget {
     return SliverAppBar(
       floating: true,
       stretch: true,
+      snap: true,
       automaticallyImplyLeading: false,
       actions: const [SizedBox.shrink()],
       scrolledUnderElevation: HomeConstants.appBarScrolledUnderElevation,
