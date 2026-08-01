@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/notes_repository.dart';
-import 'package:notepad/features/note/services/link_detector_service.dart';
-import 'package:notepad/features/note/widgets/save_indicator.dart';
+import 'package:notepad/features/note/services/link_handlers/link_detector_service.dart';
+import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
+/// Handles note persistence, autosave, scroll state, and link detection triggers.
 class NoteDataController {
   final NoteRepository noteRepository;
   String? noteId;
@@ -63,7 +65,6 @@ class NoteDataController {
     );
   }
 
-  // 🌟 Method 2: Handles purely scroll movements
   void handleScrollEvent({
     required String title,
     required Document document,
@@ -81,8 +82,7 @@ class NoteDataController {
       () => saveNote(
         title: title.trim(),
         document: document,
-        scrollOffset:
-            scrollOffset, // 🌟 Actually passes the offset to the database!
+        scrollOffset: scrollOffset,
         isScrollUpdate: true,
       ),
     );
@@ -105,7 +105,6 @@ class NoteDataController {
     _isSaving = true;
 
     try {
-      // 🌟 ONLY update the UI save status if this isn't a silent scroll save
       if (!isScrollUpdate) {
         saveState.value = SaveState.saving;
       }

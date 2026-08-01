@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.notepad"
+    namespace = "com.bca.project.notepad"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

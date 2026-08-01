@@ -3,6 +3,7 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/home/widgets/note_list_items/note_empty_state.dart';
 import 'package:notepad/features/home/widgets/note_list_items/swipeable_note_item.dart';
 
@@ -20,13 +21,13 @@ class NoteList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = context.screenSize.width;
-    final maxPreviewLines = screenWidth > 1200
-        ? UIConstants.noteCardPreviewLargeDesktopLines
-        : screenWidth > 900
-        ? UIConstants.noteCardPreviewTabletLines
-        : screenWidth > 600
-        ? UIConstants.noteCardPreviewSmallTabletLines
-        : UIConstants.noteCardPreviewPhoneLines;
+    final maxPreviewLines = screenWidth > HomeConstants.noteListLargeDesktopBreakpoint
+        ? HomeConstants.noteCardPreviewLargeDesktopLines
+        : screenWidth > HomeConstants.noteListTabletBreakpoint
+        ? HomeConstants.noteCardPreviewTabletLines
+        : screenWidth > HomeConstants.noteListCompactBreakpoint
+        ? HomeConstants.noteCardPreviewSmallTabletLines
+        : HomeConstants.noteCardPreviewPhoneLines;
 
     final pinnedNotes = controller.pinnedNotes;
     final unpinnedNotes = controller.unpinnedNotes;
@@ -101,16 +102,16 @@ class NoteList extends StatelessWidget {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.only(
-          left: UIConstants.listPadding + 20,
-          top: 24,
-          bottom: 8,
+          left: UIConstants.listPadding + UIConstants.paddingXLarge,
+          top: UIConstants.paddingXL,
+          bottom: UIConstants.paddingSM,
         ),
         child: Text(
           title,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: HomeConstants.noteListSectionHeaderFontSize,
             fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
+            letterSpacing: HomeConstants.noteListSectionHeaderLetterSpacing,
             color: context.isDark ? Colors.white54 : Colors.black54,
           ),
         ),

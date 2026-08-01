@@ -81,4 +81,20 @@ void main() {
       {'start': 11, 'len': 10},
     ]);
   });
+
+  test('resolve marks empty positional lines as skipped for inline styles', () {
+    final controller = _controllerFor('Hello\n');
+
+    final resolution = VoiceFormattingTargetResolver.resolve(
+      controller: controller,
+      plainText: 'Hello\n',
+      target: 'line:second',
+      occurrence: 'all',
+      commandText: 'make the empty line bold',
+      key: 'bold',
+    );
+
+    expect(resolution.ranges, isEmpty);
+    expect(resolution.skippedInlineOnEmpty, isTrue);
+  });
 }

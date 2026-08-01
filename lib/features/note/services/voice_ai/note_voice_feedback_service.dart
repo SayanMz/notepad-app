@@ -1,10 +1,10 @@
-// Voice feedback turns model responses into short user-facing guidance.
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+// Voice feedback service that initializes speech and speaks short success or failure sentences.
 class NoteVoiceFeedbackService {
   final FlutterTts _tts = FlutterTts();
   final Random _random = Random();
@@ -29,8 +29,10 @@ class NoteVoiceFeedbackService {
   Future<void> initializeSpeech(stt.SpeechToText speech) async {
     try {
       await speech.initialize(debugLogging: true);
+      //Fetch all available system voices
       final voices = await _tts.getVoices;
 
+      //A list of high-quality voices
       final preferredVoices = [
         'en-us-x-iom-network',
         'en-us-x-sfg-network',
@@ -39,11 +41,12 @@ class NoteVoiceFeedbackService {
       ];
 
       Map<String, String>? selectedVoice;
-
+      //Nested loops to cross-reference preferred choices(voices) against available system voices
       for (final preferredName in preferredVoices) {
         for (final voice in voices) {
           final voiceName = voice['name'].toString().trim().toLowerCase();
           if (voiceName == preferredName) {
+            // Match found!
             selectedVoice = {
               'name': voice['name'].toString(),
               'locale': voice['locale'].toString(),
@@ -51,6 +54,7 @@ class NoteVoiceFeedbackService {
             break;
           }
         }
+        //preferred voice was successfully chosen
         if (selectedVoice != null) break;
       }
 
@@ -61,7 +65,7 @@ class NoteVoiceFeedbackService {
         debugPrint('FAILED: Network voices missing. Trying local default.');
         await _tts.setLanguage('en-US');
       }
-
+      //audio playback parameters
       await _tts.setSpeechRate(0.42);
       await _tts.setPitch(1.0);
       await _tts.setVolume(1.0);
@@ -80,4 +84,3 @@ class NoteVoiceFeedbackService {
     await _tts.speak(phrase);
   }
 }
-

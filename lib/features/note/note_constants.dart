@@ -5,7 +5,6 @@ class NoteConstants {
 
   static const double toolbarNudgeDistance = 100.0;
   static const double toolbarItemWidthDivisor = 4.5;
-  static const double toolbarHeight = 56.0;
   static const double toolbarMarginH = 16.0;
   static const double toolbarMarginTop = 8.0;
   static const double toolbarMarginBottom = 0.0;
@@ -53,9 +52,26 @@ class NoteConstants {
   static const double notePageReadonlySpacerHeight = 0.0;
   static const double notePageToolbarPaddingBottom = 8.0;
 
+  static const double saveIndicatorSpinnerSize = 14.0;
+  static const double saveIndicatorIconSize = 16.0;
+  static const double saveIndicatorTextFontSize = 12.0;
+  static const double saveIndicatorSpacingTiny = 4.0;
+  static const double saveIndicatorSpacingSmall = 6.0;
+
   static const double aiButtonOpacityDim = 0.15;
   static const double aiButtonOpacityFull = 1.0;
   static const Duration aiSpeechSilenceTimeout = Duration(seconds: 5);
   static const Duration aiSpeechResultDelay = Duration(seconds: 1);
   static const Duration aiProcessingDelay = Duration(milliseconds: 50);
+
+  static const double voiceButtonHiddenThreshold = 0.2;
+  static const double voiceButtonPressedScale = 0.92;
+  static const double voiceButtonListeningSize = 80.0;
+  static const double voiceButtonIdleSize = 72.0;
+  static const double voiceButtonListeningAssetSize = 70.0;
+  static const double voiceButtonIdleAssetSize = 60.0;
+  static const double voiceButtonListeningShadowBlur = 30.0;
+  static const double voiceButtonListeningShadowSpread = 8.0;
+  static const double voiceButtonPressedShadowBlur = 10.0;
+  static const double voiceButtonPressedShadowSpread = 2.0;
 }

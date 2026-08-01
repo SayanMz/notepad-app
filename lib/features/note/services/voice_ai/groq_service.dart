@@ -1,4 +1,3 @@
-// Groq AI calls are wrapped here so voice and assistant features share one client.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -8,15 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
 
-class GroqServiceException implements Exception {
-  GroqServiceException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
+// Groq AI client for voice-command parsing, warm-up, and error-normalized responses.
 class GroqService {
   static const String _endpoint =
       'https://api.groq.com/openai/v1/chat/completions';
@@ -54,9 +45,10 @@ class GroqService {
     String voiceText,
   ) async {
     await _ensureEnvLoaded();
+    http.Response response;
 
     try {
-      final response = await http
+      response = await http
           .post(
             Uri.parse(_endpoint),
             headers: {
@@ -64,7 +56,7 @@ class GroqService {
               'Authorization': 'Bearer $_apiKey',
             },
             body: jsonEncode({
-              'model': 'llama-3.1-8b-instant',
+              'model': 'llama-3.3-70b-versatile',
               'response_format': {'type': 'json_object'},
               'messages': [
                 {'role': 'system', 'content': voiceAiSystemPrompt},
@@ -74,35 +66,44 @@ class GroqService {
             }),
           )
           .timeout(AnimationConstants.voiceRequestTimeout);
-
-      if (response.statusCode == 200) {
-        final content = jsonDecode(
-          response.body,
-        )['choices'][0]['message']['content'];
-        final decoded = jsonDecode(content);
-        return decoded['instructions'] != null
-            ? List<Map<String, dynamic>>.from(decoded['instructions'])
-            : null;
-      }
-
-      throw GroqServiceException(
-        'AI service could not process the request right now. Please try again.',
-      );
+      // Network Request
     } on TimeoutException {
       throw GroqServiceException(
         'AI service timed out. Please check your connection and try again.',
       );
+      // Network Offline
     } on SocketException {
       throw GroqServiceException(
         'AI service is unreachable right now. Please check your internet connection.',
       );
-    } on GroqServiceException {
-      rethrow;
     } catch (_) {
+      // Catch-all fallback for UNKNOWN errors (e.g. JSON parsing crash)
       throw GroqServiceException(
         'AI service could not be configured right now. Please try again later.',
       );
     }
+
+    if (response.statusCode == 200) {
+      final content = jsonDecode(
+        response.body,
+      )['choices'][0]['message']['content'];
+      final decoded = jsonDecode(content);
+      return decoded['instructions'] != null
+          ? List<Map<String, dynamic>>.from(decoded['instructions'])
+          : null;
+    }
+    //The HTTP Failure Exception
+    throw GroqServiceException(
+      'AI service could not process the request right now. Please try again.',
+    );
   }
 }
 
+class GroqServiceException implements Exception {
+  GroqServiceException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}

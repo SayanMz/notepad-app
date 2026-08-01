@@ -1,4 +1,3 @@
-// The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 import 'dart:async';
 
 // ignore_for_file: experimental_member_use
@@ -19,12 +18,13 @@ import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
+import 'package:notepad/features/note/widgets/controls/note_toolbar.dart';
+import 'package:notepad/features/note/widgets/controls/voice_assistant_button.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
-import 'package:notepad/features/note/widgets/note_editor.dart';
-import 'package:notepad/features/note/widgets/note_header.dart';
-import 'package:notepad/features/note/widgets/note_toolbar.dart';
-import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
+import 'package:notepad/features/note/widgets/editor/note_editor.dart';
+import 'package:notepad/features/note/widgets/editor/note_title_bar.dart';
 
+// The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
@@ -45,26 +45,22 @@ class NotePage extends StatefulWidget {
 class _NotePageState extends State<NotePage>
     with SingleTickerProviderStateMixin {
   late bool _isReadOnly;
-  late AnimationController _lottieController;
+  bool _shouldNudge = true;
+  bool _isHandlingBackNavigation = false;
 
   late final AppLifecycleListener _lifecycleListener;
+
+  final FocusNode _editorFocusNode = FocusNode();
 
   late final NoteDataController _dataController;
   late final NoteVoiceController _voiceController;
   late final NoteUIController _uiController;
-
   late final TextEditingController titleController;
-
+  late final NoteToolbarController _toolbarController;
   late final QuillController contentController;
-
-  final FocusNode _editorFocusNode = FocusNode();
-
+  late AnimationController _lottieController;
   final ScrollController _editorScrollController = ScrollController();
 
-  late final NoteToolbarController _toolbarController;
-
-  bool _shouldNudge = true;
-  bool _isHandlingBackNavigation = false;
   final ValueNotifier<bool> _isTransitionAnimating = ValueNotifier<bool>(true);
 
   @override
@@ -72,66 +68,52 @@ class _NotePageState extends State<NotePage>
     super.initState();
     _isReadOnly = widget.readOnly;
 
-    _dataController = NoteDataController(
-      noteRepository: noteRepository,
-      noteId: widget.noteId,
-    );
-    _voiceController = NoteVoiceController();
-    _uiController = NoteUIController();
-
     _initializeControllers();
+
+    // Configure Editor States & Observers
     contentController.readOnly = _isReadOnly;
-
-    _lottieController = AnimationController(
-      vsync: this,
-      duration: AnimationConstants.snackbarShort,
-    );
-    _toolbarController = NoteToolbarController();
-
     _attachListeners();
     _lifecycleListener = _createLifecycleListener();
 
+    // Post-Frame Transitions & Warmup Operations
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
       ModalRoute.of(context)?.animation?.addStatusListener((status) async {
         if (status == AnimationStatus.completed) {
-          _isTransitionAnimating.value = false; //
+          _isTransitionAnimating.value = false;
 
           await WidgetsBinding.instance.endOfFrame;
           if (!mounted) return;
 
           final note = widget.noteId == null
               ? null
-              : noteRepository.findById(widget.noteId!); //
+              : noteRepository.findById(widget.noteId!);
 
           if (note != null &&
               _editorScrollController.hasClients &&
               note.scrollOffset > 0) {
-            //
-            final maxExtent =
-                _editorScrollController.position.maxScrollExtent; //
+            final maxExtent = _editorScrollController.position.maxScrollExtent;
             final target = note.scrollOffset > maxExtent
                 ? maxExtent
-                : note.scrollOffset; //
+                : note.scrollOffset;
 
-            _editorScrollController.jumpTo(target); //
+            _editorScrollController.jumpTo(target);
           }
 
           _dataController.setInitialSignature(
-            titleController.text, //
-            contentController.document, //
-            _getCurrentScrollOffset(), //
+            titleController.text,
+            contentController.document,
+            _getCurrentScrollOffset(),
           );
 
           if (widget.noteId == null && _editorFocusNode.canRequestFocus) {
-            //
-            _editorFocusNode.requestFocus(); //
+            _editorFocusNode.requestFocus();
           }
 
           unawaited(
             GroqService.warmUp().catchError(
-              (e) => debugPrint('AI Warmup skip: $e'), //
+              (e) => debugPrint('AI Warmup skip: $e'),
             ),
           );
         }
@@ -145,54 +127,28 @@ class _NotePageState extends State<NotePage>
         : 0.0;
   }
 
-  Future<void> _showRestoreDialog() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore Note'),
-        content: const Text('Do you want to restore this note?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true && widget.noteId != null) {
-      // Restored notes re-enter editable mode immediately so the user can continue typing.
-      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
-      final note = noteRepository.findById(widget.noteId!);
-
-      setState(() {
-        _isReadOnly = false;
-        contentController.readOnly = false;
-      });
-
-      uiNotifier.showSnackBar(
-        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
-      );
-
-      // Keep the micro-delay to let the Quill platform channels bind
-      await Future.delayed(Duration.zero);
-      if (!mounted) return;
-
-      FocusScope.of(context).requestFocus(_editorFocusNode);
-    }
-  }
-
+  /// Centralizes the instantiation of all feature, UI, and text editing controllers.
   void _initializeControllers() {
     final note = widget.noteId == null
         ? null
         : noteRepository.findById(widget.noteId!);
 
+    // Feature Controllers
+    _dataController = NoteDataController(
+      noteRepository: noteRepository,
+      noteId: widget.noteId,
+    );
+    _voiceController = NoteVoiceController();
+    _uiController = NoteUIController();
+    _toolbarController = NoteToolbarController();
+
+    // Editor & Animation Controllers
     titleController = TextEditingController(text: note?.title ?? widget.title);
     contentController = _createContentController(note);
+    _lottieController = AnimationController(
+      vsync: this,
+      duration: AnimationConstants.snackbarShort,
+    );
   }
 
   QuillController _createContentController(NotesSection? note) {
@@ -304,6 +260,46 @@ class _NotePageState extends State<NotePage>
     super.dispose();
   }
 
+  Future<void> _showRestoreDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore Note'),
+        content: const Text('Do you want to restore this note?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && widget.noteId != null) {
+      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
+      final note = noteRepository.findById(widget.noteId!);
+      // Restored notes re-enter editable mode immediately so the user can continue typing.
+      setState(() {
+        _isReadOnly = false;
+        contentController.readOnly = false;
+      });
+
+      uiNotifier.showSnackBar(
+        SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
+      );
+
+      // Keep the micro-delay to let the Quill platform channels bind
+      await Future.delayed(Duration.zero);
+      if (!mounted) return;
+
+      FocusScope.of(context).requestFocus(_editorFocusNode);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDark;
@@ -324,11 +320,10 @@ class _NotePageState extends State<NotePage>
             preferredSize: const Size.fromHeight(kToolbarHeight),
             child: NoteAppBar(
               key: const ValueKey('unified_note_bar'),
-              saveState: _dataController.saveState,
-              contentController: contentController,
-              title: titleController,
-              isDark: isDark,
               readOnly: _isReadOnly,
+              title: titleController,
+              contentController: contentController,
+              saveState: _dataController.saveState,
             ),
           ),
 
@@ -345,7 +340,7 @@ class _NotePageState extends State<NotePage>
                 children: [
                   Column(
                     children: [
-                      NoteHeader(
+                      NoteTitleBar(
                         key: ValueKey('header_$_isReadOnly'),
                         titleController: titleController,
                         onToggleEdit: _uiController.toggleEditMode,
@@ -356,6 +351,7 @@ class _NotePageState extends State<NotePage>
 
                       Expanded(
                         child: NotificationListener<ScrollEndNotification>(
+                          // Autosave note scroll offset when editor scrolling comes to a rest.
                           onNotification: (notification) {
                             if (!_isTransitionAnimating.value &&
                                 notification.depth == 0) {
@@ -370,7 +366,7 @@ class _NotePageState extends State<NotePage>
                           child: ListenableBuilder(
                             listenable: _editorScrollController,
                             builder: (context, child) {
-                              // Check if the keyboard is open using the direct view insets
+                              // Checking if the keyboard is open using the direct view insets
                               final double keyboardHeight = View.of(
                                 context,
                               ).viewInsets.bottom;
@@ -380,7 +376,7 @@ class _NotePageState extends State<NotePage>
                                   _editorScrollController.hasClients
                                   ? _editorScrollController.offset
                                   : 0.0;
-
+                              // Dynamically scales the top edge content fade (0% to 3%) as the user scrolls.
                               final double topFadeStop = currentOffset <= 0.0
                                   ? 0.0
                                   : (currentOffset / 100).clamp(0.0, 0.03);
@@ -405,7 +401,6 @@ class _NotePageState extends State<NotePage>
                                 child: child!,
                               );
                             },
-
                             child: GestureDetector(
                               onTap: _isReadOnly ? _showRestoreDialog : null,
                               behavior: HitTestBehavior.opaque,
@@ -413,8 +408,8 @@ class _NotePageState extends State<NotePage>
                                 controller: _editorScrollController,
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 child: AbsorbPointer(
-                                  absorbing:
-                                      _isReadOnly, // Only freeze interactions if it's read-only
+                                  // Only freeze interactions if it's read-only
+                                  absorbing: _isReadOnly,
                                   child: Column(
                                     children: [
                                       NoteEditor(
@@ -422,11 +417,10 @@ class _NotePageState extends State<NotePage>
                                         focusNode: _editorFocusNode,
                                         scrollController:
                                             _editorScrollController,
-                                        scrollable:
-                                            false, // Unified: let the parent scroll view do the heavy lifting
+                                        scrollable: false,
                                         expands: false,
-                                        showCursor:
-                                            !_isReadOnly, // Cursor hides natively in read-only
+                                        // Cursor hides natively in read-only
+                                        showCursor: !_isReadOnly,
                                       ),
                                       Builder(
                                         builder: (context) {
@@ -451,7 +445,7 @@ class _NotePageState extends State<NotePage>
                           ),
                         ),
                       ),
-
+                      // INLINED TOOLBAR SECTION
                       ValueListenableBuilder<bool>(
                         valueListenable: _uiController.isEditing,
                         builder: (context, isEditing, child) {
@@ -472,9 +466,7 @@ class _NotePageState extends State<NotePage>
                                       shouldNudge: _shouldNudge,
                                       onNudgeComplete: () {
                                         if (mounted) {
-                                          setState(() {
-                                            _shouldNudge = false;
-                                          });
+                                          setState(() => _shouldNudge = false);
                                         }
                                       },
                                     ),
@@ -488,13 +480,12 @@ class _NotePageState extends State<NotePage>
                           );
                         },
                       ),
-                    ],
+                    ], // End of Column children
                   ),
-                ],
+                ], // End of Stack children
               ),
             ),
           ),
-
           floatingActionButton: _isReadOnly
               ? null
               : ValueListenableBuilder<bool>(
@@ -518,7 +509,7 @@ class _NotePageState extends State<NotePage>
                     contentController: contentController,
                   ),
                 ),
-        ),
+        ), // End of Scaffold
       ),
     );
   }

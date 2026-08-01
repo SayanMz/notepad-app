@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
-// Combines slide and fade transitions for search navigation.
-class SmoothSlideFade extends StatelessWidget {
+// Combines slide and fade transitions natively
+class SmoothSlideFade extends StatefulWidget {
   final Widget child;
   final bool isVisible;
 
@@ -13,28 +13,64 @@ class SmoothSlideFade extends StatelessWidget {
   });
 
   @override
+  State<SmoothSlideFade> createState() => _SmoothSlideFadeState();
+}
+
+class _SmoothSlideFadeState extends State<SmoothSlideFade>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: AnimationConstants.slow,
+      reverseDuration: AnimationConstants.snappy,
+      value: widget.isVisible ? 1.0 : 0.0,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.fastOutSlowIn,
+      reverseCurve: Curves.easeInCubic,
+    );
+  }
+
+  @override
+  void didUpdateWidget(SmoothSlideFade oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Smoothly reverse or forward the animation from its exact current tick
+    if (widget.isVisible != oldWidget.isVisible) {
+      if (widget.isVisible) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: AnimationConstants.extraLong,
-      reverseDuration: AnimationConstants.long,
-      switchInCurve: Curves.easeInOutCubic,
-      switchOutCurve: Curves.easeInOutCubic,
-      transitionBuilder: (Widget child, Animation<double> animation) {
-        return FadeTransition(
-          opacity: animation, // 👈 Smooth continuous fade
-          child: SizeTransition(
-            sizeFactor: animation,
-            alignment: Alignment.topCenter,
-            child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              child: child,
-            ),
+    return FadeTransition(
+      opacity: _animation,
+      child: SizeTransition(
+        sizeFactor: _animation,
+        alignment: Alignment.topCenter,
+        child: RepaintBoundary(
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: widget.child,
           ),
-        );
-      },
-      child: isVisible
-          ? child
-          : const SizedBox(width: double.infinity, height: 0),
+        ),
+      ),
     );
   }
 }

@@ -1,11 +1,11 @@
-// Save indicator reflects the current persistence state in the note header.
 import 'package:flutter/material.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/constants/editor_constants.dart';
+import 'package:notepad/features/note/note_constants.dart';
 
-// Save indicator reflects the current persistence state in the note header.
 enum SaveState { idle, saving, saved }
 
-// Save indicator reflects the current persistence state in the note header.
+// Save indicator reflects the current persistence state in the note app bar.
 class SaveIndicator extends StatelessWidget {
   const SaveIndicator({super.key, required this.saveState});
 
@@ -21,7 +21,7 @@ class SaveIndicator extends StatelessWidget {
         }
 
         return AnimatedSwitcher(
-          duration: UIConstants.animationFast,
+          duration: AnimationConstants.fast,
 
           transitionBuilder: (child, animation) {
             return FadeTransition(opacity: animation, child: child);
@@ -32,17 +32,17 @@ class SaveIndicator extends StatelessWidget {
                   key: const ValueKey('saving'),
                   children: const [
                     SizedBox(
-                      width: UIConstants.saveIndicatorSpinnerSize,
-                      height: UIConstants.saveIndicatorSpinnerSize,
+                      width: NoteConstants.saveIndicatorSpinnerSize,
+                      height: NoteConstants.saveIndicatorSpinnerSize,
                       child: CircularProgressIndicator(
-                        strokeWidth: UIConstants.toolbarColorCircleBorderWidth,
+                        strokeWidth: EditorConstants.toolbarColorCircleBorderWidth,
                       ),
                     ),
-                    SizedBox(width: UIConstants.saveIndicatorSpacingSmall),
+                    SizedBox(width: NoteConstants.saveIndicatorSpacingSmall),
                     Text(
                       'Saving...',
                       style: TextStyle(
-                        fontSize: UIConstants.saveIndicatorTextFontSize,
+                        fontSize: NoteConstants.saveIndicatorTextFontSize,
                       ),
                     ),
                   ],
@@ -52,14 +52,14 @@ class SaveIndicator extends StatelessWidget {
                   children: const [
                     Icon(
                       Icons.check,
-                      size: UIConstants.saveIndicatorIconSize,
+                      size: NoteConstants.saveIndicatorIconSize,
                       color: Colors.green,
                     ),
-                    SizedBox(width: UIConstants.saveIndicatorSpacingTiny),
+                    SizedBox(width: NoteConstants.saveIndicatorSpacingTiny),
                     Text(
                       'Saved',
                       style: TextStyle(
-                        fontSize: UIConstants.saveIndicatorTextFontSize,
+                        fontSize: NoteConstants.saveIndicatorTextFontSize,
                       ),
                     ),
                   ],
@@ -69,4 +69,3 @@ class SaveIndicator extends StatelessWidget {
     );
   }
 }
-

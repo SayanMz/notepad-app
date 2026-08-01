@@ -3,11 +3,11 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
+// Paragraph alignment menu for left, center, and right formatting.
 class AlignmentMenu extends StatelessWidget {
   const AlignmentMenu({
     super.key,
     required this.controller,
-    required this.isDark,
     required this.toolbarController,
     required this.menuController,
     required this.selectionStyle,
@@ -16,7 +16,6 @@ class AlignmentMenu extends StatelessWidget {
   final QuillController controller;
   final NoteToolbarController toolbarController;
   final MenuController menuController;
-  final bool isDark;
   final Style selectionStyle;
 
   @override
@@ -74,7 +73,7 @@ class AlignmentMenu extends StatelessWidget {
     final bool isSelected =
         (currentAlign == value) || (currentAlign == null && value == 'left');
     final activeColor = context.colorScheme.primary;
-    final defaultColor = isDark ? Colors.white : Colors.black54;
+    final defaultColor = context.isDark ? Colors.white : Colors.black87;
 
     return MenuItemButton(
       leadingIcon: Icon(icon, color: isSelected ? activeColor : defaultColor),

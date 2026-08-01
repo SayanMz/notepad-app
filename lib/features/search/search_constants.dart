@@ -67,4 +67,8 @@ class SearchConstants {
   static const double resultSubtitleTopPadding = 6.0;
   static const double resultSubtitleBottomPadding = 2.0;
   static const Color highlightYellow = Color(0xFFFFF176);
+
+  static const double scrollHideDeltaThreshold = 15.0;
+  static const double scrollBottomBoundary = 40.0;
+  static const double scrollLayoutShiftSafeZone = 150.0;
 }

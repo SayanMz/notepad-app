@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/note/widgets/toolbar_items/hyperlink_title_dialog.dart';
+import 'package:notepad/features/note/widgets/controls/toolbar_items/hyperlink_title_dialog.dart';
 
-// Hyperlink helpers normalize and open URLs from note content.
+// Hyperlink handler validates URLs, prompts for display text, and applies link formatting.
 class HyperlinkHandler {
   static Future<void> convertToHyperlink({
     required BuildContext context,

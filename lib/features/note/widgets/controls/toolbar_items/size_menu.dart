@@ -3,11 +3,11 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
+// Text size menu for applying sizes and heading styles.
 class SizeMenu extends StatefulWidget {
   const SizeMenu({
     super.key,
     required this.controller,
-    required this.isDark,
     required this.focusNode,
     required this.toolbarController,
     required this.selectionStyle,
@@ -15,7 +15,6 @@ class SizeMenu extends StatefulWidget {
 
   final QuillController controller;
   final NoteToolbarController toolbarController;
-  final bool isDark;
   final FocusNode focusNode;
   final Style selectionStyle;
 
@@ -82,7 +81,7 @@ class _SizeMenuState extends State<SizeMenu> {
             Icons.text_fields,
             color: controller.isOpen
                 ? Colors.blueAccent
-                : (widget.isDark ? Colors.white : Colors.black54),
+                : (context.isDark ? Colors.white : Colors.black87),
           ),
           onPressed: () =>
               controller.isOpen ? controller.close() : controller.open(),
@@ -142,7 +141,7 @@ class _SizeMenuState extends State<SizeMenu> {
                 Container(
                   width: 1,
                   height: 20,
-                  color: widget.isDark ? Colors.white24 : Colors.black12,
+                  color: context.isDark ? Colors.white24 : Colors.black12,
                 ),
                 Expanded(
                   child: MenuAnchor(

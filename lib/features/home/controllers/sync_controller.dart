@@ -48,54 +48,136 @@ class SyncController extends ChangeNotifier {
     });
   }
 
+  // Future<void> executeBackup() async {
+  //   try {
+  //     _setSaving(true);
+
+  //     final (noteCount, jsonString) = await _noteRepository
+  //         .exportNotesToBackupString();
+
+  //     await _driveService.uploadBackup(jsonString);
+  //     await authController.fetchFreshStorageStats();
+
+  //     updateStatus('All saved', color: Colors.green);
+  //     showSuccessSnackBar(
+  //       '${noteCount == 1 ? '1 note' : '$noteCount notes'} are now backed up.',
+  //     );
+  //   } catch (e) {
+  //     updateStatus('Sync failed', color: Colors.redAccent);
+  //     debugPrint('Manual backup failed: $e');
+  //   } finally {
+  //     _setSaving(false);
+  //   }
+  // }
+
+  // // sync_controller.dart
+  // Future<void> executeRestore() async {
+  //   try {
+  //     _setSaving(true);
+
+  //     final backupJson = await _driveService.downloadBackup();
+  //     if (backupJson == null || backupJson.isEmpty) {
+  //       updateStatus('No backup found', color: Colors.orange);
+  //       return;
+  //     }
+
+  //     final (restoredCount, skippedCount) = await _noteRepository
+  //         .importNotesFromBackupString(backupJson);
+  //     await authController.fetchFreshStorageStats();
+
+  //     updateStatus('All saved', color: Colors.green);
+
+  //     if (restoredCount > 0 && skippedCount == 0) {
+  //       final String noteLabel = restoredCount == 1 ? 'note has' : 'notes have';
+  //       showSuccessSnackBar('$restoredCount $noteLabel been restored.');
+  //     } else if (restoredCount > 0 && skippedCount > 0) {
+  //       final String restoredLabel = restoredCount == 1 ? 'note' : 'notes';
+  //       final String skippedLabel = skippedCount == 1 ? 'note' : 'notes';
+  //       showSuccessSnackBar(
+  //         '$restoredCount $restoredLabel restored ($skippedCount $skippedLabel already up to date).',
+  //       );
+  //     } else if (restoredCount == 0 && skippedCount > 0) {
+  //       showSuccessSnackBar('Your notes are already up to date.');
+  //     } else {
+  //       showSuccessSnackBar('No notes found in backup.');
+  //     }
+  //   } catch (e) {
+  //     updateStatus('Sync failed', color: Colors.redAccent);
+  //     debugPrint('Manual restore failed: $e');
+  //   } finally {
+  //     _setSaving(false);
+  //   }
+  // }
+
   Future<void> executeBackup() async {
-    try {
-      _setSaving(true);
+    await _runSyncAction(
+      failureLogMessage: 'Manual backup failed',
+      action: () async {
+        final (noteCount, jsonString) = await _noteRepository
+            .exportNotesToBackupString();
 
-      final (noteCount, jsonString) = await _noteRepository
-          .exportNotesToBackupString();
+        await _driveService.uploadBackup(jsonString);
 
-      await _driveService.uploadBackup(jsonString);
-      await authController.fetchFreshStorageStats();
-
-      updateStatus('All saved', color: Colors.green);
-      showSuccessSnackBar(
-        '${noteCount == 1 ? '1 note' : '$noteCount notes'} are now backed up.',
-      );
-    } catch (e) {
-      updateStatus('Sync failed', color: Colors.redAccent);
-      debugPrint('Manual backup failed: $e');
-    } finally {
-      _setSaving(false);
-    }
+        showSuccessSnackBar(
+          '${_pluralize(noteCount, 'note')} backed up successfully.',
+        );
+      },
+    );
   }
 
   Future<void> executeRestore() async {
+    await _runSyncAction(
+      failureLogMessage: 'Manual restore failed',
+      action: () async {
+        final backupJson = await _driveService.downloadBackup();
+        if (backupJson == null || backupJson.isEmpty) {
+          updateStatus('No backup found', color: Colors.orange);
+          return;
+        }
+
+        final (restoredCount, skippedCount) = await _noteRepository
+            .importNotesFromBackupString(backupJson);
+
+        final String message;
+
+        //Fresh Installation / Empty Device
+        if (restoredCount > 0 && skippedCount == 0) {
+          message = '${_pluralize(restoredCount, 'note')} restored.';
+          //Partial / Mixed Sync
+        } else if (restoredCount > 0 && skippedCount > 0) {
+          message =
+              '${_pluralize(restoredCount, 'note')} restored (${_pluralize(skippedCount, 'note')} already up to date).';
+          //User Taps "Restore Backup" repeteadly
+        } else if (restoredCount == 0 && skippedCount > 0) {
+          message = 'Your notes are already up to date.';
+        } else {
+          message = 'No notes found in backup.';
+        }
+
+        showSuccessSnackBar(message);
+      },
+    );
+  }
+
+  Future<void> _runSyncAction({
+    required Future<void> Function() action,
+    required String failureLogMessage,
+  }) async {
     try {
       _setSaving(true);
-
-      final backupJson = await _driveService.downloadBackup();
-      if (backupJson == null || backupJson.isEmpty) {
-        updateStatus('No backup found', color: Colors.orange);
-        return;
-      }
-
-      final importedNotes = await _noteRepository.importNotesFromBackupString(
-        backupJson,
-      );
+      await action();
       await authController.fetchFreshStorageStats();
-
       updateStatus('All saved', color: Colors.green);
-      showSuccessSnackBar(
-        '${importedNotes == 1 ? '1 note' : '$importedNotes notes'} have been restored.',
-      );
     } catch (e) {
       updateStatus('Sync failed', color: Colors.redAccent);
-      debugPrint('Manual restore failed: $e');
+      debugPrint('$failureLogMessage: $e');
     } finally {
       _setSaving(false);
     }
   }
+
+  String _pluralize(int count, String word) =>
+      '$count $word${count == 1 ? '' : 's'}';
 
   @override
   void dispose() {

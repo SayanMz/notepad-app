@@ -50,3 +50,4 @@ app.*.map.json
 .env
 android/key.properties
 ios/Flutter/Release.xcconfig
+/windows/

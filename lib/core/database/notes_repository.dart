@@ -376,7 +376,9 @@ class NoteRepository {
     }
   }
 
-  Future<int> importNotesFromBackupString(String jsonString) async {
+  Future<(int restored, int skipped)> importNotesFromBackupString(
+    String jsonString,
+  ) async {
     List<NotesSection> importedNotes;
 
     try {
@@ -389,26 +391,26 @@ class NoteRepository {
       throw const FormatException('Backup contains no valid notes.');
     }
 
-    final updates = BackupSyncService.calculateImportUpdates(
+    final result = BackupSyncService.calculateImportUpdates(
       cloudNotes: importedNotes,
       localNoteLookup: findById,
     );
 
-    if (updates.isNotEmpty) {
-      _activeNotes.addAll(updates.values);
+    if (result.updates.isNotEmpty) {
+      _activeNotes.addAll(result.updates.values);
 
-      for (final note in updates.values) {
+      for (final note in result.updates.values) {
         _cacheMap[note.id] = note;
       }
 
       _sortAndRebuildCache();
       activeRevision.value++;
-      await db.saveNotesBulk(updates);
 
+      await db.saveNotesBulk(result.updates);
       await SqliteFtsService.reindexAllNotes(_activeNotes);
     }
 
-    return updates.length;
+    return (result.updates.length, result.skippedCount);
   }
 }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/note/widgets/save_indicator.dart';
+import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
 void main() {
   Widget wrapWidget(ValueNotifier<SaveState> state) {

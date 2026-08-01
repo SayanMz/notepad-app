@@ -1,14 +1,15 @@
 // Route helpers centralize the app's navigation transitions.
 import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 
 class AppRouter {
   // Use the slide route for primary navigation so screen changes feel continuous.
   static Route slide(Widget page, {bool animateReverse = true}) {
     return PageRouteBuilder(
-      transitionDuration: UIConstants.animationSlow,
+      transitionDuration: AnimationConstants.slow,
       reverseTransitionDuration: animateReverse
-          ? UIConstants.animationMedium
+          ? AnimationConstants.medium
           : Duration.zero,
 
       pageBuilder: (_, _, _) => page,
@@ -39,8 +40,8 @@ class AppRouter {
   // Use the fade route for lighter, dialog-like navigation.
   static Route fade(Widget page) {
     return PageRouteBuilder(
-      transitionDuration: UIConstants.animationMedium,
-      reverseTransitionDuration: UIConstants.animationFast,
+      transitionDuration: AnimationConstants.medium,
+      reverseTransitionDuration: AnimationConstants.fast,
 
       pageBuilder: (_, _, _) => page,
 
@@ -53,13 +54,16 @@ class AppRouter {
   // 🌟 THE SOLUTION: High-fidelity Page Scale and Fade for cleaner content handoffs
   static Route sharedAxis(Widget page) {
     return PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: AnimationConstants.medium,
       // 🌟 SNAPPY FIX: Lower the duration to 180ms for a rapid pop response
-      reverseTransitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: AnimationConstants.sharedAxisReverseDuration,
       pageBuilder: (_, _, _) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         // Forward path stays the same; Reverse path gets a hyper-fast curve
-        final scaleTween = Tween<double>(begin: 0.94, end: 1.0).animate(
+        final scaleTween = Tween<double>(
+          begin: AnimationConstants.sharedAxisScaleBegin,
+          end: 1.0,
+        ).animate(
           CurvedAnimation(
             parent: animation,
             curve: animation.status == AnimationStatus.reverse
@@ -74,8 +78,16 @@ class AppRouter {
           CurvedAnimation(
             parent: animation,
             curve: animation.status == AnimationStatus.reverse
-                ? const Interval(0.0, 0.5, curve: Curves.easeIn)
-                : const Interval(0.0, 0.8, curve: Curves.easeOut),
+                ? const Interval(
+                    0.0,
+                    AnimationConstants.sharedAxisFadeReverseCutoff,
+                    curve: Curves.easeIn,
+                  )
+                : const Interval(
+                    0.0,
+                    AnimationConstants.sharedAxisFadeForwardCutoff,
+                    curve: Curves.easeOut,
+                  ),
           ),
         );
 

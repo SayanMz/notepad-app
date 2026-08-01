@@ -240,4 +240,3 @@ class SearchResultsPanel extends StatelessWidget {
     );
   }
 }
-

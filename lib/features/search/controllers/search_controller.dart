@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/models/search_state.dart';
@@ -20,10 +20,11 @@ class SearchController extends ChangeNotifier {
   SearchFilters get filters => _state.filters;
   bool get hasFilters => _state.hasFilters;
   bool get hasAnyCriteria => _state.hasAnyCriteria;
+  bool get isShowingEmptyState => _results.isEmpty || !hasAnyCriteria;
 
   void onQueryChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(UIConstants.debounceStandard, () {
+    _debounce = Timer(AnimationConstants.debounceStandard, () {
       _state = _state.copyWith(query: value.trim());
       _recompute();
     });
@@ -63,4 +64,3 @@ class SearchController extends ChangeNotifier {
     super.dispose();
   }
 }
-

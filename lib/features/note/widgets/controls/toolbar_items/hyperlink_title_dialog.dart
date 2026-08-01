@@ -1,3 +1,4 @@
+// Dialog for entering the display title of a hyperlink.
 import 'package:flutter/material.dart';
 
 Future<String?> showHyperlinkTitleDialog(BuildContext context) {

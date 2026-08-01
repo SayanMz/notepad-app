@@ -14,6 +14,7 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
   if (trimmed.isEmpty) return [PreviewLine('No additional text')];
 
   final List<PreviewLine> extractedLines = [];
+  final plainListPattern = RegExp(r'^\s*([-•·]|\d+\.)\s+(.*)');
 
   try {
     // Detect Structuring: If enclosed by brackets, evaluate it as rich text editor metadata (JSON Delta).
@@ -53,12 +54,18 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
               );
             } else {
               if (lineText.isNotEmpty) {
-                extractedLines.add(PreviewLine(lineText));
+                extractedLines.add(
+                  _parseLineWithMarker(lineText, plainListPattern),
+                );
               }
             }
           } else {
             // Non-formatted line added directly if characters are present.
-            if (lineText.isNotEmpty) extractedLines.add(PreviewLine(lineText));
+            if (lineText.isNotEmpty) {
+              extractedLines.add(
+                _parseLineWithMarker(lineText, plainListPattern),
+              );
+            }
           }
 
           // Optimization Breakout: Exit loop early if targeted limits are met.
@@ -78,7 +85,9 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
             currentLineBuffer.clear();
 
             if (lineText.isNotEmpty) {
-              extractedLines.add(PreviewLine(lineText));
+              extractedLines.add(
+                _parseLineWithMarker(lineText, plainListPattern),
+              );
               if (maxLines != null && extractedLines.length >= maxLines) {
                 return extractedLines;
               }
@@ -103,7 +112,7 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
       // Cleanup step to sweep text segments stranded if closing operations lacked final newlines.
       final String leftover = currentLineBuffer.toString().trim();
       if (leftover.isNotEmpty) {
-        extractedLines.add(PreviewLine(leftover));
+        extractedLines.add(_parseLineWithMarker(leftover, plainListPattern));
       }
     } else {
       // Fallback Strategy: If text isn't rich JSON format, fallback to legacy text parsing methods.
@@ -116,6 +125,19 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
 
   // Final Sanitization: Clean empty array structures from output stream before returning.
   return extractedLines.where((line) => line.text.isNotEmpty).toList();
+}
+
+/// Evaluates raw line text for explicit list markers like "-" or "•" and extracts preview structures.
+PreviewLine _parseLineWithMarker(String lineText, RegExp listPattern) {
+  final match = listPattern.firstMatch(lineText);
+  if (match != null) {
+    return PreviewLine(
+      (match.group(2) ?? '').trim(),
+      isList: true,
+      listMarker: match.group(1),
+    );
+  }
+  return PreviewLine(lineText);
 }
 
 /// Helper method parsing non-json plain text structures using indexing pointers.

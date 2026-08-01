@@ -7,7 +7,9 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
+import 'package:notepad/features/note/note_constants.dart';
 
+// Voice assistant button with animated states for listening, processing commands by Ai and tap interactions.
 class VoiceAssistantButton extends StatefulWidget {
   const VoiceAssistantButton({
     super.key,
@@ -74,7 +76,8 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
           duration: AnimationConstants.fast,
           curve: Curves.easeInOut,
           child: IgnorePointer(
-            ignoring: currentOpacity <= UIConstants.voiceButtonHiddenThreshold,
+            ignoring:
+                currentOpacity <= NoteConstants.voiceButtonHiddenThreshold,
             child: Listener(
               onPointerDown: (_) => _isPressedNotifier.value = true,
               onPointerUp: (_) => _isPressedNotifier.value = false,
@@ -82,31 +85,24 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
               child: GestureDetector(
                 onTap: (isProcessing && !isListening)
                     ? null
-                    : () async {
+                    : () {
                         HapticFeedback.lightImpact();
-
-                        // 🌟 THE ISOLATION FIX: Initialize lazily on tap if it's not ready yet
-                        if (!widget.voiceController.isSpeechInitialized) {
-                          widget.voiceController.isProcessingVoice.value = true;
-                          await widget.voiceController.initSpeech();
-                        }
-
                         widget.voiceController.toggleListening(
                           widget.contentController,
                         );
                       },
                 child: AnimatedScale(
-                  scale: isPressed ? UIConstants.voiceButtonPressedScale : 1.0,
+                  scale: isPressed ? NoteConstants.voiceButtonPressedScale : 1.0,
                   duration: AnimationConstants.fast,
                   curve: Curves.easeOut,
                   child: AnimatedContainer(
                     duration: AnimationConstants.medium,
                     height: isListening
-                        ? UIConstants.voiceButtonListeningSize
-                        : UIConstants.voiceButtonIdleSize,
+                        ? NoteConstants.voiceButtonListeningSize
+                        : NoteConstants.voiceButtonIdleSize,
                     width: isListening
-                        ? UIConstants.voiceButtonListeningSize
-                        : UIConstants.voiceButtonIdleSize,
+                        ? NoteConstants.voiceButtonListeningSize
+                        : NoteConstants.voiceButtonIdleSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isDark ? Colors.grey[900] : Colors.white,
@@ -115,9 +111,9 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                           BoxShadow(
                             color: Colors.purpleAccent.withValues(alpha: 0.4),
                             blurRadius:
-                                UIConstants.voiceButtonListeningShadowBlur,
+                                NoteConstants.voiceButtonListeningShadowBlur,
                             spreadRadius:
-                                UIConstants.voiceButtonListeningShadowSpread,
+                                NoteConstants.voiceButtonListeningShadowSpread,
                           )
                         else if (isPressed)
                           BoxShadow(
@@ -125,12 +121,13 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                                 ? Colors.white.withValues(alpha: 0.65)
                                 : Colors.black.withValues(alpha: 0.15),
                             blurRadius: isDark
-                                ? UIConstants.voiceButtonPressedShadowBlur + 6.0
-                                : UIConstants.voiceButtonPressedShadowBlur,
+                                ? NoteConstants.voiceButtonPressedShadowBlur +
+                                      UIConstants.paddingS
+                                : NoteConstants.voiceButtonPressedShadowBlur,
                             spreadRadius: isDark
-                                ? UIConstants.voiceButtonPressedShadowSpread +
-                                      2.0
-                                : UIConstants.voiceButtonPressedShadowSpread,
+                                ? NoteConstants.voiceButtonPressedShadowSpread +
+                                      UIConstants.paddingXS
+                                : NoteConstants.voiceButtonPressedShadowSpread,
                           ),
                       ],
                     ),
@@ -139,13 +136,6 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                         child: Lottie.asset(
                           'assets/lotties/Ai_Assistant.json',
                           controller: widget.lottieController,
-                          height: isListening
-                              ? UIConstants.voiceButtonListeningAssetSize
-                              : UIConstants.voiceButtonIdleAssetSize,
-                          width: isListening
-                              ? UIConstants.voiceButtonListeningAssetSize
-                              : UIConstants.voiceButtonIdleAssetSize,
-
                           fit: BoxFit.contain,
                           renderCache: RenderCache.drawingCommands,
                         ),

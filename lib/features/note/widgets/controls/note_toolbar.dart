@@ -1,20 +1,20 @@
-// Toolbar groups inline and block formatting actions for the note editor.
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/features/note/services/hyperlink_handler.dart';
-import 'package:notepad/features/note/widgets/toolbar_items/alignment_menu.dart';
-import 'package:notepad/features/note/widgets/toolbar_items/color_menu.dart';
-import 'package:notepad/features/note/widgets/toolbar_items/list_menu.dart';
-import 'package:notepad/features/note/widgets/toolbar_items/size_menu.dart';
+import 'package:notepad/features/note/services/link_handlers/hyperlink_handler.dart';
+import 'package:notepad/features/note/widgets/controls/toolbar_items/alignment_menu.dart';
+import 'package:notepad/features/note/widgets/controls/toolbar_items/color_menu.dart';
+import 'package:notepad/features/note/widgets/controls/toolbar_items/list_menu.dart';
+import 'package:notepad/features/note/widgets/controls/toolbar_items/size_menu.dart';
 
-// Formatting toolbar groups the inline and block actions for the editor.
+// Glassy formatting toolbar for the note editor with inline styles, lists, colors, alignment, and links.
 class NoteToolbar extends StatefulWidget {
   const NoteToolbar({
     super.key,
@@ -61,17 +61,27 @@ class _NoteToolbarState extends State<NoteToolbar> {
   Future<void> _performNudge() async {
     await Future.delayed(AnimationConstants.extraSlow);
     if (!mounted || !_scrollController.hasClients) return;
-    await _scrollController.animateTo(
-      NoteConstants.toolbarNudgeDistance,
-      duration: AnimationConstants.medium,
-      curve: Curves.easeOut,
-    );
-    await _scrollController.animateTo(
-      0.0,
-      duration: AnimationConstants.medium,
-      curve: Curves.easeIn,
-    );
-    widget.onNudgeComplete?.call();
+
+    try {
+      // First scroll leg towards right
+      await _scrollController.animateTo(
+        NoteConstants.toolbarNudgeDistance,
+        duration: AnimationConstants.medium,
+        curve: Curves.easeOut,
+      );
+      if (!mounted || !_scrollController.hasClients) return;
+
+      // Second scroll leg back to start
+      await _scrollController.animateTo(
+        0.0,
+        duration: AnimationConstants.medium,
+        curve: Curves.easeIn,
+      );
+
+      widget.onNudgeComplete?.call();
+    } catch (_) {
+      // Swallows the scroll controller detachment error if destroyed mid-animation
+    }
   }
 
   @override
@@ -139,7 +149,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
       _buildCheckbox(isCheckbox),
       SizeMenu(
         controller: widget.controller,
-        isDark: isDark,
         focusNode: widget.focusNode,
         toolbarController: widget.toolbarController,
         selectionStyle: selectionStyle,
@@ -147,13 +156,11 @@ class _NoteToolbarState extends State<NoteToolbar> {
       ColorMenu(
         controller: widget.controller,
         focusNode: widget.focusNode,
-        isDark: isDark,
         toolbarController: widget.toolbarController,
         selectionStyle: selectionStyle,
       ),
       ListMenu(
         controller: widget.controller,
-        isDark: isDark,
         focusNode: widget.focusNode,
         toolbarController: widget.toolbarController,
         menuController: _listMenuCtrl,
@@ -161,7 +168,6 @@ class _NoteToolbarState extends State<NoteToolbar> {
       ),
       AlignmentMenu(
         controller: widget.controller,
-        isDark: isDark,
         toolbarController: widget.toolbarController,
         menuController: _alignMenuCtrl,
         selectionStyle: selectionStyle,
@@ -204,7 +210,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
         icon,
         color: isSelected
             ? Colors.blueAccent
-            : (isDark ? Colors.white : Colors.black54),
+            : (isDark ? Colors.white : Colors.black87),
       ),
       onPressed: () {
         widget.focusNode.requestFocus();
@@ -221,7 +227,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
         Icons.check_box_outlined,
         color: isSelected
             ? Colors.blueAccent
-            : (isDark ? Colors.white : Colors.black54),
+            : (isDark ? Colors.white : Colors.black87),
       ),
       onPressed: () {
         widget.controller.formatSelection(
@@ -239,7 +245,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
         Icons.link,
         color: isLink
             ? Colors.blueAccent
-            : (isDark ? Colors.white : Colors.black54),
+            : (isDark ? Colors.white : Colors.black87),
       ),
       onPressed: () => HyperlinkHandler.convertToHyperlink(
         context: context,
@@ -252,7 +258,7 @@ class _NoteToolbarState extends State<NoteToolbar> {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 800),
       child: Container(
-        height: NoteConstants.toolbarHeight,
+        height: EditorConstants.toolbarHeight,
         margin: const EdgeInsets.fromLTRB(
           NoteConstants.toolbarMarginH,
           NoteConstants.toolbarMarginTop,

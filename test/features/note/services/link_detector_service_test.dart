@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/note/services/link_detector_service.dart';
+import 'package:notepad/features/note/services/link_handlers/link_detector_service.dart';
 
 QuillController _controllerFor(String text) {
   return QuillController(
@@ -28,14 +28,20 @@ void main() {
     expect(siteStyle[Attribute.link.key]?.value, 'https://example.com');
   });
 
-  test('scanAndLinkifyParagraph converts date-like text into calendar links', () {
-    final controller = _controllerFor('Meet on April 12, 2026 for lunch');
+  test(
+    'scanAndLinkifyParagraph converts date-like text into calendar links',
+    () {
+      final controller = _controllerFor('Meet on April 12, 2026 for lunch');
 
-    LinkDetectorService.scanAndLinkifyParagraph(controller);
+      LinkDetectorService.scanAndLinkifyParagraph(controller);
 
-    final dateStyle = controller.document.collectStyle(8, 1).attributes;
+      final dateStyle = controller.document.collectStyle(8, 1).attributes;
 
-    expect(dateStyle.containsKey(Attribute.link.key), isTrue);
-    expect(dateStyle[Attribute.link.key]?.value, 'cal:20260412|April 12, 2026');
-  });
+      expect(dateStyle.containsKey(Attribute.link.key), isTrue);
+      expect(
+        dateStyle[Attribute.link.key]?.value,
+        'cal:20260412|April 12, 2026',
+      );
+    },
+  );
 }

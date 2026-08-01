@@ -68,4 +68,29 @@ class HomeConstants {
   static const double homeSelectionExpanded = 140.0;
   static const double homeBulkDeleteThreshold = 25.0;
   static const double homeTopSnapThreshold = 10.0;
+
+  static const double noteCardPreviewHeight = 250.0;
+  static const double noteCardPreviewTitleFontSize = 20.0;
+  static const double noteCardTitleFontSize = 16.0;
+  static const double noteCardEditedFontSize = 12.0;
+  static const double noteCardPreviewFontSize = 13.0;
+  static const int noteCardPreviewFetchLimit = 12;
+  static const int noteCardPreviewLargeDesktopLines = 12;
+  static const int noteCardPreviewTabletLines = 8;
+  static const int noteCardPreviewSmallTabletLines = 5;
+  static const int noteCardPreviewPhoneLines = 2;
+  static const double selectionBorderWidth = 2.0;
+  static const double noteListLargeDesktopBreakpoint = 1200.0;
+  static const double noteListTabletBreakpoint = 900.0;
+  static const double noteListCompactBreakpoint = 600.0;
+  static const double noteListSectionHeaderFontSize = 12.0;
+  static const double noteListSectionHeaderLetterSpacing = 1.2;
+  static const double noteCardChecklistFontSize = 12.0;
+  static const int noteCardPreviewMidWidthLines = 2;
+  static const int noteCardPreviewCompactWidthLines = 1;
+  static const double noteCardPreviewWideLineHeight = 1.3;
+  static const double noteCardPreviewRegularLineHeight = 1.5;
+  static const double noteEmptyStateBodyFontSize = 14.0;
+  static const double noteEmptyStateBodyLineHeight = 1.4;
+  static const double noteEmptyStateTitleLetterSpacing = -0.5;
 }

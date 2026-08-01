@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
+// List formatting menu for toggling bullet and numbered lists.
 class ListMenu extends StatelessWidget {
+  bool _isDark(BuildContext context) => context.isDark;
+
   const ListMenu({
     super.key,
     required this.controller,
     required this.focusNode,
-    required this.isDark,
     required this.toolbarController,
     required this.menuController,
     required this.selectionStyle,
@@ -17,7 +20,6 @@ class ListMenu extends StatelessWidget {
   final NoteToolbarController toolbarController;
   final MenuController menuController;
   final FocusNode focusNode;
-  final bool isDark;
   final Style selectionStyle;
 
   @override
@@ -37,19 +39,21 @@ class ListMenu extends StatelessWidget {
             Icons.format_list_bulleted,
             color: (controller.isOpen || isListActive)
                 ? Colors.blueAccent
-                : (isDark ? Colors.white : Colors.black54),
+                : (_isDark(context) ? Colors.white : Colors.black87),
           ),
           onPressed: () =>
               controller.isOpen ? controller.close() : controller.open(),
         ),
         menuChildren: [
           _buildListItem(
+            context,
             Icons.format_list_bulleted,
             'Bullets',
             currentList,
             Attribute.ul,
           ),
           _buildListItem(
+            context,
             Icons.format_list_numbered,
             'Numbers',
             currentList,
@@ -61,6 +65,7 @@ class ListMenu extends StatelessWidget {
   }
 
   Widget _buildListItem(
+    BuildContext context,
     IconData icon,
     String label,
     dynamic currentList,
@@ -72,7 +77,7 @@ class ListMenu extends StatelessWidget {
         icon,
         color: isSelected
             ? Colors.blue
-            : (isDark ? Colors.white : Colors.black54),
+            : (_isDark(context) ? Colors.white : Colors.black87),
       ),
       onPressed: () => _handleListToggle(attr),
       child: Text(label),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/search/search_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 
@@ -17,7 +18,7 @@ class NoteEmptyState extends StatelessWidget {
         children: [
           Lottie.asset(
             'assets/lotties/Ai_Robot.json',
-            height: UIConstants.noteCardPreviewHeight,
+            height: HomeConstants.noteCardPreviewHeight,
             repeat: true,
             frameRate: const FrameRate(60),
             addRepaintBoundary: true,
@@ -28,13 +29,13 @@ class NoteEmptyState extends StatelessWidget {
           Text(
             'It’s awfully quiet in here',
             textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(
-              fontSize: UIConstants.noteCardPreviewTitleFontSize,
-              fontWeight: FontWeight.w700,
-              color: context.isDark
+              style: GoogleFonts.outfit(
+                fontSize: HomeConstants.noteCardPreviewTitleFontSize,
+                fontWeight: FontWeight.w700,
+                color: context.isDark
                   ? Colors.white.withValues(alpha: 0.9)
                   : Colors.black87,
-              letterSpacing: -0.5,
+              letterSpacing: HomeConstants.noteEmptyStateTitleLetterSpacing,
             ),
           ),
           const SizedBox(height: UIConstants.paddingSM),
@@ -46,10 +47,10 @@ class NoteEmptyState extends StatelessWidget {
               'Feed me some notes so I can keep them safe for you.',
               textAlign: TextAlign.center,
               style: GoogleFonts.roboto(
-                fontSize: 14,
+                fontSize: HomeConstants.noteEmptyStateBodyFontSize,
                 fontWeight: FontWeight.w400,
                 color: Colors.grey,
-                height: 1.4,
+                height: HomeConstants.noteEmptyStateBodyLineHeight,
               ),
             ),
           ),

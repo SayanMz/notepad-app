@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
@@ -27,6 +28,7 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchStateChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _searchFocusNode.requestFocus();
     });
@@ -34,6 +36,7 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchStateChanged);
     _searchFocusNode.dispose();
     _searchController.dispose();
     _showHeaders.dispose();
@@ -110,34 +113,64 @@ class _SearchPageState extends State<SearchPage> {
     }
     if (notification.depth != 0) return false;
 
+    //If there are no results, completely ignore scroll physics.
+    if (_searchController.isShowingEmptyState) {
+      _onSearchStateChanged();
+      return false;
+    }
+
     final metrics = notification.metrics;
     final currentPixels = metrics.pixels;
     final maxScroll = metrics.maxScrollExtent;
 
-    // Always show headers at the top
+    // Ignore bounce/overscroll physics outside valid bounds
+    if (metrics.outOfRange) return false;
+
+    // Always show headers/chips at the top
     if (currentPixels <= 0) {
       _showHeaders.value = true;
       _lastPixelOffset = 0.0;
       return false;
     }
-    // Always hide headers at the bottom
-    if (currentPixels >= maxScroll - 40) {
+
+    // Always hide headers/chips at the bottom
+    if (currentPixels >= maxScroll - SearchConstants.scrollBottomBoundary) {
       _showHeaders.value = false;
       return false;
     }
 
-    // Only toggle header if scroll delta is greater than 15 pixels
+    final bool isPhysicalDrag =
+        notification is ScrollUpdateNotification &&
+        notification.dragDetails != null;
+
+    // Toggle based on scroll delta
     final delta = currentPixels - _lastPixelOffset;
-    if (delta.abs() > 15) {
+
+    if (isPhysicalDrag &&
+        delta.abs() > SearchConstants.scrollHideDeltaThreshold) {
       if (delta > 0 && _showHeaders.value) {
-        _showHeaders.value = false; // Scrolling down -> hide header
+        if (currentPixels > SearchConstants.scrollLayoutShiftSafeZone) {
+          _showHeaders.value = false; // Scrolling down -> hide
+        }
       } else if (delta < 0 && !_showHeaders.value) {
-        _showHeaders.value = true; // Scrolling up -> show header
+        _showHeaders.value = true; // Scrolling up -> show
       }
+      _lastPixelOffset = currentPixels;
+    } else if (!isPhysicalDrag) {
+      //prevents massive, fake pixel spikes in background
       _lastPixelOffset = currentPixels;
     }
 
     return false;
+  }
+
+  Future<void> _onSearchStateChanged() async {
+    if (_searchController.isShowingEmptyState) {
+      if (!_showHeaders.value) {
+        _showHeaders.value = true;
+        _lastPixelOffset = 0.0;
+      }
+    }
   }
 
   Widget _buildResultsPanel() {
@@ -151,7 +184,16 @@ class _SearchPageState extends State<SearchPage> {
         controller: _searchController,
         scrollController: _scrollController,
         showChips: _showHeaders,
-        onClearFilter: () => _showHeaders.value = true,
+        onClearFilter: () {
+          _showHeaders.value = true;
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              0.0,
+              duration: AnimationConstants.fast,
+              curve: Curves.easeOut,
+            );
+          }
+        },
       ),
     );
   }

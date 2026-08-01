@@ -54,7 +54,8 @@ void main() {
       localNoteLookup: localLookup,
     );
 
-    expect(updates.keys, {'new-note'});
-    expect(updates['new-note']?.title, 'New note');
+    expect(updates.updates.keys, {'new-note'});
+    expect(updates.updates['new-note']?.title, 'New note');
+    expect(updates.skippedCount, 1);
   });
 }

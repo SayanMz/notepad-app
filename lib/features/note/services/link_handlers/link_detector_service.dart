@@ -1,5 +1,6 @@
 import 'package:flutter_quill/flutter_quill.dart';
 
+// Link detector scans note text for phones, emails, websites, and dates, then auto-linkifies them.
 class LinkDetectorService {
   // --- PHONE REGEXES ---
   static final RegExp _standardPhoneRegex = RegExp(

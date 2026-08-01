@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/constants/editor_constants.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
-import 'package:notepad/features/note/widgets/toolbar_items/draggable_color_picker.dart';
+import 'package:notepad/features/note/widgets/controls/toolbar_items/draggable_color_picker.dart';
 
+// Text color menu for applying text colors and opening the custom picker.
 class ColorMenu extends StatefulWidget {
   const ColorMenu({
     super.key,
     required this.controller,
     required this.focusNode,
-    required this.isDark,
+
     required this.toolbarController,
     required this.selectionStyle,
   });
@@ -17,7 +19,7 @@ class ColorMenu extends StatefulWidget {
   final QuillController controller;
   final NoteToolbarController toolbarController;
   final FocusNode focusNode;
-  final bool isDark;
+
   final Style selectionStyle;
 
   @override
@@ -43,25 +45,22 @@ class _ColorMenuState extends State<ColorMenu> {
     widget.toolbarController.register(_closePicker);
   }
 
-  void _closePicker() {
-    if (_overlayEntry != null) {
-      _overlayEntry?.remove();
-      _overlayEntry = null;
-    }
-    // Ensure the parent MenuAnchor also closes
-    if (_menuController.isOpen) _menuController.close();
+  @override
+  Future<void> dispose() async {
+    widget.toolbarController.unregister(_closePicker);
+    super.dispose();
   }
 
   void _openPicker() {
     final currentAttr = widget.selectionStyle.attributes['color'];
     final Color initialColor = currentAttr != null
         ? Color(int.parse(currentAttr.value.replaceFirst('#', '0xff')))
-        : (widget.isDark ? Colors.white : Colors.black);
+        : (context.isDark ? Colors.white : Colors.black);
 
     _overlayEntry = OverlayEntry(
       builder: (context) => DraggableColorPicker(
         initialColor: initialColor,
-        isDark: widget.isDark,
+        isDark: context.isDark,
         onColorChanged: (selectedColor) {
           final hex =
               '#${selectedColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
@@ -74,10 +73,13 @@ class _ColorMenuState extends State<ColorMenu> {
     Overlay.of(context).insert(_overlayEntry!);
   }
 
-  @override
-  Future<void> dispose() async {
-    widget.toolbarController.unregister(_closePicker);
-    super.dispose();
+  void _closePicker() {
+    if (_overlayEntry != null) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    }
+    // Ensure the parent MenuAnchor also closes
+    if (_menuController.isOpen) _menuController.close();
   }
 
   @override
@@ -97,13 +99,13 @@ class _ColorMenuState extends State<ColorMenu> {
         ),
         menuChildren: [
           SizedBox(
-            width: UIConstants.toolbarMenuWidth,
+            width: EditorConstants.toolbarMenuWidth,
             child: Wrap(
               alignment: WrapAlignment.center,
               children: [
                 _buildColorCircle(
                   context,
-                  widget.isDark ? Colors.white : Colors.black,
+                  context.isDark ? Colors.white : Colors.black,
                   isDefault: true,
                   currentColor: currentColor,
                 ),
@@ -182,9 +184,9 @@ class _ColorMenuState extends State<ColorMenu> {
         }
       },
       child: Container(
-        margin: const EdgeInsets.all(UIConstants.toolbarColorCircleMargin),
-        width: UIConstants.toolbarColorCircleSize,
-        height: UIConstants.toolbarColorCircleSize,
+        margin: const EdgeInsets.all(EditorConstants.toolbarColorCircleMargin),
+        width: EditorConstants.toolbarColorCircleSize,
+        height: EditorConstants.toolbarColorCircleSize,
         decoration: BoxDecoration(
           color: isRainbow ? null : color,
           gradient: isRainbow
@@ -204,7 +206,7 @@ class _ColorMenuState extends State<ColorMenu> {
           shape: BoxShape.circle,
           border: Border.all(
             color: isSelected ? Colors.lightGreenAccent : Colors.white,
-            width: UIConstants.toolbarColorCircleBorderWidth,
+            width: EditorConstants.toolbarColorCircleBorderWidth,
           ),
         ),
       ),
