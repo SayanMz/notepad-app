@@ -54,7 +54,6 @@ NotesSection _note(String id) {
     id: id,
     title: id,
     content: id,
-    createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
   );
 }

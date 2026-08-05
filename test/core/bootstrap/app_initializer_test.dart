@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
+import 'package:notepad/core/bootstrap/app_initializer.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 
@@ -8,13 +8,13 @@ void main() {
     var persistenceCalls = 0;
     var repositoryCalls = 0;
 
-    final bootstrapper = AppBootstrapper(
+    final bootstrapper = AppInitializer.forTesting(
       noteRepository: NoteRepository.internalForTesting(),
       appSettingsRepository: AppSettingsRepository(),
-      initializePersistence: () async {
+      initializePersistenceStep: () async {
         persistenceCalls++;
       },
-      initializeRepositories: () async {
+      initializeRepositoriesStep: () async {
         repositoryCalls++;
       },
     );
@@ -28,18 +28,22 @@ void main() {
   test('bootstrapper retries after a startup failure', () async {
     var persistenceCalls = 0;
 
-    final bootstrapper = AppBootstrapper(
+    final bootstrapper = AppInitializer.forTesting(
       noteRepository: NoteRepository.internalForTesting(),
       appSettingsRepository: AppSettingsRepository(),
-      initializePersistence: () async {
+      initializePersistenceStep: () async {
         persistenceCalls++;
         throw StateError('boom');
       },
-      initializeRepositories: () async {},
+      initializeRepositoriesStep: () async {},
     );
 
-    expect(bootstrapper.initialize(), throwsStateError);
-    expect(bootstrapper.initialize(), throwsStateError);
+    // Call 1: Should fail and reset _bootstrapFuture
+    await expectLater(bootstrapper.initialize(), throwsStateError);
+    expect(persistenceCalls, 1);
+
+    // Call 2: Should trigger a fresh initialization attempt
+    await expectLater(bootstrapper.initialize(), throwsStateError);
     expect(persistenceCalls, 2);
   });
 }

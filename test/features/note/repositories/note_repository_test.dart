@@ -17,7 +17,6 @@ void main() {
       'title': 'Stored title',
       'content': 'Stored body',
       'richContent': '',
-      'createdAt': '2024-01-01T10:00:00.000',
       'updatedAt': '2024-01-02T10:00:00.000',
       'isDeleted': true,
       'isPinned': true,

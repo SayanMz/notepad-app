@@ -12,6 +12,10 @@ HomeController _buildController() {
 }
 
 void main() {
+  // Initialize the binding to avoid "Binding has not yet been initialized" errors
+  // when code touches WidgetsBinding (e.g. ScaffoldMessenger logic).
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('openNote forwards the provided note id', () async {
     final controller = _buildController();
     String? receivedId;

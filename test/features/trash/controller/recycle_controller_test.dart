@@ -43,7 +43,6 @@ NotesSection _note(String id) {
     title: id,
     content: id,
     isDeleted: true,
-    createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
   );
 }

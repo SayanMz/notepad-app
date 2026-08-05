@@ -14,7 +14,6 @@ NotesSection _note(
     content: id,
     isPinned: pinned,
     positionIndex: positionIndex,
-    createdAt: updatedAt,
     updatedAt: updatedAt,
   );
 }
@@ -58,16 +57,16 @@ void main() {
     ]);
   });
 
-  test('sortDeletedNotes keeps the most recently updated note first', () {
+  test('sortDeletedNotes keeps the most recently created note first (by ID)', () {
     final notes = [
       _note(
-        'older',
+        'id-1', // older
         pinned: false,
         positionIndex: 0,
         updatedAt: DateTime(2024, 1, 1, 9),
       ),
       _note(
-        'newer',
+        'id-2', // newer
         pinned: false,
         positionIndex: 0,
         updatedAt: DateTime(2024, 1, 1, 12),
@@ -76,19 +75,19 @@ void main() {
 
     NoteSortService.sortDeletedNotes(notes);
 
-    expect(notes.map((note) => note.id), ['newer', 'older']);
+    expect(notes.map((note) => note.id), ['id-2', 'id-1']);
   });
 
   test('insertSorted places a note ahead of later notes in the same zone', () {
     final notes = [
       _note(
-        'first',
+        'id-1',
         pinned: false,
         positionIndex: 1,
         updatedAt: DateTime(2024, 1, 1, 10),
       ),
       _note(
-        'third',
+        'id-3',
         pinned: false,
         positionIndex: 3,
         updatedAt: DateTime(2024, 1, 1, 10),
@@ -96,7 +95,7 @@ void main() {
     ];
 
     final inserted = _note(
-      'second',
+      'id-2',
       pinned: false,
       positionIndex: 2,
       updatedAt: DateTime(2024, 1, 1, 11),
@@ -104,7 +103,30 @@ void main() {
     final index = NoteSortService.insertSorted(notes, inserted);
 
     expect(index, 1);
-    expect(notes.map((note) => note.id), ['first', 'second', 'third']);
+    expect(notes.map((note) => note.id), ['id-1', 'id-2', 'id-3']);
+  });
+
+  test('insertSorted with atIndex bypasses search and inserts directly', () {
+    final notes = [_note('a', pinned: false, positionIndex: 0, updatedAt: DateTime.now())];
+    final note = _note('b', pinned: false, positionIndex: 5, updatedAt: DateTime.now());
+
+    final index = NoteSortService.insertSorted(notes, note, atIndex: 0);
+
+    expect(index, 0);
+    expect(notes.first.id, 'b');
+  });
+
+  test('sortActiveNotes uses ULID as a final tie-break (Reverse Order)', () {
+    // note_01h... is older than note_01j...
+    final notes = [
+      _note('note_01h123', pinned: true, positionIndex: 0, updatedAt: DateTime.now()),
+      _note('note_01j456', pinned: true, positionIndex: 0, updatedAt: DateTime.now()),
+    ];
+
+    NoteSortService.sortActiveNotes(notes);
+
+    // Newer ULID (01j) should be first
+    expect(notes.map((n) => n.id), ['note_01j456', 'note_01h123']);
   });
 
   test('reorderZone updates the moved zone and returned bulk map', () {

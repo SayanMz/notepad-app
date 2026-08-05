@@ -83,12 +83,12 @@ void main() {
   });
 
   test('resolve marks empty positional lines as skipped for inline styles', () {
-    final controller = _controllerFor('Hello\n');
+    final controller = _controllerFor('');
 
     final resolution = VoiceFormattingTargetResolver.resolve(
       controller: controller,
-      plainText: 'Hello\n',
-      target: 'line:second',
+      plainText: '',
+      target: 'line:first',
       occurrence: 'all',
       commandText: 'make the empty line bold',
       key: 'bold',

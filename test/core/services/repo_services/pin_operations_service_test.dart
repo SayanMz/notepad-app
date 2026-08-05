@@ -13,7 +13,6 @@ NotesSection _note(
     content: id,
     isPinned: pinned,
     positionIndex: positionIndex,
-    createdAt: DateTime(2024, 1, 1),
     updatedAt: DateTime(2024, 1, 1),
   );
 }
@@ -46,5 +45,26 @@ void main() {
     expect(activeNotes[2].isPinned, isTrue);
     expect(activeNotes[1].positionIndex, 1);
     expect(activeNotes[2].positionIndex, 2);
+  });
+
+  test('processBulkPin handles unpinning with negative indices', () {
+    final activeNotes = [
+      _note('a', pinned: true, positionIndex: 0),
+      _note('b', pinned: true, positionIndex: 1),
+    ];
+
+    final updates = PinOperationsService.processBulkPin(
+      activeNotes: activeNotes,
+      targetIds: {'a', 'b'},
+      goalState: false,
+      currentPinnedCount: 2,
+    );
+
+    expect(updates.length, 2);
+    expect(activeNotes[0].isPinned, isFalse);
+    expect(activeNotes[1].isPinned, isFalse);
+    // Counter starts at -2
+    expect(activeNotes[0].positionIndex, -2);
+    expect(activeNotes[1].positionIndex, -1);
   });
 }

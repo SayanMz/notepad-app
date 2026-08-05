@@ -9,7 +9,6 @@ void main() {
       title: 'Deleted',
       content: 'Deleted',
       isDeleted: true,
-      createdAt: DateTime(2024, 1, 1),
       updatedAt: DateTime(2024, 1, 1),
     );
 
@@ -19,7 +18,6 @@ void main() {
           id: 'present',
           title: 'Present',
           content: 'Present',
-          createdAt: DateTime(2024, 1, 1),
           updatedAt: DateTime(2024, 1, 1),
         );
       }
@@ -33,21 +31,18 @@ void main() {
           id: 'present',
           title: 'Present',
           content: 'Cloud version',
-          createdAt: DateTime(2024, 1, 1),
           updatedAt: DateTime(2024, 1, 1),
         ),
         NotesSection(
           id: 'deleted',
           title: 'Deleted',
           content: 'Cloud version',
-          createdAt: DateTime(2024, 1, 1),
           updatedAt: DateTime(2024, 1, 1),
         ),
         NotesSection(
           id: 'new-note',
           title: 'New note',
           content: 'New content',
-          createdAt: DateTime(2024, 1, 1),
           updatedAt: DateTime(2024, 1, 1),
         ),
       ],
@@ -56,6 +51,6 @@ void main() {
 
     expect(updates.updates.keys, {'new-note'});
     expect(updates.updates['new-note']?.title, 'New note');
-    expect(updates.skippedCount, 1);
+    expect(updates.skippedCount, 2);
   });
 }

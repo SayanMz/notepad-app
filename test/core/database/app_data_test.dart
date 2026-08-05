@@ -6,7 +6,6 @@ void main() {
     final note = NotesSection(
       title: '   ',
       content: 'First line\nSecond line',
-      createdAt: DateTime(2024, 1, 1),
       updatedAt: DateTime(2024, 1, 1),
     );
 
@@ -22,7 +21,6 @@ void main() {
         isDarkMode: true,
         userName: 'Sayan',
         userEmail: 'sayan@example.com',
-        userAvatarUrl: 'https://example.com/avatar.png',
         seedVersion: 4,
         lastMaintenanceDate: DateTime(2024, 1, 5),
         recentColorValues: [1, 2, 3],
@@ -33,7 +31,6 @@ void main() {
       expect(updated.isDarkMode, isFalse);
       expect(updated.userName, isNull);
       expect(updated.userEmail, isNull);
-      expect(updated.userAvatarUrl, isNull);
       expect(updated.seedVersion, 4);
       expect(updated.recentColorValues, [1, 2, 3]);
       expect(updated.lastMaintenanceDate, DateTime(2024, 1, 5));
