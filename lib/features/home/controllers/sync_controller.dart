@@ -48,67 +48,6 @@ class SyncController extends ChangeNotifier {
     });
   }
 
-  // Future<void> executeBackup() async {
-  //   try {
-  //     _setSaving(true);
-
-  //     final (noteCount, jsonString) = await _noteRepository
-  //         .exportNotesToBackupString();
-
-  //     await _driveService.uploadBackup(jsonString);
-  //     await authController.fetchFreshStorageStats();
-
-  //     updateStatus('All saved', color: Colors.green);
-  //     showSuccessSnackBar(
-  //       '${noteCount == 1 ? '1 note' : '$noteCount notes'} are now backed up.',
-  //     );
-  //   } catch (e) {
-  //     updateStatus('Sync failed', color: Colors.redAccent);
-  //     debugPrint('Manual backup failed: $e');
-  //   } finally {
-  //     _setSaving(false);
-  //   }
-  // }
-
-  // // sync_controller.dart
-  // Future<void> executeRestore() async {
-  //   try {
-  //     _setSaving(true);
-
-  //     final backupJson = await _driveService.downloadBackup();
-  //     if (backupJson == null || backupJson.isEmpty) {
-  //       updateStatus('No backup found', color: Colors.orange);
-  //       return;
-  //     }
-
-  //     final (restoredCount, skippedCount) = await _noteRepository
-  //         .importNotesFromBackupString(backupJson);
-  //     await authController.fetchFreshStorageStats();
-
-  //     updateStatus('All saved', color: Colors.green);
-
-  //     if (restoredCount > 0 && skippedCount == 0) {
-  //       final String noteLabel = restoredCount == 1 ? 'note has' : 'notes have';
-  //       showSuccessSnackBar('$restoredCount $noteLabel been restored.');
-  //     } else if (restoredCount > 0 && skippedCount > 0) {
-  //       final String restoredLabel = restoredCount == 1 ? 'note' : 'notes';
-  //       final String skippedLabel = skippedCount == 1 ? 'note' : 'notes';
-  //       showSuccessSnackBar(
-  //         '$restoredCount $restoredLabel restored ($skippedCount $skippedLabel already up to date).',
-  //       );
-  //     } else if (restoredCount == 0 && skippedCount > 0) {
-  //       showSuccessSnackBar('Your notes are already up to date.');
-  //     } else {
-  //       showSuccessSnackBar('No notes found in backup.');
-  //     }
-  //   } catch (e) {
-  //     updateStatus('Sync failed', color: Colors.redAccent);
-  //     debugPrint('Manual restore failed: $e');
-  //   } finally {
-  //     _setSaving(false);
-  //   }
-  // }
-
   Future<void> executeBackup() async {
     await _runSyncAction(
       failureLogMessage: 'Manual backup failed',
@@ -147,7 +86,7 @@ class SyncController extends ChangeNotifier {
         } else if (restoredCount > 0 && skippedCount > 0) {
           message =
               '${_pluralize(restoredCount, 'note')} restored (${_pluralize(skippedCount, 'note')} already up to date).';
-          //User Taps "Restore Backup" repeteadly
+          //User Taps "Restore Backup" repeatedly
         } else if (restoredCount == 0 && skippedCount > 0) {
           message = 'Your notes are already up to date.';
         } else {

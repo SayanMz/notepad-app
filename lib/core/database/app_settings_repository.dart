@@ -1,20 +1,50 @@
-// Keeps local app settings in memory and mirrors them back to disk.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/database/storage_service.dart' as db;
+import 'package:notepad/core/database/storage_service.dart';
 
-// Keeps local app settings in memory and mirrors them back to disk.
-class AppSettingsRepository extends ChangeNotifier {
+// Manages global application configuration, persistence, and granular UI notification.
+class AppSettingsRepository{
   AppSettings _settings = const AppSettings();
-  bool _isLoaded = false;
-
   AppSettings get settings => _settings;
 
-  ThemeMode get themeMode {
-    // Before disk read completes, fall back to the phone's system dark/light mode
-    if (!_isLoaded) return ThemeMode.system;
+  final ValueNotifier<int> themeRevision = ValueNotifier<int>(0);
 
+  bool _isLoaded = false;
+
+  ThemeMode get themeMode {
+    if (!_isLoaded) return ThemeMode.system;
     return _settings.isDarkMode ? ThemeMode.dark : ThemeMode.light;
+  }
+
+
+  Future<void> load() async {
+    try {
+      _settings = StorageService.loadSettings();
+    } catch (e) {
+      debugPrint('Settings load failed, resetting to defaults: $e');
+      _settings = const AppSettings();
+      await persist();
+    } finally {
+      _isLoaded = true;
+      themeRevision.value++;
+    }
+  }
+
+  Future<void> update(AppSettings newSettings) async {
+    if (newSettings == _settings) return;
+
+    _settings = newSettings;
+    await persist();
+  }
+
+  Future<void> persist() => StorageService.saveSettings(_settings);
+
+  Future<void> setSeedVersion(int version) async {
+    await update(_settings.copyWith(seedVersion: version));
+  }
+
+  Future<void> recordMaintenanceCompleted(DateTime latestDate) async {
+    await update(_settings.copyWith(lastMaintenanceDate: latestDate));
   }
 
   Future<void> addRecentColor(Color color, int maxColors) async {
@@ -26,38 +56,10 @@ class AppSettingsRepository extends ChangeNotifier {
     if (updatedValues.length > maxColors) {
       updatedValues.removeLast();
     }
-
     await update(_settings.copyWith(recentColorValues: updatedValues));
   }
-
-  Future<void> load() async {
-    try {
-      _settings = db.loadSettings();
-    } catch (e) {
-      debugPrint('Settings load failed, resetting to defaults: $e');
-      _settings = const AppSettings();
-      await persist();
-    } finally {
-      _isLoaded = true;
-      notifyListeners();
-    }
-  }
-
-  Future<void> persist() => db.saveSettings(_settings);
-
-  Future<void> update(AppSettings newSettings) async {
-    _settings = newSettings;
-    await persist();
-    notifyListeners();
-  }
-
-  Future<void> setSeedVersion(int version) async {
-    await update(_settings.copyWith(seedVersion: version));
-  }
-
-  Future<void> recordMaintenanceCompleted() async {
-    await update(_settings.copyWith(lastMaintenanceDate: DateTime.now()));
-  }
 }
+
+
 
 final AppSettingsRepository appSettingsRepository = AppSettingsRepository();

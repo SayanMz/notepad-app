@@ -51,14 +51,23 @@ class SearchController extends ChangeNotifier {
     _recompute();
   }
 
+  bool _isDisposed = false;
+
   void _recompute() async {
-    final newResults = await searchAsync(_state);
+    final searchState = _state;
+    final newResults = await NoteSearchService.searchAsync(searchState);
+
+    // If the controller was disposed or the state changed while we were 
+    // awaiting the results, discard them and return.
+    if (_isDisposed || searchState != _state) return;
+
     _results = newResults;
     notifyListeners();
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _debounce?.cancel();
     textController.dispose();
     super.dispose();

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/search/search_constants.dart';
 
 // Empty search states explain whether the user has searched yet or just found no match.
@@ -59,16 +61,17 @@ class SearchMessage extends StatelessWidget {
             Icon(
               icon,
               size: SearchConstants.emptyIconSize,
-              color: Colors.grey[500],
+              color: AppColors.searchResultSubtitleDark,
             ),
             const SizedBox(height: SearchConstants.emptyTitleGap),
             FittedBox(
               child: Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: SearchConstants.emptyTitleFontSize,
                   fontWeight: FontWeight.w600,
+                  color: context.isDark ? AppColors.searchResultTitleDark : AppColors.searchResultTitleLight,
                 ),
               ),
             ),
@@ -76,7 +79,7 @@ class SearchMessage extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: AppColors.searchResultSubtitleLight),
             ),
           ],
         ),

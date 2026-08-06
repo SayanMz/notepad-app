@@ -6,7 +6,9 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 // Voice feedback service that initializes speech and speaks short success or failure sentences.
 class NoteVoiceFeedbackService {
-  final FlutterTts _tts = FlutterTts();
+  NoteVoiceFeedbackService({FlutterTts? tts}) : _tts = tts ?? FlutterTts();
+  
+  final FlutterTts _tts;
   final Random _random = Random();
 
   final List<String> _successPhrases = [

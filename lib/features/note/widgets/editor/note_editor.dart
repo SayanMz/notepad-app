@@ -30,6 +30,7 @@ class NoteEditor extends StatefulWidget {
 
 class _NoteEditorState extends State<NoteEditor> {
   bool get isDark => context.isDark;
+  ColorScheme get colorScheme => context.colorScheme;
   ScrollController? _internalScrollController;
   late final NoteLinkHandler _linkHandler;
 
@@ -42,7 +43,7 @@ class _NoteEditorState extends State<NoteEditor> {
     fontSize: NoteConstants.editorFontSize,
     fontWeight: FontWeight.w400,
     height: NoteConstants.editorLineHeight,
-    color: isDark ? const Color(0xFF94A3B8) : NoteConstants.editorTextColor,
+    color: isDark ? NoteConstants.editorTextColorDark : NoteConstants.editorTextColor,
   );
 
   // 🌟 Modify linkActionPickerDelegate to swallow native taps so our Overlay handles everything
@@ -148,7 +149,7 @@ class _NoteEditorState extends State<NoteEditor> {
             null,
           ),
           placeHolder: DefaultTextBlockStyle(
-            baseTextStyle.copyWith(color: Colors.grey),
+            baseTextStyle.copyWith(color: colorScheme.onSurfaceVariant),
             const HorizontalSpacing(0, 0),
             const VerticalSpacing(0, 0),
             const VerticalSpacing(0, 0),

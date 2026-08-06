@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/widgets/controls/toolbar_items/draggable_color_picker.dart';
 
@@ -55,7 +56,9 @@ class _ColorMenuState extends State<ColorMenu> {
     final currentAttr = widget.selectionStyle.attributes['color'];
     final Color initialColor = currentAttr != null
         ? Color(int.parse(currentAttr.value.replaceFirst('#', '0xff')))
-        : (context.isDark ? Colors.white : Colors.black);
+        : (context.isDark
+            ? AppColors.toolbarAccentWhite
+            : AppColors.lightText);
 
     _overlayEntry = OverlayEntry(
       builder: (context) => DraggableColorPicker(
@@ -105,7 +108,9 @@ class _ColorMenuState extends State<ColorMenu> {
               children: [
                 _buildColorCircle(
                   context,
-                  context.isDark ? Colors.white : Colors.black,
+                  context.isDark
+                      ? AppColors.toolbarAccentWhite
+                      : AppColors.lightText,
                   isDefault: true,
                   currentColor: currentColor,
                 ),
@@ -205,7 +210,9 @@ class _ColorMenuState extends State<ColorMenu> {
               : null,
           shape: BoxShape.circle,
           border: Border.all(
-            color: isSelected ? Colors.lightGreenAccent : Colors.white,
+            color: isSelected
+                ? AppColors.toolbarAccentLightGreen
+                : AppColors.toolbarAccentWhite,
             width: EditorConstants.toolbarColorCircleBorderWidth,
           ),
         ),

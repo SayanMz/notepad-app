@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
+import 'package:notepad/features/note/services/note_pdf_exporter.dart';
 import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
 // App bar performs note editor actions such as undo/redo, and PDF export/share.
@@ -31,9 +31,10 @@ class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {
 
 class _NoteAppBarState extends State<NoteAppBar> {
   bool get isDark => context.isDark;
+  ColorScheme get colorScheme => context.colorScheme;
   late final ValueNotifier<bool> isSavingNotifier;
   Color get iconColor =>
-      isDark ? Colors.white : context.colorScheme.onSurfaceVariant;
+      isDark ? Colors.white : colorScheme.onSurfaceVariant;
 
   @override
   void initState() {
@@ -134,7 +135,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
             menuChildren: [
               _buildPdfMenuItem(
                 label: 'Save as PDF',
-                action: (title, data) => NoteDocumentService.saveNoteAsPdf(
+                action: (title, data) => NotePdfExporter.saveNoteAsPdf(
                   title: title,
                   richContent: data,
                 ),
@@ -142,7 +143,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
               _buildPdfMenuItem(
                 label: 'Share Note',
                 action: (title, data) =>
-                    NoteDocumentService.shareSingleNoteAsPdf(
+                    NotePdfExporter.shareSingleNoteAsPdf(
                       title: title,
                       richContent: data,
                     ),

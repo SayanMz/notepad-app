@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 
 class ScrollToTopFab extends StatefulWidget {
   const ScrollToTopFab({
@@ -105,9 +106,11 @@ class _ScrollToTopFabState extends State<ScrollToTopFab> {
             child: FloatingActionButton.small(
               heroTag: widget.heroTag,
               backgroundColor: isDark
-                  ? const Color(0xFF2C2C2C)
-                  : const Color(0xFFF3F3F3),
-              foregroundColor: isDark ? Colors.white : Colors.black,
+                  ? AppColors.recycleFabBgDark
+                  : AppColors.recycleFabBgLight,
+              foregroundColor: isDark
+                  ? AppColors.recycleFabFgDark
+                  : AppColors.recycleFabFgLight,
               onPressed: () {
                 widget.scrollController.animateTo(
                   0.0,

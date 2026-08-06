@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 // List formatting menu for toggling bullet and numbered lists.
 class ListMenu extends StatelessWidget {
-  bool _isDark(BuildContext context) => context.isDark;
-
   const ListMenu({
     super.key,
     required this.controller,
@@ -38,8 +37,10 @@ class ListMenu extends StatelessWidget {
           icon: Icon(
             Icons.format_list_bulleted,
             color: (controller.isOpen || isListActive)
-                ? Colors.blueAccent
-                : (_isDark(context) ? Colors.white : Colors.black87),
+                ? AppColors.toolbarActiveIcon
+                : (context.isDark
+                    ? AppColors.noteToolbarTextDark
+                    : AppColors.noteToolbarTextLight),
           ),
           onPressed: () =>
               controller.isOpen ? controller.close() : controller.open(),
@@ -76,8 +77,10 @@ class ListMenu extends StatelessWidget {
       leadingIcon: Icon(
         icon,
         color: isSelected
-            ? Colors.blue
-            : (_isDark(context) ? Colors.white : Colors.black87),
+            ? AppColors.toolbarAccentBlue
+            : (context.isDark
+                ? AppColors.noteToolbarTextDark
+                : AppColors.noteToolbarTextLight),
       ),
       onPressed: () => _handleListToggle(attr),
       child: Text(label),

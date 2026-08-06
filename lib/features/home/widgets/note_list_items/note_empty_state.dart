@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/search/search_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
@@ -33,8 +34,8 @@ class NoteEmptyState extends StatelessWidget {
                 fontSize: HomeConstants.noteCardPreviewTitleFontSize,
                 fontWeight: FontWeight.w700,
                 color: context.isDark
-                  ? Colors.white.withValues(alpha: 0.9)
-                  : Colors.black87,
+                  ? AppColors.contentPrimaryDark.withValues(alpha: 0.9)
+                  : AppColors.contentPrimaryLight.withValues(alpha: 0.87),
               letterSpacing: HomeConstants.noteEmptyStateTitleLetterSpacing,
             ),
           ),
@@ -49,7 +50,7 @@ class NoteEmptyState extends StatelessWidget {
               style: GoogleFonts.roboto(
                 fontSize: HomeConstants.noteEmptyStateBodyFontSize,
                 fontWeight: FontWeight.w400,
-                color: Colors.grey,
+                color: AppColors.contentSecondaryDark,
                 height: HomeConstants.noteEmptyStateBodyLineHeight,
               ),
             ),

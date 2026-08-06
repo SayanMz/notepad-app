@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/home_page.dart';
 
 // Startup splash that waits for initialization and animation before entering home.
@@ -55,10 +56,8 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: context.theme.scaffoldBackgroundColor,
       body: Center(
         child: AnimatedOpacity(
           opacity: _isLoaded ? 1.0 : 0.0,
@@ -93,7 +92,7 @@ class _SplashPageState extends State<SplashPage>
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
-                  color: isDark ? Colors.white70 : Colors.black87,
+                  color: context.colorScheme.onSurface.withValues(alpha: 0.9),
                 ),
               ),
             ],

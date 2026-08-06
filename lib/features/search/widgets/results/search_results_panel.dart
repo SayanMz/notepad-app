@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/models/search_date_selection.dart';
@@ -35,37 +36,44 @@ class SearchResultsPanel extends StatelessWidget {
 
   void _applyQuickFilter(int daysBack) {
     final now = DateTime.now();
-    final start = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: daysBack));
+    final today = DateTime(now.year, now.month, now.day);
+    final start = today.subtract(Duration(days: daysBack));
+
+    // "Yesterday" is a specific day (not a range to today).
+    // "Past X days" is a range from (Today - X) to (Today).
+    final isSpecificDay = daysBack == 1;
 
     final filter = SearchFilters(
-      isRangeSearch: true,
+      isRangeSearch: !isSpecificDay,
       start: _midnightSelection(start),
-      end: _midnightSelection(now),
+      end: isSpecificDay ? const SearchDateSelection() : _midnightSelection(today),
     );
 
     controller.applyFilters(filter);
   }
 
   bool _isQuickChipActive(SearchFilters currentFilters, int daysBack) {
-    if (!currentFilters.isRangeSearch) return false;
-
     final now = DateTime.now();
-    final start = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: daysBack));
+    final today = DateTime(now.year, now.month, now.day);
+    final start = today.subtract(Duration(days: daysBack));
+
+    if (daysBack == 1) {
+      // Check for specific "Yesterday" match
+      return !currentFilters.isRangeSearch &&
+          currentFilters.start.year == start.year &&
+          currentFilters.start.month == start.month &&
+          currentFilters.start.day == start.day;
+    }
+
+    // Check for "Past X days" range match
+    if (!currentFilters.isRangeSearch) return false;
 
     return currentFilters.start.year == start.year &&
         currentFilters.start.month == start.month &&
         currentFilters.start.day == start.day &&
-        currentFilters.end.year == now.year &&
-        currentFilters.end.month == now.month &&
-        currentFilters.end.day == now.day;
+        currentFilters.end.year == today.year &&
+        currentFilters.end.month == today.month &&
+        currentFilters.end.day == today.day;
   }
 
   @override
@@ -133,7 +141,9 @@ class SearchResultsPanel extends StatelessWidget {
                 onClearFilter();
               },
               icon: const Icon(Icons.filter_alt_off, size: 25),
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+              color: isDarkMode
+                  ? context.theme.colorScheme.onSurfaceVariant
+                  : AppColors.searchMetadataTextLight,
               tooltip: 'Clear filter',
             ),
           ],
@@ -141,7 +151,9 @@ class SearchResultsPanel extends StatelessWidget {
             Text(
               resultsCount == 1 ? '1 result' : '$resultsCount results',
               style: TextStyle(
-                color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                color: isDarkMode
+                    ? context.theme.colorScheme.onSurfaceVariant
+                    : AppColors.searchMetadataTextLight,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -169,13 +181,13 @@ class SearchResultsPanel extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(
-                Icons.bolt_rounded,
-                size: SearchConstants.chipIconSize,
-                color: isAnyQuickChipActive
-                    ? context.colorScheme.primary
-                    : Theme.of(context).disabledColor,
-              ),
+                Icon(
+                  Icons.bolt_rounded,
+                  size: SearchConstants.chipIconSize,
+                  color: isAnyQuickChipActive
+                      ? context.colorScheme.primary
+                    : context.theme.disabledColor,
+                ),
               const SizedBox(width: SearchConstants.chipBoltGap),
               _buildActionChip(
                 label: 'Yesterday',
@@ -234,7 +246,7 @@ class SearchResultsPanel extends StatelessWidget {
           ? colorScheme.primaryContainer.withValues(
               alpha: SearchConstants.selectedChipAlpha,
             )
-          : (context.isDark ? Colors.grey[800] : Colors.grey[200]),
+          : (context.isDark ? AppColors.searchChipSurfaceDark : AppColors.searchChipSurfaceLight),
       visualDensity: VisualDensity.compact,
       side: BorderSide.none,
     );

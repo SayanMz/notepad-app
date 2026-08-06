@@ -6,7 +6,8 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-// Mirrors active note content into SQLite for fast text search using standard SQL.
+// Manages a high-performance SQLite search index using atomic batch transactions to
+// enable ultra-fast text matching and date filtering.
 class SqliteFtsService {
   static const String _dbName = 'notes_search.db';
   static const String _tableName = 'notes_fts';
@@ -14,8 +15,7 @@ class SqliteFtsService {
   static Database? _db;
 
   static Future<Database> get database async {
-    final existing = _db;
-    if (existing != null) return existing;
+    if (_db != null) return _db!;
 
     try {
       _db = await _initDb();
@@ -37,7 +37,7 @@ class SqliteFtsService {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 1,
       onCreate: (db, version) async {
         // Standard table (no virtual tables or FTS extensions needed)
         await db.execute('''
@@ -52,19 +52,46 @@ class SqliteFtsService {
     );
   }
 
+  /// Maps a [NotesSection] object to a raw SQL data map.
+  static Map<String, dynamic> _noteToMap(NotesSection note) => {
+    'id': note.id,
+    'title': note.title,
+    'content': note.content,
+    'updated_at': note.updatedAt.toIso8601String(),
+  };
+
   static Future<void> insertOrUpdate(NotesSection note) async {
     if (note.id.trim().isEmpty) return;
 
     try {
       final db = await database;
-      await db.insert(_tableName, {
-        'id': note.id,
-        'title': note.title,
-        'content': note.content,
-        'updated_at': note.updatedAt.toIso8601String(),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await db.insert(
+        _tableName,
+        _noteToMap(note),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     } catch (e) {
-      debugPrint('SqliteFtsService: insertOrUpdate failed for ${note.id}: $e');
+      debugPrint('SqliteFtsService Error (insertOrUpdate): ${note.id}. $e');
+    }
+  }
+
+  static Future<void> insertOrUpdateBulk(List<NotesSection> notes) async {
+    if (notes.isEmpty) return;
+
+    try {
+      final db = await database;
+      final batch = db.batch();
+
+      for (final note in notes) {
+        batch.insert(
+          _tableName,
+          _noteToMap(note),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      debugPrint('SqliteFtsService Error (insertOrUpdateBulk): $e');
     }
   }
 
@@ -75,35 +102,55 @@ class SqliteFtsService {
       final db = await database;
       await db.delete(_tableName, where: 'id = ?', whereArgs: [id]);
     } catch (e) {
-      debugPrint('SqliteFtsService: remove failed for $id: $e');
+      debugPrint('SqliteFtsService Error (remove): $id. $e');
     }
   }
 
-  static Future<void> removeBulk(List<String> ids) async {
-    if (ids.isEmpty) return;
+  static Future<void> removeBulk(Set<String> ids) async {
+    final cleanIds = ids.where((id) => id.trim().isNotEmpty).toList();
+    if (cleanIds.isEmpty) return;
 
-    final uniqueIds = ids.where((id) => id.trim().isNotEmpty).toSet();
-    if (uniqueIds.isEmpty) return;
+    try {
+      final db = await database;
 
+      // SQL Parameter limit is usually 999.
+      if (cleanIds.length > 990) {
+        debugPrint(
+          'SqliteFtsService Warning: bulk removal exceeds parameter limits. '
+              'Atomicity not guaranteed for total set.',
+        );
+      }
+
+      final placeholders = List.filled(cleanIds.length, '?').join(',');
+
+      await db.delete(
+        _tableName,
+        where: 'id IN ($placeholders)',
+        whereArgs: cleanIds,
+      );
+    } catch (e) {
+      debugPrint('SqliteFtsService Error (removeBulk): $e');
+    }
+  }
+
+  static Future<void> reindexAllNotes(List<NotesSection> allNotes) async {
     try {
       final db = await database;
       final batch = db.batch();
 
-      for (final id in uniqueIds) {
-        batch.delete(_tableName, where: 'id = ?', whereArgs: [id]);
-      }
-      await batch.commit(noResult: true);
-    } catch (e) {
-      debugPrint('SqliteFtsService: bulk remove failed: $e');
-    }
-  }
+      // Wipe the table and re-populate inside a single atomic transaction.
+      batch.delete(_tableName);
 
-  static Future<void> clear() async {
-    try {
-      final db = await database;
-      await db.delete(_tableName);
+      for (final note in allNotes) {
+        batch.insert(_tableName, _noteToMap(note));
+      }
+
+      await batch.commit(noResult: true);
+      debugPrint(
+        'SqliteFtsService: Successfully reindexed ${allNotes.length} notes.',
+      );
     } catch (e) {
-      debugPrint('SqliteFtsService: clear failed: $e');
+      debugPrint('SqliteFtsService Error (reindexAllNotes): $e');
     }
   }
 
@@ -121,12 +168,12 @@ class SqliteFtsService {
       );
 
       return maps
-          .map((row) => row['id'])
-          .whereType<String>()
-          .where((id) => id.trim().isNotEmpty)
-          .toSet();
+          .map((row) => row['id']) // Extract only the ID from the database row
+          .whereType<String>()     // Ensure it's a valid string
+          .where((id) => id.trim().isNotEmpty) // Skip any empty IDs
+          .toSet(); // Return as a Set for O(1) lookups
     } catch (e) {
-      debugPrint('SqliteFtsService: search failed: $e');
+      debugPrint('SqliteFtsService Error (searchIds): $e');
       return <String>{};
     }
   }
@@ -136,23 +183,26 @@ class SqliteFtsService {
     DateTime start,
     DateTime end,
   ) async {
-    if (start.isAfter(end)) return const {};
-
     final cleanQuery = query.trim();
-    if (cleanQuery.isEmpty) return const {};
+    if (cleanQuery.isEmpty || start.isAfter(end)) return const {};
 
     try {
       final db = await database;
+
+      final textTerm = '%$cleanQuery%';
+      final isoStart = start.toIso8601String();
+      final isoEnd = end.toIso8601String();
+
       final results = await db.query(
         _tableName,
         columns: ['id'],
         where:
             '(title LIKE ? OR content LIKE ?) AND updated_at BETWEEN ? AND ?',
         whereArgs: [
-          '%$cleanQuery%',
-          '%$cleanQuery%',
-          start.toIso8601String(),
-          end.toIso8601String(),
+          textTerm, // Matches title LIKE ?
+          textTerm, // Matches content LIKE ?
+          isoStart, // Matches BETWEEN ?
+          isoEnd,   // Matches AND ?
         ],
       );
 
@@ -162,32 +212,8 @@ class SqliteFtsService {
           .where((id) => id.trim().isNotEmpty)
           .toSet();
     } catch (e) {
-      debugPrint('SqliteFtsService: date range search failed: $e');
+      debugPrint('SqliteFtsService Error (searchIdsWithDateRange): $e');
       return const {};
-    }
-  }
-
-  static Future<void> reindexAllNotes(List<NotesSection> allNotes) async {
-    try {
-      await clear();
-      final db = await database;
-      final batch = db.batch();
-
-      for (final note in allNotes) {
-        batch.insert(_tableName, {
-          'id': note.id,
-          'title': note.title,
-          'content': note.content,
-          'updated_at': note.updatedAt.toIso8601String(),
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-      }
-
-      await batch.commit(noResult: true);
-      debugPrint(
-        'SqliteFtsService: Successfully reindexed ${allNotes.length} notes.',
-      );
-    } catch (e) {
-      debugPrint('SqliteFtsService: Reindexing failed: $e');
     }
   }
 }

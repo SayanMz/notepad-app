@@ -5,6 +5,7 @@ import 'package:lottie/lottie.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
@@ -30,7 +31,6 @@ class VoiceAssistantButton extends StatefulWidget {
 
 class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
   final ValueNotifier<bool> _isPressedNotifier = ValueNotifier<bool>(false);
-  bool get isDark => context.isDark;
 
   @override
   void initState() {
@@ -105,11 +105,13 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                         : NoteConstants.voiceButtonIdleSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? Colors.grey[900] : Colors.white,
+                      color: context.isDark
+                          ? AppColors.surfaceSecondaryDark
+                          : AppColors.cardSurfaceLight,
                       boxShadow: [
                         if (isListening)
                           BoxShadow(
-                            color: Colors.purpleAccent.withValues(alpha: 0.4),
+                            color: AppColors.actionPrimaryLight.withValues(alpha: 0.4),
                             blurRadius:
                                 NoteConstants.voiceButtonListeningShadowBlur,
                             spreadRadius:
@@ -117,14 +119,18 @@ class _VoiceAssistantButtonState extends State<VoiceAssistantButton> {
                           )
                         else if (isPressed)
                           BoxShadow(
-                            color: isDark
-                                ? Colors.white.withValues(alpha: 0.65)
-                                : Colors.black.withValues(alpha: 0.15),
-                            blurRadius: isDark
+                            color: context.isDark
+                                ? AppColors.overlayBorder.withValues(
+                                    alpha: 0.65,
+                                  )
+                                : AppColors.overlayShadow.withValues(
+                                    alpha: 0.15,
+                                  ),
+                            blurRadius: context.isDark
                                 ? NoteConstants.voiceButtonPressedShadowBlur +
                                       UIConstants.paddingS
                                 : NoteConstants.voiceButtonPressedShadowBlur,
-                            spreadRadius: isDark
+                            spreadRadius: context.isDark
                                 ? NoteConstants.voiceButtonPressedShadowSpread +
                                       UIConstants.paddingXS
                                 : NoteConstants.voiceButtonPressedShadowSpread,

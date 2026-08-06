@@ -50,8 +50,8 @@ class StorageProgressBar extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: progress > 0.9
-                      ? Colors.redAccent
-                      : (isDark ? Colors.white : colorScheme.primary),
+                      ? AppColors.storageCritical
+                      : (isDark ? AppColors.contentPrimaryDark : colorScheme.primary),
                   borderRadius: BorderRadius.circular(
                     (height - HomeConstants.storageProgressInnerInset) / 2,
                   ),

@@ -6,6 +6,7 @@ import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/widgets/selection_tools/premium_color_picker.dart';
 
@@ -21,20 +22,17 @@ class SelectionToolbar extends StatefulWidget {
 class _SelectionToolbarState extends State<SelectionToolbar>
     with SingleTickerProviderStateMixin {
   ColorScheme get colorScheme => context.colorScheme;
-  bool get isDark => context.isDark;
 
-  List<Color> recentColors = [];
   late AnimationController _rotationController;
   final ValueNotifier<Offset> dialogOffsetNotifier = ValueNotifier<Offset>(
     Offset.zero,
   );
 
+  final ValueNotifier<int> colorRevision = ValueNotifier<int>(0);
+
   @override
   void initState() {
     super.initState();
-    final savedvalues = appSettingsRepository.settings.recentColorValues;
-    recentColors = savedvalues.map((val) => Color(val)).toList();
-
     _rotationController = AnimationController(
       duration: AnimationConstants.colorWheelSpin,
       vsync: this,
@@ -50,8 +48,8 @@ class _SelectionToolbarState extends State<SelectionToolbar>
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = isDark
-        ? Colors.white
+    final iconColor = context.isDark
+        ? AppColors.toolbarInactiveIconDark
         : colorScheme.onSurfaceVariant.withValues(alpha: 0.8);
 
     final homeController = widget.controller;
@@ -148,7 +146,7 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: AppColors.toolbarShadow.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -182,6 +180,10 @@ class _SelectionToolbarState extends State<SelectionToolbar>
         ? EditorConstants.pickerRecentDesktopCount
         : EditorConstants.pickerRecentPhoneCount;
 
+    final recentColors = appSettingsRepository.settings.recentColorValues
+        .map((val) => Color(val))
+        .toList();
+
     final Color? resultColor = await showGeneralDialog<Color>(
       context: context,
       barrierDismissible: true,
@@ -202,11 +204,6 @@ class _SelectionToolbarState extends State<SelectionToolbar>
     if (resultColor != null) {
       appSettingsRepository.addRecentColor(resultColor, maxColors);
       widget.controller.saveColors();
-      setState(() {
-        recentColors.remove(resultColor);
-        recentColors.insert(0, resultColor);
-        if (recentColors.length > maxColors) recentColors.removeLast();
-      });
     } else {
       widget.controller.restoreColors(originalColors);
     }

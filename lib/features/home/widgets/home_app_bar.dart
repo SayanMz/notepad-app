@@ -6,7 +6,6 @@ import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/ui_management/theme_fader.dart';
-import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/search/search_page.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
@@ -19,7 +18,6 @@ class HomeAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = context.colorScheme;
-    final isDark = context.isDark;
 
     return SliverAppBar(
       floating: true,
@@ -29,9 +27,7 @@ class HomeAppBar extends StatelessWidget {
       actions: const [SizedBox.shrink()],
       scrolledUnderElevation: HomeConstants.appBarScrolledUnderElevation,
       surfaceTintColor: HomeConstants.appBarSurfaceTint,
-      backgroundColor: isDark
-          ? AppColors.darkScaffold
-          : Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.theme.scaffoldBackgroundColor,
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
           final topPadding = context.topPadding;
@@ -75,12 +71,13 @@ class HomeAppBar extends StatelessWidget {
                                     isDarkMode: !currentIsDark,
                                   ),
                                 );
+                                appSettingsRepository.themeRevision.value++;
                               },
                             );
                           },
                           icon: Icon(
                             Icons.light,
-                            color: isDark ? Colors.white : Colors.black,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(width: UIConstants.paddingSM),
@@ -89,7 +86,7 @@ class HomeAppBar extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: HomeConstants.appBarTitleFontSize,
-                            color: isDark ? Colors.white : Colors.black,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const Spacer(),
@@ -97,9 +94,7 @@ class HomeAppBar extends StatelessWidget {
                           icon: Icon(
                             Icons.search,
                             size: UIConstants.iconMD,
-                            color: isDark
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                           onPressed: () async {
                             uiNotifier.clearSnackBars();
@@ -113,9 +108,7 @@ class HomeAppBar extends StatelessWidget {
                           icon: Icon(
                             Icons.restore_from_trash,
                             size: UIConstants.iconMD,
-                            color: isDark
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                           onPressed: () async {
                             uiNotifier.clearSnackBars();
@@ -129,9 +122,7 @@ class HomeAppBar extends StatelessWidget {
                           builder: (context) {
                             return IconButton(
                               icon: const Icon(Icons.sort),
-                              color: isDark
-                                  ? Colors.white
-                                  : colorScheme.onSurfaceVariant,
+                              color: colorScheme.onSurfaceVariant,
                               onPressed: onOpenDrawer,
                             );
                           },
@@ -158,7 +149,7 @@ class HomeAppBar extends StatelessWidget {
                           fontSize: HomeConstants.appBarExpandedTitleFontSize,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -1.5,
-                          color: isDark ? Colors.white : Colors.black87,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ),

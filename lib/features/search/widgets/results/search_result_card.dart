@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
 import 'package:notepad/features/search/search_constants.dart';
 
@@ -39,20 +41,21 @@ class _SearchResultCardState extends State<SearchResultCard> {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = const TextStyle(
+    final titleStyle = TextStyle(
       fontWeight: FontWeight.bold,
       fontSize: SearchConstants.resultTitleFontSize,
+      color: context.isDark ? AppColors.searchResultTitleDark : AppColors.searchResultTitleLight,
     );
     final previewStyle = TextStyle(
-      color: Colors.grey[400],
+      color: context.isDark ? AppColors.searchResultSubtitleDark : AppColors.searchResultSubtitleLight,
       height: 1.35,
       fontSize: 13,
     );
 
-    const highlightStyle = TextStyle(
-      backgroundColor: SearchConstants.highlightYellow,
+    final highlightStyle = TextStyle(
+      backgroundColor: AppColors.searchResultHighlight,
       fontWeight: FontWeight.w700,
-      color: Colors.black,
+      color: AppColors.searchResultTitleLight,
     );
 
     final List<List<String>> blocks = extractMultiSearchSnippets(
@@ -87,7 +90,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
             Text(
               'Edited: ${widget.note.updatedAt.format()}',
               style: TextStyle(
-                color: Colors.grey[500],
+                color: context.isDark ? AppColors.searchResultSubtitleDark : AppColors.searchResultSubtitleLight,
                 fontSize: SearchConstants.resultEditedFontSize,
               ),
             ),
@@ -116,15 +119,15 @@ class _SearchResultCardState extends State<SearchResultCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (blockIndex > 0)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 6.0),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6.0),
                             child: Row(
                               children: [
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
                                   '•  •  •',
                                   style: TextStyle(
-                                    color: Colors.grey,
+                                    color: AppColors.searchResultSubtitleDark,
                                     fontSize: 9,
                                     letterSpacing: 4,
                                   ),

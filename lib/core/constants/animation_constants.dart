@@ -1,4 +1,4 @@
-// Shared animation timings used to keep motion consistent across the app.
+// Shared animation durations and motion thresholds used across the app.
 class AnimationConstants {
   AnimationConstants._();
 
@@ -21,6 +21,7 @@ class AnimationConstants {
   static const Duration snackbarLong = Duration(seconds: 4);
   static const Duration colorWheelSpin = Duration(seconds: 10);
   static const Duration voiceRequestTimeout = Duration(seconds: 20);
+
   static const Duration sharedAxisReverseDuration = Duration(milliseconds: 180);
   static const double sharedAxisScaleBegin = 0.94;
   static const double sharedAxisFadeReverseCutoff = 0.5;

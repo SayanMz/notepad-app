@@ -6,7 +6,6 @@ extension NoteDateFormatter on DateTime {
     bool showTime = true,
   }) {
     final month = _monthName(this.month);
-
     final dateStr = '$month $day${showYear ? ', $year' : ''}';
 
     if (!showTime) return dateStr;

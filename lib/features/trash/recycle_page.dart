@@ -85,7 +85,7 @@ class _RecyclePageState extends State<RecyclePage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: isDark ? Colors.brown : Colors.red,
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
@@ -117,7 +117,7 @@ class _RecyclePageState extends State<RecyclePage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: context.isDark ? Colors.brown : Colors.red,
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
@@ -211,13 +211,18 @@ class _RecyclePageState extends State<RecyclePage> {
                     HomeConstants.homeScrollCacheExtent,
                   ),
                   slivers: [
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: SmoothHeaderDelegate(
-                        title: 'Recycle Bin',
-                        forceCentered: isEmpty,
-                        onEmptyBin: _handleEmptyRecycleBin,
-                      ),
+                    SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        return SliverPersistentHeader(
+                          pinned: true,
+                          delegate: SmoothHeaderDelegate(
+                            title: 'Recycle Bin',
+                            forceCentered: isEmpty,
+                            onEmptyBin: _handleEmptyRecycleBin,
+                            scrollOffset: constraints.scrollOffset,
+                          ),
+                        );
+                      },
                     ),
                     if (isEmpty)
                       SliverFillRemaining(

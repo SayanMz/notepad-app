@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/home/widgets/selection_tools/selection_toolbar.dart';
@@ -39,18 +40,17 @@ class _SelectionOverlayContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
     final radius = BorderRadius.circular(HomeConstants.selectionOverlayRadius);
 
-    final surfaceColor = isDark
-        ? Colors.black.withValues(
+    final surfaceColor = context.isDark
+        ? AppColors.overlaySurfaceDark.withValues(
             alpha: HomeConstants.selectionOverlayDarkAlpha,
           )
-        : Colors.white.withValues(
+        : AppColors.overlaySurfaceLight.withValues(
             alpha: HomeConstants.selectionOverlayLightAlpha,
           );
 
-    final borderColor = Colors.white.withValues(
+    final borderColor = AppColors.overlayBorder.withValues(
       alpha: HomeConstants.selectionOverlayBorderAlpha,
     );
 
@@ -66,7 +66,7 @@ class _SelectionOverlayContent extends StatelessWidget {
             borderRadius: radius,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(
+                color: AppColors.overlayShadow.withValues(
                   alpha: HomeConstants.selectionOverlayShadowAlpha,
                 ),
                 blurRadius: HomeConstants.selectionOverlayShadowBlur,

@@ -114,7 +114,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode ? AppColors.darkDialogSurface : Colors.white,
+        color: isDarkMode ? AppColors.darkDialogSurface : AppColors.cardSurfaceLight,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(SearchConstants.filterSheetRadius),
         ),
@@ -163,7 +163,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
       children: [
         const Divider(
           height: SearchConstants.filterDividerHeight,
-          color: Colors.grey,
+          color: AppColors.contentSecondaryDark,
         ),
         _buildSectionTitle('END DATE'),
         const SizedBox(height: SearchConstants.filterSectionGap),
@@ -219,11 +219,11 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               style: OutlinedButton.styleFrom(
                 shape: squircleShape,
                 backgroundColor: isDarkMode
-                    ? Colors.grey[900]
+                    ? AppColors.darkScaffold
                     : AppColors.searchFilterButtonLight,
                 side: BorderSide(
                   color: isDarkMode
-                      ? Colors.grey[700]!
+                      ? AppColors.borderSubtleDark
                       : AppColors.searchFilterTextLight,
                 ),
               ),
@@ -241,7 +241,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 'Clear',
                 style: TextStyle(
                   color: isDarkMode
-                      ? Colors.white
+                      ? AppColors.contentPrimaryDark
                       : AppColors.searchFilterTextLight,
                 ),
               ),
@@ -257,9 +257,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               style: ElevatedButton.styleFrom(
                 shape: squircleShape,
                 backgroundColor: isDarkMode
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.9)
+                    ? context.colorScheme.primary.withValues(alpha: 0.9)
                     : AppColors.searchFilterSubmitLight,
               ),
               onPressed: _isSubmitEnabled
@@ -271,7 +269,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
               child: Text(
                 'Get Search Results',
                 style: TextStyle(
-                  color: isDarkMode ? Colors.black : Colors.white,
+                  color: isDarkMode ? AppColors.darkScaffold : AppColors.cardSurfaceLight,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -320,9 +318,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                   ),
                 ),
                 backgroundColor: isDarkMode
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.9)
+                    ? context.colorScheme.primary.withValues(alpha: 0.9)
                     : AppColors.searchFilterButtonLight,
                 padding: const EdgeInsets.symmetric(
                   horizontal: SearchConstants.filterTogglePaddingH,
@@ -333,7 +329,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                 _filterState.isRangeSearch ? Icons.close : Icons.date_range,
                 size: SearchConstants.chipIconSize,
                 color: isDarkMode
-                    ? Colors.black
+                    ? AppColors.darkScaffold
                     : AppColors.searchFilterTextLight,
               ),
               label: Text(
@@ -342,7 +338,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
                   fontSize: SearchConstants.filterLabelFontSize,
                   fontWeight: FontWeight.bold,
                   color: isDarkMode
-                      ? Colors.black
+                      ? AppColors.darkScaffold
                       : AppColors.searchFilterTextLight,
                 ),
               ),
@@ -436,7 +432,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
           bottom: SearchConstants.filterSheetHandleBottomMargin,
         ),
         decoration: BoxDecoration(
-          color: Colors.grey.shade400,
+          color: AppColors.contentSecondaryDark.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(
             SearchConstants.filterSheetHandleRadius,
           ),
@@ -464,7 +460,7 @@ class _SearchFilterBottomSheetState extends State<SearchFilterBottomSheet> {
         vertical: SearchConstants.filterDropdownPaddingV,
       ),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
+        border: Border.all(color: AppColors.contentSecondaryDark.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(SearchConstants.filterButtonRadius),
       ),
       child: DropdownButtonHideUnderline(

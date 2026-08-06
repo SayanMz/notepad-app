@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
-import 'package:notepad/core/bootstrap/bootstrap_app.dart';
+import 'package:notepad/core/bootstrap/app_initializer.dart';
+import 'package:notepad/core/bootstrap/app_startup_builder.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
@@ -51,13 +51,13 @@ Future<void> main() async {
 
       debugPrint('Starting Notepad bootstrap...');
 
-      final bootstrapper = AppBootstrapper(
+      final bootstrapper = AppInitializer(
         noteRepository: noteRepository,
         appSettingsRepository: appSettingsRepository,
       );
 
       runApp(
-        BootstrapApp(
+        AppStartupBuilder(
           bootstrapper: bootstrapper.initialize,
           child: const MyApp(),
         ),
@@ -79,8 +79,8 @@ class MyApp extends StatelessWidget {
         BootstrapScope.of(context)?.isInitializationComplete ?? false;
 
     return ListenableBuilder(
-      listenable: appSettingsRepository,
-      builder: (_, settings) {
+      listenable: appSettingsRepository.themeRevision,
+      builder: (context, _) {
         return RepaintBoundary(
           key: ThemeFader.appBoundaryKey,
           child: MaterialApp(

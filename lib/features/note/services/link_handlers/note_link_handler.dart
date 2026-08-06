@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Needed for Clipboard
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -61,7 +63,7 @@ class NoteLinkHandler {
       builder: (context) => Stack(
         children: [
           Positioned(
-            top: MediaQuery.of(context).padding.top + 80,
+            top: context.topPadding + 80,
             left: 20,
             right: 20,
             child: Material(
@@ -69,11 +71,13 @@ class NoteLinkHandler {
               child: Center(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[900] : Colors.white,
+                    color: isDark
+                        ? AppColors.linkPopupSurfaceDark
+                        : AppColors.linkPopupSurfaceLight,
                     borderRadius: BorderRadius.circular(30),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Colors.black26,
+                        color: AppColors.linkPopupShadow,
                         blurRadius: 12,
                         offset: Offset(0, 4),
                       ),
@@ -92,10 +96,14 @@ class NoteLinkHandler {
                           removeLinkPopup();
                           await _openLink(actualLink, isDate, actionCode);
                         },
-                        icon: Icon(primaryIcon, size: 18, color: Colors.blue),
+                        icon: Icon(
+                          primaryIcon,
+                          size: 18,
+                          color: AppColors.linkPopupPrimary,
+                        ),
                         label: Text(
                           primaryLabel,
-                          style: const TextStyle(color: Colors.blue),
+                          style: const TextStyle(color: AppColors.linkPopupPrimary),
                         ),
                       ),
                       // --- OPTION 2: COPY ---
@@ -113,11 +121,11 @@ class NoteLinkHandler {
                         icon: const Icon(
                           Icons.copy,
                           size: 18,
-                          color: Colors.grey,
+                          color: AppColors.linkPopupSecondary,
                         ),
                         label: const Text(
                           'Copy',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: AppColors.linkPopupSecondary),
                         ),
                       ),
                       // --- OPTION 3: SHARE ---
@@ -134,11 +142,11 @@ class NoteLinkHandler {
                         icon: const Icon(
                           Icons.share,
                           size: 18,
-                          color: Colors.green,
+                          color: AppColors.linkPopupSuccess,
                         ),
                         label: const Text(
                           'Share',
-                          style: TextStyle(color: Colors.green),
+                          style: TextStyle(color: AppColors.linkPopupSuccess),
                         ),
                       ),
                     ],

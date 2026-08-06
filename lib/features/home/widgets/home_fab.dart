@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
@@ -64,13 +63,12 @@ class _OptimizedMorphCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
     final isDark = context.isDark;
-    final Color fabColor = isDark
-        ? AppColors.homeFabDark
-        : AppColors.homeFabLight;
+    final Color fabColor = isDark ? colorScheme.secondary : colorScheme.primary;
     final Color contentColor = isDark
-        ? Colors.black.withValues(alpha: 0.8)
-        : Colors.white;
+        ? colorScheme.onSecondaryContainer.withValues(alpha: 0.8)
+        : colorScheme.onPrimary;
 
     final double targetWidth = isExtended
         ? HomeConstants.fabExpandedWidth
@@ -126,8 +124,8 @@ class _OptimizedMorphCanvas extends StatelessWidget {
 Route _buildSharedAxisTransition() {
   return PageRouteBuilder(
     pageBuilder: (context, animation, secondaryAnimation) => const NotePage(),
-    transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionDuration: AnimationConstants.medium,
+    reverseTransitionDuration: AnimationConstants.snappy,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       final scaleTween = Tween<double>(begin: 0.92, end: 1.0).animate(
         CurvedAnimation(parent: animation, curve: Curves.fastOutSlowIn),
@@ -135,7 +133,11 @@ Route _buildSharedAxisTransition() {
       final fadeTween = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: animation,
-          curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+          curve: const Interval(
+            0.0,
+            AnimationConstants.sharedAxisFadeForwardCutoff,
+            curve: Curves.easeOut,
+          ),
         ),
       );
 

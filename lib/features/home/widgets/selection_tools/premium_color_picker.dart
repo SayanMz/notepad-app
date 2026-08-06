@@ -26,7 +26,6 @@ class PremiumColorPicker extends StatefulWidget {
 
 class _PremiumColorPickerState extends State<PremiumColorPicker> {
   late Color temporaryColor;
-  bool get isDark => context.isDark;
 
   @override
   void initState() {
@@ -38,6 +37,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
   Widget build(BuildContext context) {
     final screenSize = context.screenSize;
     final colorScheme = context.colorScheme;
+    final isDark = context.isDark;
 
     final availableWidth =
         (screenSize.width * EditorConstants.pickerWidthFactor).clamp(
@@ -48,13 +48,13 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
         availableWidth - EditorConstants.pickerInternalWidthPadding;
     final maxHeight = screenSize.height * EditorConstants.pickerMaxHeightFactor;
 
-    final baseSurface = isDark ? AppColors.darkDialogSurface : Colors.white;
+    final baseSurface = isDark ? AppColors.darkDialogSurface : AppColors.pickerSurfaceLight;
     final gradientTop = baseSurface.withValues(alpha: isDark ? 0.35 : 0.92);
     final gradientBottom = baseSurface.withValues(alpha: isDark ? 0.70 : 0.55);
 
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : Colors.black.withValues(alpha: 0.08);
+        ? AppColors.pickerBorderDark.withValues(alpha: 0.15)
+        : AppColors.pickerBorderLight.withValues(alpha: 0.08);
 
     return ValueListenableBuilder<Offset>(
       valueListenable: widget.dialogOffsetNotifier,
@@ -133,7 +133,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                       style: TextStyle(
                         fontSize: EditorConstants.pickerTitleFontSize,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black,
+                        color: isDark ? AppColors.pickerTitleDark : AppColors.pickerTitleLight,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -168,6 +168,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
   }
 
   Widget _buildActionRow(List<Color> recentColors) {
+    final isDark = context.isDark;
     return Column(
       children: [
         Row(
@@ -178,7 +179,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
               style: TextStyle(
                 fontSize: EditorConstants.pickerRecentLabelFontSize,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white54 : Colors.black45,
+                color: isDark ? AppColors.pickerRecentDark : AppColors.pickerRecentLight,
               ),
             ),
             Row(
@@ -222,7 +223,9 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isDark ? Colors.white24 : Colors.black12,
+                        color: isDark
+                            ? AppColors.pickerSwatchBorderDark
+                            : AppColors.pickerSwatchBorderLight,
                       ),
                     ),
                   ),

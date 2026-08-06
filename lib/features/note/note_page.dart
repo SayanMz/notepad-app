@@ -9,14 +9,14 @@ import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/services/note_document_service.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
-import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_data_controller.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
+import 'package:notepad/features/note/services/document_delta_parser.dart'
+    as doc_delta;
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/controls/note_toolbar.dart';
 import 'package:notepad/features/note/widgets/controls/voice_assistant_button.dart';
@@ -154,7 +154,7 @@ class _NotePageState extends State<NotePage>
   QuillController _createContentController(NotesSection? note) {
     final doc = note != null
         ? Document.fromJson(
-            NoteDocumentService.decodeRichContent(
+            doc_delta.decodeRichContent(
               note.richContent,
               note.content,
             ),
@@ -302,8 +302,6 @@ class _NotePageState extends State<NotePage>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -313,9 +311,7 @@ class _NotePageState extends State<NotePage>
       child: IgnorePointer(
         ignoring: _isHandlingBackNavigation,
         child: Scaffold(
-          backgroundColor: isDark
-              ? AppColors.darkScaffold
-              : AppColors.lightScaffold,
+          backgroundColor: context.theme.scaffoldBackgroundColor,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
             child: NoteAppBar(

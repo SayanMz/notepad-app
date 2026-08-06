@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 
 // Text size menu for applying sizes and heading styles.
@@ -80,8 +81,10 @@ class _SizeMenuState extends State<SizeMenu> {
           icon: Icon(
             Icons.text_fields,
             color: controller.isOpen
-                ? Colors.blueAccent
-                : (context.isDark ? Colors.white : Colors.black87),
+                ? AppColors.toolbarActiveIcon
+                : (context.isDark
+                    ? AppColors.noteToolbarTextDark
+                    : AppColors.noteToolbarTextLight),
           ),
           onPressed: () =>
               controller.isOpen ? controller.close() : controller.open(),
@@ -141,7 +144,9 @@ class _SizeMenuState extends State<SizeMenu> {
                 Container(
                   width: 1,
                   height: 20,
-                  color: context.isDark ? Colors.white24 : Colors.black12,
+                  color: context.isDark
+                      ? AppColors.pickerSwatchBorderDark
+                      : AppColors.pickerSwatchBorderLight,
                 ),
                 Expanded(
                   child: MenuAnchor(

@@ -69,8 +69,8 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
               ),
               elevation: 0,
               color: isDark
-                  ? AppColors.recycleSwipeDark
-                  : AppColors.recycleSwipeLight,
+                  ? AppColors.recycleSwipeSurfaceDark
+                  : AppColors.recycleSwipeSurfaceLight,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(
                   RecycleConstants.cardRadius * 2.5,
@@ -121,10 +121,6 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                       ..rotateZ(angle)
                       ..scaleByDouble(scale, scale, scale, 1);
 
-                    final baseColor = isDark
-                        ? AppColors.recycleRestoreDark
-                        : AppColors.recycleRestoreLight;
-
                     return AnimatedOpacity(
                       duration: AnimationConstants.fast,
                       curve: Curves.easeOut,
@@ -140,7 +136,9 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                           transform: matrix,
                           child: Icon(
                             Icons.restore,
-                            color: baseColor,
+                            color: isDark
+                                ? AppColors.recycleRestoreSurfaceDark.withAlpha(100)
+                                : AppColors.recycleRestoreSurfaceLight,
                             size: RecycleConstants.iconSize,
                           ),
                         ),
@@ -220,7 +218,7 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                                     maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: AppColors.recycleTextIconLight,
                                       height: 1.3,
                                     ),
                                   ),
@@ -234,7 +232,9 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                               ),
                               icon: Icon(
                                 Icons.more_vert,
-                                color: isDark ? Colors.white : Colors.grey[600],
+                                color: isDark
+                                    ? AppColors.recycleTextIconDark
+                                    : AppColors.recycleTextIconLight,
                               ),
                             ),
                           ],
@@ -244,8 +244,10 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                       // 2. The Days Remaining Bottom Strip Indicator
                       Container(
                         color: isDark
-                            ? Colors.white.withValues(alpha: 0.12)
-                            : Colors.grey[600],
+                            ? AppColors.recycleDaysStripDark.withValues(
+                                alpha: 0.12,
+                              )
+                            : AppColors.recycleDaysStripLight,
                         padding: const EdgeInsets.symmetric(vertical: 6.0),
                         alignment: Alignment.center,
                         child: Text(

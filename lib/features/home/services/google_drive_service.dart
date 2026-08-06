@@ -9,11 +9,15 @@ import 'package:googleapis/drive/v3.dart' as drive;
 
 // Google Drive sync boundary that keeps backup and restore concerns out of the UI.
 class GoogleDriveService {
-  GoogleDriveService._internal();
+  GoogleDriveService._internal() : _googleSignIn = GoogleSignIn.instance;
   static final GoogleDriveService _instance = GoogleDriveService._internal();
   factory GoogleDriveService() => _instance;
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  @visibleForTesting
+  GoogleDriveService.internalForTesting({GoogleSignIn? googleSignIn}) 
+      : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+
+  final GoogleSignIn _googleSignIn;
   GoogleSignInAccount? _user;
   GoogleSignInAccount? get currentUser => _user;
 

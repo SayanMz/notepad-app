@@ -1,18 +1,29 @@
-// Encryption keys are stored externally so Hive can reopen the database securely.
+// Orchestrates the generation and hardware-backed storage of the master encryption
+// key required for secure database persistence.
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 
-// Stores the encryption key outside the app sandbox so Hive can reopen securely.
+/// Stores the encryption key outside the app sandbox so Hive can reopen securely.
 class SecureKeyVaultService {
+  SecureKeyVaultService({
+    FlutterSecureStorage? secureStorage,
+  }) : _secureStorage = secureStorage ??
+            const FlutterSecureStorage(aOptions: AndroidOptions());
+
+  final FlutterSecureStorage _secureStorage;
+
   static const String _encryptionKeyToken = 'secure_persistence_encryption_key';
 
-  static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(),
-  );
+  static final SecureKeyVaultService _instance = SecureKeyVaultService();
 
-  static Future<List<int>> getOrCreateEncryptionKey() async {
+  /// Legacy static access delegating to the default instance.
+  static Future<List<int>> getOrCreateEncryptionKey() =>
+      _instance.getOrCreateKey();
+
+  /// Logic for retrieving or generating a hardware-backed encryption key.
+  Future<List<int>> getOrCreateKey() async {
     try {
       final containsKey = await _secureStorage.containsKey(
         key: _encryptionKeyToken,

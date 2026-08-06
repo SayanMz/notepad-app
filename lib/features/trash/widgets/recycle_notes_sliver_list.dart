@@ -58,7 +58,7 @@ class _RecycleBinInfoText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
+    final colorScheme = context.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -76,7 +76,7 @@ class _RecycleBinInfoText extends StatelessWidget {
           style: TextStyle(
             fontSize: 13.0,
             height: 1.4,
-            color: isDark ? Colors.white60 : Colors.black54,
+            color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.bold,
           ),
         ),

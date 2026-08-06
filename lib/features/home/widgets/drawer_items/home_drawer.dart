@@ -35,7 +35,7 @@ class HomeDrawer extends StatelessWidget {
           builder: (context, _) {
             return Material(
               elevation: HomeConstants.drawerElevation,
-              color: isDark ? AppColors.homeDrawerSurface : Colors.white,
+              color: isDark ? AppColors.homeDrawerSurface : AppColors.pickerSurfaceLight,
               borderRadius: BorderRadius.circular(
                 HomeConstants.drawerBorderRadius,
               ),
@@ -97,6 +97,7 @@ class _HomeDrawerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
     final stats = authController.storageStats;
     final bool isLoggedIn = authController.isAuthenticated;
 
@@ -109,8 +110,8 @@ class _HomeDrawerHeader extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: isDark
-            ? Colors.white.withValues(alpha: 0.04)
-            : Colors.black.withValues(alpha: 0.02),
+            ? AppColors.drawerHeaderTintDark.withValues(alpha: 0.04)
+            : AppColors.drawerHeaderTintLight.withValues(alpha: 0.02),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +133,7 @@ class _HomeDrawerHeader extends StatelessWidget {
             authController.displayEmail ?? 'Connect Google Drive to sync',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: HomeConstants.drawerHeaderBlockGap),
           StorageProgressBar(progress: stats['percent']),
@@ -141,7 +142,7 @@ class _HomeDrawerHeader extends StatelessWidget {
             stats['text'],
             style: TextStyle(
               fontSize: HomeConstants.drawerHeaderStatusFontSize,
-              color: isDark ? Colors.white70 : Colors.black54,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: HomeConstants.drawerHeaderSectionGap),
@@ -155,7 +156,7 @@ class _HomeDrawerHeader extends StatelessWidget {
                   size: 18,
                   color:
                       syncController.statusColor ??
-                      (isDark ? Colors.white70 : Colors.black54),
+                      colorScheme.onSurfaceVariant,
                 ),
               const SizedBox(width: UIConstants.paddingSM),
               Text(
@@ -167,7 +168,7 @@ class _HomeDrawerHeader extends StatelessWidget {
                 style: TextStyle(
                   color:
                       syncController.statusColor ??
-                      (isDark ? Colors.white70 : Colors.black54),
+                      colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -265,7 +266,7 @@ class _DrawerActionTile extends StatelessWidget {
       ),
       leading: Icon(
         icon,
-        color: isDark ? Colors.white : context.colorScheme.primary,
+        color: isDark ? AppColors.drawerActionIconDark : context.colorScheme.primary,
       ),
       title: Text(title),
       subtitle: Text(subtitle),

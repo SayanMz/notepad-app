@@ -18,22 +18,21 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
     };
     return NotesSection(
       id: fields[0] as String?,
-      positionIndex: fields[9] == null ? 0 : fields[9] as int,
       title: fields[1] as String,
+      positionIndex: fields[8] as int,
+      updatedAt: fields[4] as DateTime?,
       content: fields[2] as String,
       richContent: fields[3] as String,
-      createdAt: fields[4] as DateTime?,
-      updatedAt: fields[5] as DateTime?,
-      isDeleted: fields[6] as bool,
-      isPinned: fields[7] as bool,
-      cardColorValue: fields[8] as int,
-    )..scrollOffset = fields[10] == null ? 0.0 : fields[10] as double;
+      isDeleted: fields[5] as bool,
+      isPinned: fields[6] as bool,
+      cardColorValue: fields[7] as int,
+    )..scrollOffset = fields[9] as double;
   }
 
   @override
   void write(BinaryWriter writer, NotesSection obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -43,18 +42,16 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
       ..writeByte(3)
       ..write(obj.richContent)
       ..writeByte(4)
-      ..write(obj.createdAt)
-      ..writeByte(5)
       ..write(obj.updatedAt)
-      ..writeByte(6)
+      ..writeByte(5)
       ..write(obj.isDeleted)
-      ..writeByte(7)
+      ..writeByte(6)
       ..write(obj.isPinned)
-      ..writeByte(8)
+      ..writeByte(7)
       ..write(obj.cardColorValue)
-      ..writeByte(9)
+      ..writeByte(8)
       ..write(obj.positionIndex)
-      ..writeByte(10)
+      ..writeByte(9)
       ..write(obj.scrollOffset);
   }
 
@@ -83,17 +80,16 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       isDarkMode: fields[0] as bool,
       userName: fields[1] as String?,
       userEmail: fields[2] as String?,
-      userAvatarUrl: fields[3] as String?,
-      seedVersion: fields[5] == null ? -1 : fields[5] as int,
-      lastMaintenanceDate: fields[6] as DateTime?,
-      recentColorValues: (fields[4] as List).cast<int>(),
+      seedVersion: fields[4] as int,
+      lastMaintenanceDate: fields[5] as DateTime?,
+      recentColorValues: (fields[3] as List).cast<int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.isDarkMode)
       ..writeByte(1)
@@ -101,12 +97,10 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(2)
       ..write(obj.userEmail)
       ..writeByte(3)
-      ..write(obj.userAvatarUrl)
-      ..writeByte(4)
       ..write(obj.recentColorValues)
-      ..writeByte(5)
+      ..writeByte(4)
       ..write(obj.seedVersion)
-      ..writeByte(6)
+      ..writeByte(5)
       ..write(obj.lastMaintenanceDate);
   }
 

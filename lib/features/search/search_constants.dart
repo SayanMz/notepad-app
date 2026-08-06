@@ -1,73 +1,78 @@
-import 'package:flutter/material.dart';
+import 'package:notepad/core/constants/tokens.dart';
 
-// Search thresholds and sizing constants are centralized for the filter UI.
+/// Search feature, results, and empty-state layout tokens.
 class SearchConstants {
   SearchConstants._();
 
-  static const double appBarActionPadding = 8.0;
-  static const double appBarTitleRightPadding = 12.0;
-  static const double searchFieldRadius = 30.0;
+  // --- Search Bar & Panels ---
+  static const double appBarActionPadding = Tokens.spacingSM;
+  static const double appBarTitleRightPadding = Tokens.spacingMD;
+  static const double searchFieldRadius = Tokens.radiusHuge;
   static const double searchFieldBorderWidth = 1.5;
-  static const double panelPadding = 10.0;
-  static const double filterButtonSize = 24.0;
+  static const double panelPadding = Tokens.spacingM;
+  static const double filterButtonSize = Tokens.iconMD;
   static const double filterDialogMaxWidth = 600.0;
   static const double dialogBarrierAlpha = 0.5;
-  static const double metadataPaddingH = 12.0;
-  static const double metadataPaddingV = 4.0;
+  static const double metadataPaddingH = Tokens.spacingMD;
+  static const double metadataPaddingV = Tokens.spacingXS;
+
+  // --- Quick Filter Chips ---
   static const double chipBoltGap = 22.5;
-  static const double chipGap = 8.0;
+  static const double chipGap = Tokens.spacingSM;
   static const double chipLeftPadding = 5.0;
-  static const double chipBottomPadding = 10.0;
-  static const double chipIconSize = 18.0;
+  static const double chipBottomPadding = Tokens.spacingM;
+  static const double chipIconSize = Tokens.iconSM;
   static const double resultsRightPadding = 15.0;
-  static const double resultsBottomPadding = 20.0;
+  static const double resultsBottomPadding = Tokens.spacingXLarge;
   static const double selectedChipAlpha = 0.8;
 
+  // --- Filter Sheet & Range ---
   static const int filterDayOptionCount = 31;
   static const int filterYearOptionCount = 10;
   static const int filterHourOptionCount = 24;
   static const int filterMinuteOptionCount = 60;
-
   static const int filterYearDisplayPadding = 4;
   static const int filterDateTimeDisplayPadding = 2;
-  static const double filterSheetRadius = 20.0;
-  static const double filterSheetPaddingH = 20.0;
-  static const double filterSheetPaddingTop = 12.0;
-  static const double filterSheetPaddingBottom = 24.0;
-  static const double filterSectionGap = 8.0;
-  static const double filterGroupGap = 20.0;
-  static const double filterFooterGap = 24.0;
+
+  static const double filterSheetRadius = Tokens.radiusXLarge;
+  static const double filterSheetPaddingH = Tokens.radiusXLarge;
+  static const double filterSheetPaddingTop = Tokens.spacingMD;
+  static const double filterSheetPaddingBottom = Tokens.spacingXL;
+  static const double filterSectionGap = Tokens.spacingSM;
+  static const double filterGroupGap = Tokens.spacingXL;
+  static const double filterFooterGap = Tokens.spacingXL;
   static const double filterDividerHeight = 40.0;
-  static const double filterButtonHeight = 48.0;
-  static const double filterButtonRadius = 8.0;
-  static const double filterButtonGap = 12.0;
-  static const double filterTogglePaddingH = 10.0;
+  static const double filterButtonHeight = Tokens.iconXL;
+  static const double filterButtonRadius = Tokens.radiusSM;
+  static const double filterButtonGap = Tokens.spacingMD;
+  static const double filterTogglePaddingH = Tokens.spacingM;
   static const double filterLabelFontSize = 12.0;
   static const double filterDropdownFontSize = 14.0;
-  static const double filterDropdownPaddingH = 8.0;
-  static const double filterDropdownPaddingV = 2.0;
+  static const double filterDropdownPaddingH = Tokens.spacingSM;
+  static const double filterDropdownPaddingV = Tokens.spacingXXS;
   static const double filterDropdownMaxHeight = 300.0;
-  static const double filterDragDismissDistance = 10.0;
+  static const double filterDragDismissDistance = Tokens.spacingM;
   static const double filterSheetHandleWidth = 40.0;
-  static const double filterSheetHandleHeight = 4.0;
-  static const double filterSheetHandleTopMargin = 10.0;
-  static const double filterSheetHandleBottomMargin = 24.0;
-  static const double filterSheetHandleRadius = 2.0;
+  static const double filterSheetHandleHeight = Tokens.spacingXS;
+  static const double filterSheetHandleTopMargin = Tokens.spacingM;
+  static const double filterSheetHandleBottomMargin = Tokens.spacingXL;
+  static const double filterSheetHandleRadius = Tokens.spacingXXS;
 
-  static const double emptyHorizontalPadding = 32.0;
-  static const double emptyIconSize = 48.0;
+  // --- Search Results Card & Empty States ---
+  static const double emptyHorizontalPadding = Tokens.spacingXXL;
+  static const double emptyIconSize = Tokens.iconXL;
   static const double emptyTitleFontSize = 18.0;
-  static const double emptyTitleGap = 12.0;
-  static const double emptySubtitleGap = 6.0;
-  static const double resultTitleFontSize = 16.0;
-  static const double resultEditedFontSize = 12.0;
-  static const double resultMarginBottom = 12.0;
-  static const double resultContentPaddingH = 16.0;
-  static const double resultContentPaddingV = 10.0;
-  static const double resultSubtitleTopPadding = 6.0;
-  static const double resultSubtitleBottomPadding = 2.0;
-  static const Color highlightYellow = Color(0xFFFFF176);
+  static const double emptyTitleGap = Tokens.spacingMD;
+  static const double emptySubtitleGap = Tokens.spacingS;
+  static const double resultTitleFontSize = Tokens.spacingLG;
+  static const double resultEditedFontSize = Tokens.spacingMD;
+  static const double resultMarginBottom = Tokens.spacingMD;
+  static const double resultContentPaddingH = Tokens.spacingLG;
+  static const double resultContentPaddingV = Tokens.spacingM;
+  static const double resultSubtitleTopPadding = Tokens.spacingS;
+  static const double resultSubtitleBottomPadding = Tokens.spacingXXS;
 
+  // --- Scroll Behavior ---
   static const double scrollHideDeltaThreshold = 15.0;
   static const double scrollBottomBoundary = 40.0;
   static const double scrollLayoutShiftSafeZone = 150.0;

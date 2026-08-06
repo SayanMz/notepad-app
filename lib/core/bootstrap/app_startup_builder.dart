@@ -1,7 +1,8 @@
+// Wraps app startup state and shows a retryable error screen when bootstrap fails.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 
-/// Inherited widget that exposes the bootstrapper completion status down the tree.
+/// It exposes the bootstrapper completion status down the tree.
 class BootstrapScope extends InheritedWidget {
   const BootstrapScope({
     super.key,
@@ -35,7 +36,7 @@ class BootstrapErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(UIConstants.paddingXXL),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -62,8 +63,8 @@ class BootstrapErrorView extends StatelessWidget {
   }
 }
 
-class BootstrapApp extends StatefulWidget {
-  const BootstrapApp({
+class AppStartupBuilder extends StatefulWidget {
+  const AppStartupBuilder({
     super.key,
     required this.bootstrapper,
     required this.child,
@@ -73,21 +74,21 @@ class BootstrapApp extends StatefulWidget {
   final Widget child;
 
   @override
-  State<BootstrapApp> createState() => _BootstrapAppState();
+  State<AppStartupBuilder> createState() => _BootstrapAppState();
 }
 
-class _BootstrapAppState extends State<BootstrapApp> {
+class _BootstrapAppState extends State<AppStartupBuilder> {
   late Future<void> _bootstrapFuture;
 
   @override
   void initState() {
     super.initState();
-    _bootstrapFuture = widget.bootstrapper();
+    _bootstrapFuture = Future<void>.sync(widget.bootstrapper);
   }
 
   void _retry() {
     setState(() {
-      _bootstrapFuture = widget.bootstrapper();
+      _bootstrapFuture = Future<void>.sync(widget.bootstrapper);
     });
   }
 
@@ -97,13 +98,13 @@ class _BootstrapAppState extends State<BootstrapApp> {
       future: _bootstrapFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          final errorMessage =
+              snapshot.error?.toString().trim() ??
+              'The app could not finish starting. Please check your setup and try again.';
+
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            home: BootstrapErrorView(
-              message:
-                  'The app could not finish starting. Please check your setup and try again.',
-              onRetry: _retry,
-            ),
+            home: BootstrapErrorView(message: errorMessage, onRetry: _retry),
           );
         }
 

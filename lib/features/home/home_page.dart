@@ -3,7 +3,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
@@ -91,17 +90,13 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
-
     return SelectionPopScope(
       selectionController: _selectionController,
       builder: (context, isSelectionMode) {
         return NotificationListener<Notification>(
           onNotification: _handleScroll,
           child: Scaffold(
-            backgroundColor: isDark
-                ? AppColors.darkScaffold
-                : AppColors.lightScaffold,
+            backgroundColor: context.theme.scaffoldBackgroundColor,
             endDrawer: HomeDrawer(
               authController: _authController,
               syncController: _syncController,

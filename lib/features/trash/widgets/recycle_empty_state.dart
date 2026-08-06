@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
 // Empty recycle state explains that no deleted notes are available.
@@ -38,21 +39,21 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
                     _buildRipple(
                       RecycleConstants.emptyRippleOuterSize,
                       RecycleConstants.emptyRippleOuterPressedSize,
-                      context.isDark ? 0.04 : 0.03,
+                      isDark ? 0.04 : 0.03,
                       AnimationConstants.slow,
                       Curves.easeOutBack,
                     ),
                     _buildRipple(
                       RecycleConstants.emptyRippleMiddleSize,
                       RecycleConstants.emptyRippleMiddlePressedSize,
-                      context.isDark ? 0.06 : 0.05,
+                      isDark ? 0.06 : 0.05,
                       AnimationConstants.medium,
                       Curves.easeOutCubic,
                     ),
                     _buildRipple(
                       RecycleConstants.emptyRippleInnerSize,
                       RecycleConstants.emptyRippleInnerPressedSize,
-                      context.isDark ? 0.09 : 0.08,
+                      isDark ? 0.09 : 0.08,
                       AnimationConstants.fast,
                       Curves.decelerate,
                     ),
@@ -85,10 +86,10 @@ class _RecycleEmptyStateState extends State<RecycleEmptyState> {
               textAlign: TextAlign.center,
               style: context.textTheme.bodyMedium?.copyWith(
                 color: isDark
-                    ? Colors.white.withValues(
+                    ? AppColors.recycleEmptyBodyDark.withValues(
                         alpha: RecycleConstants.emptyStateBodyDarkAlpha,
                       )
-                    : Colors.black.withValues(
+                    : AppColors.recycleEmptyBodyLight.withValues(
                         alpha: RecycleConstants.emptyStateBodyLightAlpha,
                       ),
                 fontWeight: FontWeight.w500,

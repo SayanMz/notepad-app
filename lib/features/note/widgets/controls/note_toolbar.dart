@@ -6,6 +6,7 @@ import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/note/services/link_handlers/hyperlink_handler.dart';
@@ -37,7 +38,6 @@ class NoteToolbar extends StatefulWidget {
 
 class _NoteToolbarState extends State<NoteToolbar> {
   late final ScrollController _scrollController;
-  bool get isDark => context.isDark;
 
   final MenuController _alignMenuCtrl = MenuController();
   final MenuController _listMenuCtrl = MenuController();
@@ -178,10 +178,10 @@ class _NoteToolbarState extends State<NoteToolbar> {
     return ShaderMask(
       shaderCallback: (rect) => const LinearGradient(
         colors: [
-          Colors.transparent,
-          Colors.black,
-          Colors.black,
-          Colors.transparent,
+          AppColors.noteToolbarGradientLight,
+          AppColors.noteToolbarGradientDark,
+          AppColors.noteToolbarGradientDark,
+          AppColors.noteToolbarGradientLight,
         ],
         stops: [
           NoteConstants.toolbarGradientStopEdge,
@@ -209,8 +209,10 @@ class _NoteToolbarState extends State<NoteToolbar> {
       icon: Icon(
         icon,
         color: isSelected
-            ? Colors.blueAccent
-            : (isDark ? Colors.white : Colors.black87),
+            ? AppColors.toolbarActiveIcon
+            : (context.isDark
+                ? AppColors.noteToolbarTextDark
+                : AppColors.noteToolbarTextLight),
       ),
       onPressed: () {
         widget.focusNode.requestFocus();
@@ -226,8 +228,10 @@ class _NoteToolbarState extends State<NoteToolbar> {
       icon: Icon(
         Icons.check_box_outlined,
         color: isSelected
-            ? Colors.blueAccent
-            : (isDark ? Colors.white : Colors.black87),
+            ? AppColors.toolbarActiveIcon
+            : (context.isDark
+                ? AppColors.noteToolbarTextDark
+                : AppColors.noteToolbarTextLight),
       ),
       onPressed: () {
         widget.controller.formatSelection(
@@ -244,8 +248,10 @@ class _NoteToolbarState extends State<NoteToolbar> {
       icon: Icon(
         Icons.link,
         color: isLink
-            ? Colors.blueAccent
-            : (isDark ? Colors.white : Colors.black87),
+            ? AppColors.toolbarActiveLink
+            : (context.isDark
+                ? AppColors.noteToolbarTextDark
+                : AppColors.noteToolbarTextLight),
       ),
       onPressed: () => HyperlinkHandler.convertToHyperlink(
         context: context,
@@ -269,17 +275,19 @@ class _NoteToolbarState extends State<NoteToolbar> {
           borderRadius: BorderRadius.circular(
             NoteConstants.toolbarBorderRadius,
           ),
-          color: isDark
-              ? Colors.white.withValues(alpha: NoteConstants.toolbarAlphaDark)
-              : Colors.white.withValues(alpha: NoteConstants.toolbarAlphaLight),
+          color: AppColors.toolbarInactiveIconDark.withValues(
+            alpha: context.isDark
+                ? NoteConstants.toolbarAlphaDark
+                : NoteConstants.toolbarAlphaLight,
+          ),
           border: Border.all(
-            color: Colors.white.withValues(
+            color: AppColors.toolbarInactiveIconDark.withValues(
               alpha: NoteConstants.toolbarBorderAlpha,
             ),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(
+              color: AppColors.toolbarShadow.withValues(
                 alpha: NoteConstants.toolbarShadowAlpha,
               ),
               blurRadius: NoteConstants.toolbarShadowBlur,

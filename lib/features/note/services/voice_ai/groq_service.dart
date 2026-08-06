@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:notepad/core/constants/animation_constants.dart';
@@ -13,6 +14,10 @@ class GroqService {
       'https://api.groq.com/openai/v1/chat/completions';
   static Future<void>? _warmUpFuture;
   static String? _apiKey;
+
+  @visibleForTesting
+  static http.Client? httpClient;
+  static http.Client get _client => httpClient ?? http.Client();
 
   static Future<void> warmUp() {
     final existing = _warmUpFuture;
@@ -48,7 +53,7 @@ class GroqService {
     http.Response response;
 
     try {
-      response = await http
+      response = await _client
           .post(
             Uri.parse(_endpoint),
             headers: {

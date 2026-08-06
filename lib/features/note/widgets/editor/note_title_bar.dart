@@ -20,6 +20,7 @@ class NoteTitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
     final isDark = context.isDark;
 
     return Row(
@@ -42,11 +43,11 @@ class NoteTitleBar extends StatelessWidget {
                 letterSpacing: NoteConstants.titleLetterSpacing,
                 color: isDark
                     ? Colors.white.withValues(alpha: 0.95)
-                    : Colors.black87,
+                    : colorScheme.onSurface,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Title',
-                hintStyle: TextStyle(color: Colors.grey),
+                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                 border: InputBorder.none,
                 focusedBorder: InputBorder.none,
               ),
@@ -74,15 +75,12 @@ class NoteTitleBar extends StatelessWidget {
 
                       if (_isClicked.value) {
                         gradientColors = isDark
-                            ? [const Color(0xFF9D4EDD), const Color(0xFF00F5D4)]
-                            : [
-                                const Color(0xFF6200EE),
-                                const Color(0xFF03DAC6),
-                              ];
+                            ? NoteConstants.titleGradientActiveDark
+                            : NoteConstants.titleGradientActiveLight;
                       } else {
                         gradientColors = isDark
-                            ? [Colors.white, Colors.white70]
-                            : [Colors.black, Colors.black87];
+                            ? NoteConstants.titleGradientInactiveDark
+                            : NoteConstants.titleGradientInactiveLight;
                       }
 
                       return LinearGradient(

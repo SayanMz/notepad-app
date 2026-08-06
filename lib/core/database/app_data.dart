@@ -1,31 +1,27 @@
+// Defines the core Hive data models for note persistence and global application configuration.
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
-import 'package:uuid/uuid.dart';
+import 'package:ulid/ulid.dart';
 
 part 'app_data.g.dart';
 
-final _uuid = Uuid();
-
-String generateNoteId() => 'note_${_uuid.v4()}';
+String generateNoteId() => 'note_${Ulid().toString().toLowerCase()}';
 
 @HiveType(typeId: 0)
-// Hive models and adapters for note and app settings data live here.
 class NotesSection {
   NotesSection({
     String? id,
-    this.positionIndex = 0,
     required this.title,
+    this.positionIndex = 0,
+    DateTime? updatedAt,
     this.content = '',
     this.richContent = '',
-    DateTime? createdAt,
-    DateTime? updatedAt,
     this.isDeleted = false,
     this.isPinned = false,
     this.cardColorValue = 0xFFFFFFFF,
   }) : id = id ?? generateNoteId(),
-       createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? createdAt ?? DateTime.now();
+       updatedAt = updatedAt ?? DateTime.now();
 
   @HiveField(0)
   final String id;
@@ -59,30 +55,27 @@ class NotesSection {
   }
 
   @HiveField(4)
-  DateTime createdAt;
-
-  @HiveField(5)
   DateTime updatedAt;
 
   int get daysLeft => 30 - DateTime.now().difference(updatedAt).inDays;
   bool get isExpired => DateTime.now().difference(updatedAt).inDays >= 30;
 
-  @HiveField(6)
+  @HiveField(5)
   bool isDeleted;
 
-  @HiveField(7)
+  @HiveField(6)
   bool isPinned;
 
-  @HiveField(8)
+  @HiveField(7)
   int cardColorValue;
 
   Color get cardColor => Color(cardColorValue);
   set cardColor(Color color) => cardColorValue = color.toARGB32();
 
-  @HiveField(9, defaultValue: 0)
+  @HiveField(8)
   int positionIndex;
 
-  @HiveField(10, defaultValue: 0.0)
+  @HiveField(9)
   double scrollOffset = 0.0;
 
   Map<String, dynamic> toJson() => {
@@ -90,7 +83,6 @@ class NotesSection {
     'title': title,
     'content': content,
     'richContent': richContent,
-    'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'isDeleted': isDeleted,
     'isPinned': isPinned,
@@ -102,9 +94,7 @@ class NotesSection {
     title: (json['title'] ?? '') as String,
     content: (json['content'] ?? '') as String,
     richContent: (json['richContent'] ?? '') as String,
-    createdAt: _parseDateTime(json['createdAt']),
-    updatedAt:
-        _parseDateTime(json['updatedAt']) ?? _parseDateTime(json['createdAt']),
+    updatedAt: _parseDateTime(json['updatedAt']),
     isDeleted: json['isDeleted'] ?? false,
     isPinned: json['isPinned'] ?? false,
     cardColorValue: json['cardColorValue'] as int? ?? 0xFFFFFFFF,
@@ -135,23 +125,19 @@ class AppSettings {
   final String? userEmail;
 
   @HiveField(3)
-  final String? userAvatarUrl;
-
-  @HiveField(4)
   final List<int> recentColorValues;
 
-  @HiveField(5, defaultValue: -1)
+  @HiveField(4)
   final int seedVersion;
 
-  @HiveField(6)
+  @HiveField(5)
   final DateTime? lastMaintenanceDate;
 
   const AppSettings({
     this.isDarkMode = false,
     this.userName,
     this.userEmail,
-    this.userAvatarUrl,
-    this.seedVersion = -1,
+    this.seedVersion = 0,
     this.lastMaintenanceDate,
     this.recentColorValues = const [
       0xFFFFF59D,
@@ -178,7 +164,6 @@ class AppSettings {
       isDarkMode: isDarkMode ?? this.isDarkMode,
       userName: clearUser ? null : (userName ?? this.userName),
       userEmail: clearUser ? null : (userEmail ?? this.userEmail),
-      userAvatarUrl: clearUser ? null : (userAvatarUrl ?? this.userAvatarUrl),
       recentColorValues: recentColorValues ?? this.recentColorValues,
       seedVersion: seedVersion ?? this.seedVersion,
       lastMaintenanceDate: lastMaintenanceDate ?? this.lastMaintenanceDate,
