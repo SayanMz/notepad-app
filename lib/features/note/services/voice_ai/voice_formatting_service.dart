@@ -352,9 +352,21 @@ class VoiceFormattingService {
     } else {
       // Hyperlink Injection Logic
       if (key == 'link') {
-        String finalUrl = value.toString().trim();
-        // Ensure URLs are properly protocol-prefixed for clickability
-        if (!finalUrl.toLowerCase().startsWith('http')) {
+        String rawValue = value.toString().trim().toLowerCase();
+
+        // 1. Logic for Smart TLD (e.g. "facebook" -> "facebook.com")
+        // Skip for special schemes like tel: or mailto:
+        if (!rawValue.contains('.') &&
+            !rawValue.startsWith('tel:') &&
+            !rawValue.startsWith('mailto:')) {
+          rawValue = '$rawValue.com';
+        }
+
+        // 2. Logic for Protocol (ensure it starts with http)
+        String finalUrl = rawValue;
+        if (!finalUrl.startsWith('http') &&
+            !finalUrl.startsWith('tel:') &&
+            !finalUrl.startsWith('mailto:')) {
           finalUrl = 'https://$finalUrl';
         }
 

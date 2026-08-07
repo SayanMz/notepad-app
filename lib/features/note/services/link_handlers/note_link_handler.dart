@@ -215,7 +215,15 @@ class NoteLinkHandler {
       return;
     }
 
-    final uri = Uri.tryParse(actualLink);
+    // 🌟 URL Normalization: Try to fix scheme-less URLs before validating
+    String normalizedLink = actualLink.trim();
+    if (!normalizedLink.contains('://') &&
+        !normalizedLink.startsWith('mailto:') &&
+        !normalizedLink.startsWith('tel:')) {
+      normalizedLink = 'https://$normalizedLink';
+    }
+
+    final uri = Uri.tryParse(normalizedLink);
     if (uri == null || !uri.hasScheme) {
       _showLinkActionError('This link is invalid.');
       return;

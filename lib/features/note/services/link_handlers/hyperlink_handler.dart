@@ -44,9 +44,16 @@ class HyperlinkHandler {
       return;
     }
 
-    String finalUrl = targetUrl.trim();
-    if (!finalUrl.toLowerCase().startsWith('http://') &&
-        !finalUrl.toLowerCase().startsWith('https://')) {
+    String finalUrl = targetUrl.trim().toLowerCase();
+
+    // 1. Smart TLD: "facebook" -> "facebook.com"
+    if (!finalUrl.contains('.') && !finalUrl.contains(':')) {
+      finalUrl = '$finalUrl.com';
+    }
+
+    // 2. Protocol: Ensure https prefix
+    if (!finalUrl.startsWith('http://') &&
+        !finalUrl.startsWith('https://')) {
       finalUrl = 'https://$finalUrl';
     }
 
