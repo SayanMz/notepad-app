@@ -1,138 +1,83 @@
 # 📝 Notepad
 
-Hey there! 👋 Welcome to **Notepad**, a polished, buttery-smooth, and local-first Flutter notes app built around fast writing, structured organization, and reliable data handling.
+**Notepad** is a sophisticated, local-first workspace engineered to dissolve the friction between thought and digital record. Blending high-performance SQLite FTS power with advanced Groq AI integration, it transforms a minimalist interface into a secure, intelligent thinking partner. Every interaction is tuned for near-instant responsiveness, ensuring your focus remains entirely on your ideas.
 
-Notepad combines a clean, distraction-free editor experience with practical everyday features. Whether you are typing away, using voice-assisted commands, or syncing your encrypted notes to Google Drive, the app is designed to feel fast, completely dependable, and tailored to your workflow.
-
-<p align="center">
-   <img src="web/screenshots/home.jpg" width="250" />
-  <img src="web/screenshots/editor.jpg" width="250" />
-  <img src="web/screenshots/search.jpg" width="250" />
-  <img src="web/screenshots/trash.jpg" width="250" />
-</p>
+<div align="center">
+   <img src="web/screenshots/Readme/Home.webp" width="340"  alt="Home Screen"/>
+   <img src="web/screenshots/Readme/Editor.webp" width="339"  alt="Note Editor"/>
+   <img src="web/screenshots/Readme/Search.webp" width="342"  alt="Search Page"/>
+   <img src="web/screenshots/Readme/Trash.webp" width="338"  alt="Recycle Bin"/>
+</div>
 
 ---
 ## 📥 Download
-
 [📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/latest)
 
 ---
+# Core Pillars 🚀
 
-# Feature Highlights ✨
+### 🧠 Intelligence & Search
+* **Smart AI Assistant:** Execute hands-free commands and dictate thoughts via high-speed Groq AI integration. Transform documents in real-time with natural commands like *"Make the first line green"* or *"Underline all instances of 'Notepad'"*.
+* **Lightning-Fast Search:** Locate precise keywords instantly using a local SQLite FTS (Full-Text Search) engine. Features real-time text highlighting and smart date-range filtering.
+* **Intelligent Auto-Save:** Every stroke is captured in real-time with zero latency, backed by visual save-status indicators.
 
-A comprehensive overview of the application's capabilities. 🚀
+### 🔒 Uncompromising Privacy & Safety
+* **Privacy-First Design:** Your data is your business. Every note is secured on-device using local, high-security hardware-backed encryption (AES-256).
+* **Secure Cloud Backup:** Never lose a moment of inspiration. Authenticate safely to sync encrypted database backups directly to your personal Google Drive storage on-demand.
+* **Managed Recycle Bin:** A robust safety net to recover accidental deletions or perform permanent data purging from a dedicated bin.
 
-## Core Features 🛠️
-
-* **Rich-Text Editing:** Create notes with headers, bold styling, hyperlinks, and interactive bullet lists (powered by `flutter_quill`).
-* **Groq LLM Voice Engine:** Voice-assisted command processing. Dictate commands like *"Underline the second instance of dog"* or *"Make the first line green"* to trigger real-time AI document transformations.
-* **Dynamic Full-Text Search:** Instantly locate precise keywords across your entire library with real-time text highlighting inside note previews and useful empty states.
-* **Safe Soft-Deletion:** Accidental deletes drop safely into a dedicated Recycle Bin for single-tap restorations or permanent wipes.
-* **Google Drive Integration:** Authenticate securely via OAuth 2.0 to push secure database backups directly to your cloud tier on-demand.
-
-## Operational & User Experience Features ⚙️
-
-* **Autosave:** Reliable background saving with clear save-status feedback.
-* **Organization:** Tools for pinning, reordering, color updates, and bulk selection of notes.
-* **Security & Privacy:** Encrypted local storage ensures your data remains private.
-* **Flexibility:** Export and share support to easily move your data.
-* **Customization:** Theme switching to adjust the look and feel of the app.
+### ✨ Premium Productive Experience
+* **Professional Editor:** A highly responsive rich-text engine supporting headers, styles, hyperlinks, and interactive bullet lists.
+* **Smart Organization:** Power-user multi-select tools for batch pinning, sharing, or deleting, plus a bespoke draggable color picker interface for workspace personalization.
+* **Modern Design System:** AMOLED-optimized dark mode, adaptive grid layouts for tablets, and silky-smooth cross-fade transitions powered by a central Design Token engine.
 
 ---
 
-## 🧠 Engineering & Architecture 
-The app doesn't just look clean; it's built to be highly optimized, maintainable, and production-ready underneath. The codebase uses a **Feature-First** structure alongside a strict controller/service/repository split.
+## 🏗️ Engineering & Tech Stack 
 
-### Structural Breakdown
-- `core/` - Startup logic, persistence, theming, constants, reusable helpers, and shared services.
-- `features/home/` - Orchestrates the main notes dashboard, selection mode, bulk actions, sync entry points
-- `features/note/` - Houses the editor, toolbar, voice AI integration, and export logic.
-- `features/filter/` - Handles search, query states, and filtering UI.
-- `features/trash/` - Manages deleted-note recovery and permanent purging.
+Notepad is built on a **Feature-First** architecture with a strict **Controller-Service-Repository** pattern, ensuring the app is highly optimized, testable, and production-ready.
 
-### Design
-- Clear separation between UI, controllers, repositories, and services
-- Feature-level controllers that coordinate state without overloading widgets
-- Shared utilities in `core` for startup, storage, theme, and reusable app behavior
-- Encrypted persistence with Hive and secure key storage
-- Search backed by local indexing and note metadata
-- Reusable UI helpers for consistent spacing, motion, and styling
+- **Decoupled Logic**: Separation into distinct layers (UI → Controller → Service → Repository) for maximum modularity.
+- **Robust Test Coverage**: Supported by a comprehensive suite of **140+ automated tests** utilizing Dependency Injection to ensure 100% logic reliability.
+- **Hybrid Data Layer**: High-speed **Hive (NoSQL)** for live document state combined with **SQLite (Relational)** for complex full-text indexing.
+- **Data Integrity**: Uses **ULID-based identifiers** for consistent lexicographical ordering and reliable local-to-cloud synchronization.
+- **Semantic Theming**: Unified `Tokens` engine and `context_extensions` for instant, type-safe UI consistency across the entire app.
 
----
+<details>
+<summary><b>View Detailed Package Breakdown</b></summary>
 
-## 🎯 Why This App Exists
-
-There are a million notes apps out there, but this project was built specifically to tackle the real complexity underneath a deceptively simple surface. The goal was an app tailored for folks who believe:
-- Notes should be easy to create, seamlessly supporting both typing and voice-driven interactions.
-- Search must be instantaneous and actually useful.
-- Deletion should be reversible and safe.
-- Storage must be reliable, encrypted, and private.
-- Syncing and backups (like Google Drive) should feel optional, not forced.
+- **AI**: `speech_to_text`, `Groq Cloud API`, `flutter_tts`
+- **Data**: `sqflite` (FTS Engine), `hive_flutter`, `ulid`
+- **Security**: `flutter_secure_storage`, `googleapis` (Drive Sync)
+- **UI & PDF**: `flutter_quill`, `pdf`, `printing`, `flutter_colorpicker`, `lottie`, `share_plus`
+</details>
 
 ---
-### 🎬 Full Application Walkthrough
-
+### 🎬 Application Walkthrough
 [Watch Walkthrough Video](https://github.com/SayanMz/notepad-app/releases/download/v2.0.0/Notepad.2.0.mp4)
 
 ---
-
-## 🛠️ Tech Stack & Architecture
-
-Click the sections below to see the architectural details of how these systems are integrated:
-
-<details>
-<summary><b>🤖 AI Core Pipeline (Speech-to-Text-to-LLM)</b></summary>
-
-- `speech_to_text`: Local microphone hardware stream processing for automated voice transcription.
-- `Groq LLM API Integration`: Cloud-hosted LLM orchestration. Maps localized semantic voice commands into structured document state mutations via secure REST API endpoints.
-- `flutter_tts`: Real-time synthesized auditory speech responses leveraging forced target high-quality hardware voices.
-</details>
-
-<details>
-<summary><b>💾 Data Architecture (Hybrid Local Storage Engine)</b></summary>
-
-- `sqflite` & `sqlite3_flutter_libs`: Relational storage engine powering a **Hybrid Search Pipeline**. 
-  - *Stage 1:* Virtual FTS (Full-Text Search) tables perform high-speed keyword pruning to return a candidate ID set.
-  - *Stage 2:* In-memory Dart collection filtering (via `note_search_service.dart`) applies complex business logic constraints like date-range boundaries and active/deleted visibility states.
-- `hive` & `hive_flutter`: Low-latency NoSQL key-value cache layer managing live operational document trees.
-</details>
-
-<details>
-<summary><b>🔒 Security & Ecosystem Bridges</b></summary>
-
-- `flutter_secure_storage`: Hardware-isolated keychain encryption for storage of persistent cloud auth tokens.
-- `google_sign_in` & `googleapis`: OAuth 2.0 workflow handling for secure Google Drive binary state synchronization.
-- `flutter_quill`: Advanced text mutation management using incremental delta arrays.
-- `share_plus` & `url_launcher`: Native system tray share sheets and protocol intent handlers.
-</details>
-
----
-
 ## 🚀 Local Setup
-
 <details>
 <summary><b>Show Installation Commands</b></summary>
 
 ### Prerequisites
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (Version 3.0+)
-- Dart SDK
-- A configured `.env` file containing your required Google API keys (for Drive Sync and Voice AI features).
+- **Flutter SDK**: ^3.24.0 (Latest Stable)
+- **Dart SDK**: ^3.5.0
+- A configured `.env` file containing required Google API keys.
 
-### Installation & Run
+### Installation
+1. `flutter pub get`
+2. `dart run build_runner build --delete-conflicting-outputs` (Generates Hive adapters)
+3. `flutter run`
+</details>
 
-1. Clone the repo and install the packages:
-```bash
-flutter pub get
-```
+---
 
-2. Spin up the code-generation engine for your local TypeAdapters:
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
+## 📜 License
 
-3. Run the app:
-```bash
-flutter run
-```
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-*(Want to run it on a specific platform? Use `flutter run -d windows` or `flutter run -d android`)*
+## 👤 Author
+
+Developed with ❤️ by **Sayan Mazumder**
