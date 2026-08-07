@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
-// Owns home-screen motion state so the widget tree stays lightweight.
+// Owns the short-lived vaporize animation state for deleted notes.
 class AnimationControllerState extends ChangeNotifier {
   final Set<String> _vaporizingIds = {};
 
@@ -16,6 +16,5 @@ class AnimationControllerState extends ChangeNotifier {
     await Future.delayed(AnimationConstants.medium);
 
     _vaporizingIds.removeAll(noteIds);
-    notifyListeners();
   }
 }

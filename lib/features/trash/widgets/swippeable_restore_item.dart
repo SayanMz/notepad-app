@@ -1,4 +1,3 @@
-// Swipe-to-restore rows need gesture handling and delete affordances together.
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -7,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/note_page.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
@@ -14,17 +15,15 @@ import 'package:notepad/features/trash/recycle_constants.dart';
 // Swipe actions restore or permanently delete notes from the recycle bin.
 class SwipeableRestoreItem extends StatefulWidget {
   const SwipeableRestoreItem({
-    required this.note,
-    required this.isDark,
-    required this.onRestore,
-    required this.onShowActionSheet,
     required ValueKey<String> key,
     required this.cardWidth,
+    required this.note,
+    required this.onRestore,
+    required this.onShowActionSheet,
   }) : super(key: key);
 
-  final NotesSection note;
-  final bool isDark;
   final double cardWidth;
+  final NotesSection note;
   final void Function(NotesSection) onRestore;
   final void Function(BuildContext, NotesSection) onShowActionSheet;
 
@@ -33,6 +32,9 @@ class SwipeableRestoreItem extends StatefulWidget {
 }
 
 class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
+  bool get isDark => context.isDark;
+  double get cardWidth => widget.cardWidth;
+
   final ValueNotifier<double> _dragProgress = ValueNotifier<double>(0.0);
   final ValueNotifier<bool> _isConfirmed = ValueNotifier<bool>(false);
 
@@ -43,18 +45,13 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
     super.dispose();
   }
 
-  double get cardWidth => widget.cardWidth;
-
   @override
   Widget build(BuildContext context) {
     final previewLines = widget.note.getPreview(
-      1,
+      3,
       normalizedContent: widget.note.content,
     );
-
-    final subtitleText = previewLines.isNotEmpty
-        ? previewLines.first.text
-        : 'No additional text';
+    final subtitleText = previewLines.map((line) => line.text).join('\n');
 
     return Padding(
       padding: const EdgeInsets.all(RecycleConstants.cardMargin),
@@ -71,9 +68,9 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                 horizontal: UIConstants.paddingXXS,
               ),
               elevation: 0,
-              color: widget.isDark
-                  ? AppColors.recycleSwipeDark
-                  : AppColors.recycleSwipeLight,
+              color: isDark
+                  ? AppColors.recycleSwipeSurfaceDark
+                  : AppColors.recycleSwipeSurfaceLight,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(
                   RecycleConstants.cardRadius * 2.5,
@@ -124,10 +121,6 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                       ..rotateZ(angle)
                       ..scaleByDouble(scale, scale, scale, 1);
 
-                    final baseColor = widget.isDark
-                        ? AppColors.recycleRestoreDark
-                        : AppColors.recycleRestoreLight;
-
                     return AnimatedOpacity(
                       duration: AnimationConstants.fast,
                       curve: Curves.easeOut,
@@ -143,7 +136,9 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
                           transform: matrix,
                           child: Icon(
                             Icons.restore,
-                            color: baseColor,
+                            color: isDark
+                                ? AppColors.recycleRestoreSurfaceDark.withAlpha(100)
+                                : AppColors.recycleRestoreSurfaceLight,
                             size: RecycleConstants.iconSize,
                           ),
                         ),
@@ -177,52 +172,95 @@ class _SwipeableRestoreItemState extends State<SwipeableRestoreItem> {
               child: Card(
                 margin: EdgeInsets.zero,
                 elevation: UIConstants.elevationLow,
+                // 🌟 CRITICAL: Clips the bottom indicator bar to the card's rounded corners
+                clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(
                     RecycleConstants.cardRadius,
                   ),
                 ),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      RecycleConstants.cardRadius,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(
-                    RecycleConstants.cardPadding,
-                  ),
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.note.displayTitle,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    subtitleText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                  trailing: IconButton(
-                    onPressed: () =>
-                        widget.onShowActionSheet(context, widget.note),
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: widget.isDark ? Colors.white : Colors.blue,
-                    ),
-                  ),
-                  onLongPress: HapticFeedback.mediumImpact,
+                child: InkWell(
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact();
+                  },
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            NotePage(noteId: widget.note.id, readOnly: true),
+                      AppRouter.slide(
+                        NotePage(noteId: widget.note.id, readOnly: true),
                       ),
                     );
                   },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Core Content Area
+                      Padding(
+                        padding: const EdgeInsets.all(
+                          RecycleConstants.cardPadding,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.note.displayTitle,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8.0),
+                                  Text(
+                                    subtitleText,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: AppColors.recycleTextIconLight,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => widget.onShowActionSheet(
+                                context,
+                                widget.note,
+                              ),
+                              icon: Icon(
+                                Icons.more_vert,
+                                color: isDark
+                                    ? AppColors.recycleTextIconDark
+                                    : AppColors.recycleTextIconLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 2. The Days Remaining Bottom Strip Indicator
+                      Container(
+                        color: isDark
+                            ? AppColors.recycleDaysStripDark.withValues(
+                                alpha: 0.12,
+                              )
+                            : AppColors.recycleDaysStripLight,
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${widget.note.daysLeft} days left',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

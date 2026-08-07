@@ -1,7 +1,8 @@
-// The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 import 'dart:async';
+
 // ignore_for_file: experimental_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
@@ -9,20 +10,21 @@ import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
-import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_data_controller.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/controllers/note_ui_controller.dart';
 import 'package:notepad/features/note/controllers/note_voice_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/core/services/note_document_service.dart';
+import 'package:notepad/features/note/services/document_delta_parser.dart'
+    as doc_delta;
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
+import 'package:notepad/features/note/widgets/controls/note_toolbar.dart';
+import 'package:notepad/features/note/widgets/controls/voice_assistant_button.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
-import 'package:notepad/features/note/widgets/note_editor.dart';
-import 'package:notepad/features/note/widgets/note_header.dart';
-import 'package:notepad/features/note/widgets/note_toolbar.dart';
-import 'package:notepad/features/note/widgets/voice_assistant_button.dart';
+import 'package:notepad/features/note/widgets/editor/note_editor.dart';
+import 'package:notepad/features/note/widgets/editor/note_title_bar.dart';
 
+// The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 class NotePage extends StatefulWidget {
   final String title, content;
   final String? noteId;
@@ -43,64 +45,219 @@ class NotePage extends StatefulWidget {
 class _NotePageState extends State<NotePage>
     with SingleTickerProviderStateMixin {
   late bool _isReadOnly;
-  late AnimationController _lottieController;
+  bool _shouldNudge = true;
+  bool _isHandlingBackNavigation = false;
 
   late final AppLifecycleListener _lifecycleListener;
+
+  final FocusNode _editorFocusNode = FocusNode();
 
   late final NoteDataController _dataController;
   late final NoteVoiceController _voiceController;
   late final NoteUIController _uiController;
-
   late final TextEditingController titleController;
-
+  late final NoteToolbarController _toolbarController;
   late final QuillController contentController;
-
-  final FocusNode _editorFocusNode = FocusNode();
-
+  late AnimationController _lottieController;
   final ScrollController _editorScrollController = ScrollController();
 
-  late final NoteToolbarController _toolbarController;
-
-  bool _shouldNudge = true;
-  bool _isHandlingBackNavigation = false;
+  final ValueNotifier<bool> _isTransitionAnimating = ValueNotifier<bool>(true);
 
   @override
   void initState() {
     super.initState();
     _isReadOnly = widget.readOnly;
 
+    _initializeControllers();
+
+    // Configure Editor States & Observers
+    contentController.readOnly = _isReadOnly;
+    _attachListeners();
+    _lifecycleListener = _createLifecycleListener();
+
+    // Post-Frame Transitions & Warmup Operations
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      ModalRoute.of(context)?.animation?.addStatusListener((status) async {
+        if (status == AnimationStatus.completed) {
+          _isTransitionAnimating.value = false;
+
+          await WidgetsBinding.instance.endOfFrame;
+          if (!mounted) return;
+
+          final note = widget.noteId == null
+              ? null
+              : noteRepository.findById(widget.noteId!);
+
+          if (note != null &&
+              _editorScrollController.hasClients &&
+              note.scrollOffset > 0) {
+            final maxExtent = _editorScrollController.position.maxScrollExtent;
+            final target = note.scrollOffset > maxExtent
+                ? maxExtent
+                : note.scrollOffset;
+
+            _editorScrollController.jumpTo(target);
+          }
+
+          _dataController.setInitialSignature(
+            titleController.text,
+            contentController.document,
+            _getCurrentScrollOffset(),
+          );
+
+          if (widget.noteId == null && _editorFocusNode.canRequestFocus) {
+            _editorFocusNode.requestFocus();
+          }
+
+          unawaited(
+            GroqService.warmUp().catchError(
+              (e) => debugPrint('AI Warmup skip: $e'),
+            ),
+          );
+        }
+      });
+    });
+  }
+
+  double _getCurrentScrollOffset() {
+    return _editorScrollController.hasClients
+        ? _editorScrollController.offset
+        : 0.0;
+  }
+
+  /// Centralizes the instantiation of all feature, UI, and text editing controllers.
+  void _initializeControllers() {
+    final note = widget.noteId == null
+        ? null
+        : noteRepository.findById(widget.noteId!);
+
+    // Feature Controllers
     _dataController = NoteDataController(
       noteRepository: noteRepository,
       noteId: widget.noteId,
     );
     _voiceController = NoteVoiceController();
     _uiController = NoteUIController();
+    _toolbarController = NoteToolbarController();
 
-    _initializeControllers();
-    contentController.readOnly = _isReadOnly;
-
+    // Editor & Animation Controllers
+    titleController = TextEditingController(text: note?.title ?? widget.title);
+    contentController = _createContentController(note);
     _lottieController = AnimationController(
       vsync: this,
       duration: AnimationConstants.snackbarShort,
     );
-    _toolbarController = NoteToolbarController();
+  }
 
-    _attachListeners();
-    _lifecycleListener = _createLifecycleListener();
+  QuillController _createContentController(NotesSection? note) {
+    final doc = note != null
+        ? Document.fromJson(
+            doc_delta.decodeRichContent(
+              note.richContent,
+              note.content,
+            ),
+          )
+        : (widget.content.isNotEmpty
+              ? (Document()..insert(0, widget.content))
+              : Document());
 
-    // Warm up the AI service after first paint so editor startup stays responsive.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+    return QuillController(
+      document: doc,
+      selection: const TextSelection.collapsed(offset: 0),
+      keepStyleOnNewLine: false,
+      config: const QuillControllerConfig(
+        clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
+      ),
+    );
+  }
 
-      if (!_isReadOnly) {
-        _editorFocusNode.requestFocus();
-      }
-      unawaited(
-        GroqService.warmUp().catchError(
-          (e) => debugPrint('AI Warmup skip: $e'),
-        ),
+  void _attachListeners() {
+    titleController.addListener(() {
+      _dataController.handleEditorChanged(
+        title: titleController.text,
+        document: contentController.document,
+        controller: contentController,
+        change: null,
       );
     });
+
+    contentController.changes.listen((DocChange change) {
+      _dataController.handleEditorChanged(
+        title: titleController.text,
+        document: contentController.document,
+        controller: contentController,
+        change: change,
+      );
+      _uiController.orchestrateButtonVisibility();
+    });
+  }
+
+  AppLifecycleListener _createLifecycleListener() {
+    return AppLifecycleListener(
+      onInactive: _triggerBackgroundSave,
+      onPause: _triggerBackgroundSave,
+      onDetach: _triggerBackgroundSave,
+    );
+  }
+
+  void _triggerBackgroundSave() {
+    _dataController.saveNote(
+      title: titleController.text,
+      document: contentController.document,
+      scrollOffset: _getCurrentScrollOffset(),
+    );
+  }
+
+  Future<void> _handleBackNavigation() async {
+    if (_isHandlingBackNavigation) return;
+    _isHandlingBackNavigation = true;
+
+    _voiceController.stopHardwareListening();
+    _toolbarController.closeAllMenus();
+
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    await Future.delayed(const Duration(milliseconds: 50));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future.delayed(const Duration(milliseconds: 250));
+
+    unawaited(
+      _dataController
+          .saveAndCleanupOnClose(
+            title: titleController.text,
+            document: contentController.document,
+            scrollOffset: _getCurrentScrollOffset(),
+          )
+          .catchError((e) => debugPrint('Background save error: $e')),
+    );
+
+    try {
+      if (!mounted) return;
+      uiNotifier.clearSnackBars();
+      Navigator.of(context).pop();
+    } finally {
+      _isHandlingBackNavigation = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    contentController.dispose();
+
+    _editorFocusNode.dispose();
+    _editorScrollController.dispose();
+
+    _lifecycleListener.dispose();
+    _lottieController.dispose();
+    _toolbarController.dispose();
+
+    _dataController.dispose();
+    _voiceController.dispose();
+    _uiController.dispose();
+
+    super.dispose();
   }
 
   Future<void> _showRestoreDialog() async {
@@ -123,10 +280,9 @@ class _NotePageState extends State<NotePage>
     );
 
     if (result == true && widget.noteId != null) {
-      // Restored notes re-enter editable mode immediately so the user can continue typing.
       await noteRepository.toggleDeletedStatus(widget.noteId!, false);
       final note = noteRepository.findById(widget.noteId!);
-
+      // Restored notes re-enter editable mode immediately so the user can continue typing.
       setState(() {
         _isReadOnly = false;
         contentController.readOnly = false;
@@ -136,160 +292,16 @@ class _NotePageState extends State<NotePage>
         SnackBar(content: Text('${note?.title ?? 'Note'} restored!')),
       );
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_editorFocusNode.canRequestFocus) {
-          _editorFocusNode.requestFocus();
-        }
-      });
-    }
-  }
-
-  void _initializeControllers() {
-    final note = widget.noteId == null
-        ? null
-        : noteRepository.findById(widget.noteId!);
-
-    titleController = TextEditingController(text: note?.title ?? widget.title);
-    contentController = _createContentController(note);
-
-    _dataController.setInitialSignature(
-      titleController.text,
-      contentController.document,
-    );
-  }
-
-  QuillController _createContentController(NotesSection? note) {
-    // Existing notes load from stored rich content; fresh notes start from plain text or empty state.
-    if (note != null) {
-      return QuillController(
-        document: Document.fromJson(
-          NoteDocumentService.decodeRichContent(note.richContent, note.content),
-        ),
-        selection: const TextSelection.collapsed(offset: 0),
-        keepStyleOnNewLine: false,
-        config: const QuillControllerConfig(
-          clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
-        ),
-      );
-    }
-
-    if (widget.content.isNotEmpty) {
-      return QuillController(
-        document: Document()..insert(0, widget.content),
-        selection: const TextSelection.collapsed(offset: 0),
-        keepStyleOnNewLine: false,
-        config: const QuillControllerConfig(
-          clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
-        ),
-      );
-    }
-
-    return QuillController(
-      document: Document(),
-      selection: const TextSelection.collapsed(offset: 0),
-      config: const QuillControllerConfig(
-        clipboardConfig: QuillClipboardConfig(enableExternalRichPaste: true),
-      ),
-      keepStyleOnNewLine: false,
-    );
-  }
-
-  void _attachListeners() {
-    titleController.addListener(_handleEditorChanged);
-    contentController.addListener(_handleEditorChanged);
-  }
-
-  AppLifecycleListener _createLifecycleListener() {
-    return AppLifecycleListener(
-      // Persist on lifecycle loss because note edits are expected to survive quick app switches.
-      onInactive: () async {
-        await _dataController.saveNote(
-          title: titleController.text,
-          document: contentController.document,
-        );
-      },
-      onPause: () async {
-        await _dataController.saveNote(
-          title: titleController.text,
-          document: contentController.document,
-        );
-      },
-      onDetach: () async {
-        await _dataController.saveNote(
-          title: titleController.text,
-          document: contentController.document,
-        );
-      },
-    );
-  }
-
-  void _handleEditorChanged() {
-    // Keep the dirty-state and save controls in sync with title or body edits.
-    _dataController.handleEditorChanged(
-      title: titleController.text,
-      document: contentController.document,
-    );
-    _uiController.orchestrateButtonVisibility();
-  }
-
-  @override
-  void dispose() {
-    titleController.removeListener(_handleEditorChanged);
-    titleController.dispose();
-
-    contentController.removeListener(_handleEditorChanged);
-    contentController.dispose();
-
-    _editorFocusNode.dispose();
-    _editorScrollController.dispose();
-
-    _lifecycleListener.dispose();
-    _lottieController.dispose();
-    _toolbarController.dispose();
-
-    _dataController.dispose();
-    _voiceController.dispose();
-    _uiController.dispose();
-
-    super.dispose();
-  }
-
-  Future<void> _handleBackNavigation() async {
-    if (_isHandlingBackNavigation) return;
-    _isHandlingBackNavigation = true;
-
-    _voiceController.stopHardwareListening();
-    _toolbarController.closeAllMenus();
-    final isKeyboardOpen = context.viewInsetsBottom > 0;
-    await Future.delayed(const Duration(milliseconds: 100));
-
-    if (isKeyboardOpen) {
-      FocusManager.instance.primaryFocus?.unfocus();
-      await Future.delayed(NoteConstants.notePageKeyboardDismissDelay);
-    }
-
-    unawaited(
-      _dataController
-          .saveAndCleanupOnClose(
-            title: titleController.text,
-            document: contentController.document,
-          )
-          .catchError((e) => debugPrint('Background save error: $e')),
-    );
-
-    try {
+      // Keep the micro-delay to let the Quill platform channels bind
+      await Future.delayed(Duration.zero);
       if (!mounted) return;
-      uiNotifier.clearSnackBars();
-      Navigator.of(context).pop();
-    } finally {
-      _isHandlingBackNavigation = false;
+
+      FocusScope.of(context).requestFocus(_editorFocusNode);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -299,112 +311,177 @@ class _NotePageState extends State<NotePage>
       child: IgnorePointer(
         ignoring: _isHandlingBackNavigation,
         child: Scaffold(
-          backgroundColor: isDark
-              ? AppColors.darkScaffold
-              : AppColors.lightScaffold,
+          backgroundColor: context.theme.scaffoldBackgroundColor,
           appBar: PreferredSize(
             preferredSize: const Size.fromHeight(kToolbarHeight),
-            child: _isReadOnly
-                ? NoteAppBar(
-                    key: const ValueKey('readonly_bar'),
-                    saveState: _dataController.saveState,
-                    contentController: contentController,
-                    title: titleController,
-                    isDark: isDark,
-                    readOnly: true,
-                  )
-                : NoteAppBar(
-                    key: const ValueKey('editable_bar'),
-                    saveState: _dataController.saveState,
-                    contentController: contentController,
-                    title: titleController,
-                    isDark: isDark,
-                    readOnly: false,
-                  ),
+            child: NoteAppBar(
+              key: const ValueKey('unified_note_bar'),
+              readOnly: _isReadOnly,
+              title: titleController,
+              contentController: contentController,
+              saveState: _dataController.saveState,
+            ),
           ),
 
           body: SafeArea(
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    NoteHeader(
-                      key: ValueKey('header_$_isReadOnly'),
-                      titleController: titleController,
-                      onToggleEdit: _uiController.toggleEditMode,
-                      readOnly: _isReadOnly == true,
-                    ),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _isTransitionAnimating,
+              builder: (context, isAnimating, child) {
+                // This leaves a pure, lightweight Scaffold background to shrink smoothly.
+                if (isAnimating) return const SizedBox.shrink();
 
-                    const SizedBox(height: UIConstants.paddingMD),
+                return child!;
+              },
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      NoteTitleBar(
+                        key: ValueKey('header_$_isReadOnly'),
+                        titleController: titleController,
+                        onToggleEdit: _uiController.toggleEditMode,
+                        readOnly: _isReadOnly == true,
+                      ),
 
-                    Expanded(
-                      child: _isReadOnly
-                          ? GestureDetector(
-                              onTap: _showRestoreDialog,
+                      const SizedBox(height: UIConstants.paddingMD),
+
+                      Expanded(
+                        child: NotificationListener<ScrollEndNotification>(
+                          // Autosave note scroll offset when editor scrolling comes to a rest.
+                          onNotification: (notification) {
+                            if (!_isTransitionAnimating.value &&
+                                notification.depth == 0) {
+                              _dataController.handleScrollEvent(
+                                title: titleController.text,
+                                document: contentController.document,
+                                scrollOffset: notification.metrics.pixels,
+                              );
+                            }
+                            return false;
+                          },
+                          child: ListenableBuilder(
+                            listenable: _editorScrollController,
+                            builder: (context, child) {
+                              // Checking if the keyboard is open using the direct view insets
+                              final double keyboardHeight = View.of(
+                                context,
+                              ).viewInsets.bottom;
+                              final bool isKeyboardOpen = keyboardHeight > 0;
+
+                              final double currentOffset =
+                                  _editorScrollController.hasClients
+                                  ? _editorScrollController.offset
+                                  : 0.0;
+                              // Dynamically scales the top edge content fade (0% to 3%) as the user scrolls.
+                              final double topFadeStop = currentOffset <= 0.0
+                                  ? 0.0
+                                  : (currentOffset / 100).clamp(0.0, 0.03);
+
+                              return ShaderMask(
+                                shaderCallback: (Rect bounds) {
+                                  return LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: const [
+                                      Colors.transparent,
+                                      Colors.black,
+                                      Colors.black,
+                                      Colors.transparent,
+                                    ],
+                                    stops: [0.0, topFadeStop, 0.90, 1.0],
+                                  ).createShader(bounds);
+                                },
+                                blendMode: isKeyboardOpen
+                                    ? BlendMode.dst
+                                    : BlendMode.dstIn,
+                                child: child!,
+                              );
+                            },
+                            child: GestureDetector(
+                              onTap: _isReadOnly ? _showRestoreDialog : null,
                               behavior: HitTestBehavior.opaque,
                               child: SingleChildScrollView(
                                 controller: _editorScrollController,
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 child: AbsorbPointer(
-                                  child: NoteEditor(
-                                    controller: contentController,
-                                    focusNode: _editorFocusNode,
-                                    scrollController: _editorScrollController,
-                                    scrollable: false,
-                                    expands: false,
-                                    showCursor: false,
+                                  // Only freeze interactions if it's read-only
+                                  absorbing: _isReadOnly,
+                                  child: Column(
+                                    children: [
+                                      NoteEditor(
+                                        controller: contentController,
+                                        focusNode: _editorFocusNode,
+                                        scrollController:
+                                            _editorScrollController,
+                                        scrollable: false,
+                                        expands: false,
+                                        // Cursor hides natively in read-only
+                                        showCursor: !_isReadOnly,
+                                      ),
+                                      Builder(
+                                        builder: (context) {
+                                          final bool isKeyboardOpen =
+                                              View.of(
+                                                context,
+                                              ).viewInsets.bottom >
+                                              0;
+
+                                          return SizedBox(
+                                            height: isKeyboardOpen
+                                                ? 0
+                                                : UIConstants.paddingXL,
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            )
-                          : NoteEditor(
-                              controller: contentController,
-                              focusNode: _editorFocusNode,
                             ),
-                    ),
-
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _uiController.isEditing,
-                      builder: (context, isEditing, child) {
-                        return AnimatedSize(
-                          duration: NoteConstants.notePageToolbarSizeDelay,
-                          curve: Curves.easeInOut,
-                          child: isEditing
-                              ? Container(
-                                  key: const ValueKey('note_toolbar'),
-                                  padding: const EdgeInsets.only(
-                                    bottom: NoteConstants
-                                        .notePageToolbarPaddingBottom,
+                          ),
+                        ),
+                      ),
+                      // INLINED TOOLBAR SECTION
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _uiController.isEditing,
+                        builder: (context, isEditing, child) {
+                          return AnimatedSize(
+                            duration: NoteConstants.notePageToolbarSizeDelay,
+                            curve: Curves.easeInOut,
+                            child: isEditing
+                                ? Container(
+                                    key: const ValueKey('note_toolbar'),
+                                    padding: const EdgeInsets.only(
+                                      bottom: NoteConstants
+                                          .notePageToolbarPaddingBottom,
+                                    ),
+                                    child: NoteToolbar(
+                                      controller: contentController,
+                                      toolbarController: _toolbarController,
+                                      focusNode: _editorFocusNode,
+                                      shouldNudge: _shouldNudge,
+                                      onNudgeComplete: () {
+                                        if (mounted) {
+                                          setState(() => _shouldNudge = false);
+                                        }
+                                      },
+                                    ),
+                                  )
+                                : const SizedBox(
+                                    key: ValueKey('empty_space'),
+                                    width: double.infinity,
+                                    height: NoteConstants
+                                        .notePageReadonlySpacerHeight,
                                   ),
-                                  child: NoteToolbar(
-                                    controller: contentController,
-                                    toolbarController: _toolbarController,
-                                    focusNode: _editorFocusNode,
-                                    shouldNudge: _shouldNudge,
-                                    onNudgeComplete: () {
-                                      if (mounted) {
-                                        setState(() {
-                                          _shouldNudge = false;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                )
-                              : const SizedBox(
-                                  key: ValueKey('empty_space'),
-                                  width: double.infinity,
-                                  height: NoteConstants
-                                      .notePageReadonlySpacerHeight,
-                                ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                          );
+                        },
+                      ),
+                    ], // End of Column children
+                  ),
+                ], // End of Stack children
+              ),
             ),
           ),
-
           floatingActionButton: _isReadOnly
               ? null
               : ValueListenableBuilder<bool>(
@@ -428,7 +505,7 @@ class _NotePageState extends State<NotePage>
                     contentController: contentController,
                   ),
                 ),
-        ),
+        ), // End of Scaffold
       ),
     );
   }

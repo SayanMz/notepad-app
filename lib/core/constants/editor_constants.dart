@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Editor sizing and thresholds live here so toolbar and note views stay aligned.
+// Editor toolbar, picker, and snackbar sizing tokens live here.
 class EditorConstants {
   EditorConstants._();
 

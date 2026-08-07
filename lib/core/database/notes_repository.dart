@@ -1,16 +1,18 @@
-// Repository logic keeps active, deleted, and cached note views in sync.
 import 'dart:async';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
+
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
+import 'package:notepad/core/database/sqlite_fts_service.dart';
+import 'package:notepad/core/database/storage_service.dart';
 import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
 import 'package:notepad/core/services/repo_services/note_sort_service.dart';
+import 'package:notepad/core/services/repo_services/notes_initialization_service.dart';
 import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
-import 'package:notepad/core/services/repo_services/seed_data_service.dart';
-import 'package:notepad/core/database/storage_service.dart' as db;
 
+// Manages the core note data lifecycle, ensuring atomic state synchronization
+// across memory, Hive storage, and SQLite search indices.
 class NoteRepository {
   factory NoteRepository() => _instance;
   NoteRepository._internal();
@@ -22,15 +24,12 @@ class NoteRepository {
   final List<NotesSection> _activeNotes = [];
   final List<NotesSection> _deletedNotes = [];
 
-  // Fast lookup cache for reads and cross-feature updates.
+  // Fast lookup cache for reads and cross-feature state updates.
   final Map<String, NotesSection> _cacheMap = {};
 
   // These slices stay cached so list widgets do not rebuild them repeatedly.
   List<NotesSection> _cachedPinnedNotes = [];
   List<NotesSection> _cachedUnpinnedNotes = [];
-
-  final ValueNotifier<int> activeRevision = ValueNotifier(0);
-  final ValueNotifier<int> deletedRevision = ValueNotifier(0);
 
   List<NotesSection> get activeNotes => List.unmodifiable(_activeNotes);
   List<NotesSection> get deletedNotes => List.unmodifiable(_deletedNotes);
@@ -38,74 +37,35 @@ class NoteRepository {
   List<NotesSection> get pinnedNotes => _cachedPinnedNotes;
   List<NotesSection> get unpinnedNotes => _cachedUnpinnedNotes;
 
+  final ValueNotifier<int> activeRevision = ValueNotifier(0);
+  final ValueNotifier<int> deletedRevision = ValueNotifier(0);
+
   static const int _currentSeedVersion = 1;
 
   Future<void> init() async {
-    _activeNotes.clear();
-    _deletedNotes.clear();
-    _cacheMap.clear();
+    final result = await NotesInitializationService.initializeData(
+      installedSeedVersion: appSettingsRepository.settings.seedVersion,
+      currentSeedVersion: _currentSeedVersion,
+    );
 
-    final int installedSeedVersion = appSettingsRepository.settings.seedVersion;
+    _activeNotes
+      ..clear()
+      ..addAll(result.activeNotes);
 
-    if (installedSeedVersion != _currentSeedVersion) {
-      // Replace stale seeded content rather than trying to migrate it in place.
-      debugPrint('Migration: Resetting stale data...');
-      await db.clearAllNotes();
-      final welcomeNotes = SeedDataService.generateWelcomeNotes();
+    _deletedNotes
+      ..clear()
+      ..addAll(result.deletedNotes);
 
-      for (int i = 0; i < welcomeNotes.length; i++) {
-        welcomeNotes[i].positionIndex = i;
-      }
-      _activeNotes.addAll(welcomeNotes);
+    _cacheMap
+      ..clear()
+      ..addAll(result.cacheMap);
 
-      for (final note in _activeNotes) {
-        _cacheMap[note.id] = note;
-        await SqliteFtsService.insertOrUpdate(
-          note.id,
-          note.title,
-          note.content,
-        );
-      }
-
-      await db.saveNotesBulk({for (var n in _activeNotes) n.id: n});
-      await appSettingsRepository.setSeedVersion(_currentSeedVersion);
-    } else {
-      for (final note in db.loadAllNotes()) {
-        _cacheMap[note.id] = note;
-        note.isDeleted ? _deletedNotes.add(note) : _activeNotes.add(note);
-
-        // Deleted notes stay out of FTS so search only scans active content.
-        if (!note.isDeleted) {
-          await SqliteFtsService.insertOrUpdate(
-            note.id,
-            note.title,
-            note.content,
-          );
-        }
-      }
-    }
-
-    // Rebuild the derived lists after the active/deleted split is loaded.
     _sortAndRebuildCache();
 
-    final lastRun = appSettingsRepository.settings.lastMaintenanceDate;
-    final now = DateTime.now();
-
-    if (lastRun == null || now.difference(lastRun).inDays >= 7) {
-      // Compact and record maintenance on a weekly cadence to keep storage healthy.
-      debugPrint(
-        'Maintenance: 7-day timeline reached. Running Hive compaction...',
-      );
-      try {
-        await db.performMaintenance();
-        await appSettingsRepository.recordMaintenanceCompleted();
-      } catch (e) {
-        debugPrint('Maintenance failed, will retry next launch: $e');
-      }
-    }
+    await NotesInitializationService.runMaintenanceTasks();
   }
 
-  NotesSection? findById(String id) => _cacheMap[id] ?? db.getNoteById(id);
+  NotesSection? findById(String id) => _cacheMap[id] ?? StorageService.getNoteById(id);
 
   void reorderPinnedNotes(int oldIndex, int newIndex) =>
       _reorderZone(pinnedNotes.toList(), oldIndex, newIndex, true);
@@ -135,9 +95,9 @@ class NoteRepository {
     activeRevision.value++;
 
     try {
-      await db.saveNotesBulk(bulkUpdates);
+      await StorageService.saveNotesBulk(bulkUpdates);
     } catch (e) {
-      debugPrint("Reorder Save Error: $e");
+      debugPrint('Reorder Save Error: $e');
     }
   }
 
@@ -169,6 +129,7 @@ class NoteRepository {
     required String content,
     String richContent = '',
     final bool notify = false,
+    double scrollOffset = 0.0,
   }) async {
     final existingNote = noteId == null ? null : findById(noteId);
     final now = DateTime.now();
@@ -178,39 +139,46 @@ class NoteRepository {
         ..title = title
         ..content = content
         ..richContent = richContent
-        ..updatedAt = now;
+        ..updatedAt = now
+        ..scrollOffset = scrollOffset;
 
       if (notify) {
         activeRevision.value++;
       }
 
       unawaited(
-        db
+        StorageService
             .saveNote(existingNote)
-            .catchError((e) => debugPrint("Disk Write Error: $e")),
+            .catchError((e) => debugPrint('Disk Write Error: $e')),
       );
 
-      await SqliteFtsService.insertOrUpdate(existingNote.id, title, content);
+      await SqliteFtsService.insertOrUpdate(existingNote);
       return existingNote;
     }
 
+    // New notes are inserted ahead of the first unpinned note to preserve ordering.
     final int topUnpinnedIndex = _cachedUnpinnedNotes.isNotEmpty
         ? _cachedUnpinnedNotes.first.positionIndex - 1
         : 0;
 
-    // New notes are inserted ahead of the first unpinned note to preserve ordering.
     final newNote = NotesSection(
       title: title,
       content: content,
       richContent: richContent,
-      createdAt: now,
       updatedAt: now,
       positionIndex: topUnpinnedIndex,
-    );
+    )..scrollOffset = scrollOffset;
 
     _cacheMap[newNote.id] = newNote;
-    await SqliteFtsService.insertOrUpdate(newNote.id, title, content);
-    NoteSortService.insertSorted(_activeNotes, newNote);
+    await SqliteFtsService.insertOrUpdate(newNote);
+
+    // Optimization: New notes always start at the beginning of the "Others" section.
+    // By passing the pinned count as the index, we skip the linear search.
+    NoteSortService.insertSorted(
+      _activeNotes,
+      newNote,
+      atIndex: _cachedPinnedNotes.length,
+    );
 
     _rebuildSubListPointersOnly();
     if (notify) {
@@ -218,9 +186,9 @@ class NoteRepository {
     }
 
     unawaited(
-      db
+      StorageService
           .saveNote(newNote)
-          .catchError((e) => debugPrint("Disk Write Error: $e")),
+          .catchError((e) => debugPrint('Disk Write Error: $e')),
     );
     return newNote;
   }
@@ -235,23 +203,20 @@ class NoteRepository {
       ..updatedAt = now;
 
     if (isDeleted) {
-      // Deleted notes leave the active list and stop participating in search.
       _activeNotes.remove(note);
-      NoteSortService.insertSorted(_deletedNotes, note);
+      _deletedNotes.insert(0, note);
       await SqliteFtsService.remove(noteId);
     } else {
-      // Restoring puts the note back into the active ordering and search index.
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
-      await SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
+      await SqliteFtsService.insertOrUpdate(note);
     }
 
     _rebuildSubListPointersOnly();
-
     activeRevision.value++;
     deletedRevision.value++;
 
-    unawaited(db.saveNote(note));
+    unawaited(StorageService.saveNote(note));
     return true;
   }
 
@@ -272,7 +237,14 @@ class NoteRepository {
     NoteSortService.sortDeletedNotes(_deletedNotes);
     activeRevision.value++;
 
-    await db.saveNotesBulk(result.dbUpdates);
+    await StorageService.saveNotesBulk(result.dbUpdates);
+
+    // SQL Index Sync (Batch)
+    if (isDeleted) {
+      await SqliteFtsService.removeBulk(noteIds);
+    } else {
+      await SqliteFtsService.insertOrUpdateBulk(result.dbUpdates.values.toList());
+    }
   }
 
   Future<void> deleteForever(String noteId) async {
@@ -282,29 +254,29 @@ class NoteRepository {
     _deletedNotes.remove(note);
     deletedRevision.value++;
 
-    await db.deleteNote(noteId);
+    await StorageService.deleteNote(noteId);
   }
 
   Future<void> deleteForeverBulk(Set<String> noteIds) async {
     if (noteIds.isEmpty) return;
 
-    _deletedNotes.removeWhere((note) => noteIds.contains(note.id));
-    deletedRevision.value++;
+    _deletedNotes.removeWhere((n) => noteIds.contains(n.id));
+    noteIds.forEach(_cacheMap.remove);
 
-    await db.deleteNotesBulk(noteIds);
+    deletedRevision.value++;
+    await StorageService.deleteNotesBulk(noteIds);
   }
 
   Future<void> togglePinStatus(String noteId) async {
     final note = findById(noteId);
     if (note == null) return;
 
-    note.isPinned = !note.isPinned;
-    note.updatedAt = DateTime.now();
+    PinOperationsService.togglePinState(note);
 
     _sortAndRebuildCache();
     activeRevision.value++;
 
-    unawaited(db.saveNote(note));
+    unawaited(StorageService.saveNote(note));
   }
 
   Future<void> togglePinBulk(Set<String> noteIds, bool goalState) async {
@@ -320,7 +292,7 @@ class NoteRepository {
     _sortAndRebuildCache();
     activeRevision.value++;
 
-    await db.saveNotesBulk(dbUpdates);
+    await StorageService.saveNotesBulk(dbUpdates);
   }
 
   void applyColorToSelection(Set<String> selectedIds, Color newColor) {
@@ -339,32 +311,31 @@ class NoteRepository {
     final Map<String, NotesSection> entries = {};
 
     for (final id in noteIds) {
-      final note = findById(id);
-      if (note != null) {
-        entries[id] = note;
-      }
+      if (findById(id) case final note?) entries[id] = note;
     }
 
-    if (entries.isNotEmpty) {
-      await db.saveNotesBulk(entries);
-    }
+    if (entries.isNotEmpty) await StorageService.saveNotesBulk(entries);
   }
 
-  Future<String> exportNotesToBackupString() async {
-    if (_activeNotes.isEmpty) return "";
+  Future<(int, String)> exportNotesToBackupString() async {
+    if (_activeNotes.isEmpty) return (0, '');
     try {
-      return await db.exportNotesToJSON(_activeNotes);
+      final jsonString = await StorageService.exportNotesToJSON(_activeNotes);
+
+      return (_activeNotes.length, jsonString);
     } catch (e) {
       debugPrint('Export failed: $e');
-      return "";
+      return (0, '');
     }
   }
 
-  Future<void> importNotesFromBackupString(String jsonString) async {
+  Future<(int restored, int skipped)> importNotesFromBackupString(
+    String jsonString,
+  ) async {
     List<NotesSection> importedNotes;
 
     try {
-      importedNotes = await db.importNotesFromJSON(jsonString);
+      importedNotes = await StorageService.importNotesFromJSON(jsonString);
     } catch (e) {
       throw const FormatException('Invalid backup format or corrupted data.');
     }
@@ -373,22 +344,26 @@ class NoteRepository {
       throw const FormatException('Backup contains no valid notes.');
     }
 
-    final updates = BackupSyncService.calculateImportUpdates(
+    final result = BackupSyncService.calculateImportUpdates(
       cloudNotes: importedNotes,
       localNoteLookup: findById,
     );
 
-    if (updates.isNotEmpty) {
-      _activeNotes.addAll(updates.values);
+    if (result.updates.isNotEmpty) {
+      _activeNotes.addAll(result.updates.values);
 
-      for (final note in updates.values) {
+      for (final note in result.updates.values) {
         _cacheMap[note.id] = note;
       }
 
       _sortAndRebuildCache();
       activeRevision.value++;
-      await db.saveNotesBulk(updates);
+
+      await StorageService.saveNotesBulk(result.updates);
+      await SqliteFtsService.reindexAllNotes(_activeNotes);
     }
+
+    return (result.updates.length, result.skippedCount);
   }
 }
 

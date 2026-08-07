@@ -1,7 +1,6 @@
-// Toolbar state stays separate from the editor so formatting stays testable.
 import 'package:flutter/material.dart';
 
-// Toolbar state lives here so formatting actions stay decoupled from the editor widget.
+/// Coordinates toolbar menu lifecycle so formatting panels can close together at dipose() from parent.
 class NoteToolbarController {
   final List<VoidCallback> _closeCallbacks = [];
 
@@ -21,6 +20,7 @@ class NoteToolbarController {
   }
 }
 
+/// Wraps toolbar menu items and registers their close logic with the toolbar controller.
 class ToolbarMenuWrapper extends StatefulWidget {
   const ToolbarMenuWrapper({
     super.key,
@@ -57,4 +57,3 @@ class _ToolbarMenuWrapperState extends State<ToolbarMenuWrapper> {
   @override
   Widget build(BuildContext context) => widget.child;
 }
-

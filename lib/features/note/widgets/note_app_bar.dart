@@ -1,30 +1,26 @@
-// Note app bar groups editor actions and read-only handling.
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/core/constants/ui_constants.dart';
-import 'package:notepad/core/services/note_document_service.dart';
-import 'package:notepad/features/note/widgets/save_indicator.dart';
-import 'package:notepad/core/extensions/context_extensions.dart';
+import 'package:notepad/features/note/services/note_pdf_exporter.dart';
+import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
-// Note app bar contains editor actions and read-only state handling.
+// App bar performs note editor actions such as undo/redo, and PDF export/share.
 class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {
   const NoteAppBar({
     super.key,
-    required this.saveState,
-    required this.contentController,
-    required this.title,
-    required this.isDark,
     required this.readOnly,
+    required this.title,
+    required this.contentController,
+    required this.saveState,
   });
 
-  final ValueNotifier<SaveState> saveState;
-  final QuillController contentController;
-  final TextEditingController title;
-  final bool isDark;
   final bool readOnly;
+  final TextEditingController title;
+  final QuillController contentController;
+  final ValueNotifier<SaveState> saveState;
 
   @override
   State<NoteAppBar> createState() => _NoteAppBarState();
@@ -34,9 +30,11 @@ class NoteAppBar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _NoteAppBarState extends State<NoteAppBar> {
+  bool get isDark => context.isDark;
+  ColorScheme get colorScheme => context.colorScheme;
   late final ValueNotifier<bool> isSavingNotifier;
   Color get iconColor =>
-      widget.isDark ? Colors.white : context.colorScheme.onSurfaceVariant;
+      isDark ? Colors.white : colorScheme.onSurfaceVariant;
 
   @override
   void initState() {
@@ -109,7 +107,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
   Widget build(BuildContext context) {
     return AppBar(
       surfaceTintColor: Colors.transparent,
-      backgroundColor: widget.isDark
+      backgroundColor: isDark
           ? NoteConstants.appBarBackgroundDark
           : NoteConstants.appBarBackgroundLight,
       actions: [
@@ -127,7 +125,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
               return IconButton(
                 icon: Icon(
                   Icons.more_vert,
-                  color: widget.isDark ? Colors.white : Colors.blue,
+                  color: isDark ? Colors.white : Colors.blue,
                 ),
                 onPressed: () => menuController.isOpen
                     ? menuController.close()
@@ -137,7 +135,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
             menuChildren: [
               _buildPdfMenuItem(
                 label: 'Save as PDF',
-                action: (title, data) => NoteDocumentService.saveNoteAsPdf(
+                action: (title, data) => NotePdfExporter.saveNoteAsPdf(
                   title: title,
                   richContent: data,
                 ),
@@ -145,7 +143,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
               _buildPdfMenuItem(
                 label: 'Share Note',
                 action: (title, data) =>
-                    NoteDocumentService.shareSingleNoteAsPdf(
+                    NotePdfExporter.shareSingleNoteAsPdf(
                       title: title,
                       richContent: data,
                     ),
@@ -164,7 +162,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
             }
 
             return LinearProgressIndicator(
-              minHeight: UIConstants.progressBarHeight,
+              minHeight: NoteConstants.progressBarHeight,
               backgroundColor: context.colorScheme.primary.withValues(
                 alpha: NoteConstants.progressBarBackgroundAlpha,
               ),

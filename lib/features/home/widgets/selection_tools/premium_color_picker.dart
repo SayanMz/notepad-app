@@ -5,11 +5,10 @@ import 'package:notepad/core/constants/editor_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 
+// Draggable color picker dialog for previewing and applying note colors.
 class PremiumColorPicker extends StatefulWidget {
   final Color initialColor;
   final List<Color> recentColors;
-  final bool isDark;
-  final int maxColors;
   final Function(Color) onPreviewChanged;
   final ValueNotifier<Offset> dialogOffsetNotifier;
 
@@ -17,8 +16,6 @@ class PremiumColorPicker extends StatefulWidget {
     super.key,
     required this.initialColor,
     required this.recentColors,
-    required this.isDark,
-    required this.maxColors,
     required this.onPreviewChanged,
     required this.dialogOffsetNotifier,
   });
@@ -39,8 +36,8 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
   @override
   Widget build(BuildContext context) {
     final screenSize = context.screenSize;
-    final displayColors = widget.recentColors.take(widget.maxColors).toList();
     final colorScheme = context.colorScheme;
+    final isDark = context.isDark;
 
     final availableWidth =
         (screenSize.width * EditorConstants.pickerWidthFactor).clamp(
@@ -51,19 +48,13 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
         availableWidth - EditorConstants.pickerInternalWidthPadding;
     final maxHeight = screenSize.height * EditorConstants.pickerMaxHeightFactor;
 
-    final baseSurface = widget.isDark
-        ? AppColors.darkDialogSurface
-        : Colors.white;
-    final gradientTop = baseSurface.withValues(
-      alpha: widget.isDark ? 0.35 : 0.92,
-    );
-    final gradientBottom = baseSurface.withValues(
-      alpha: widget.isDark ? 0.70 : 0.55,
-    );
+    final baseSurface = isDark ? AppColors.darkDialogSurface : AppColors.pickerSurfaceLight;
+    final gradientTop = baseSurface.withValues(alpha: isDark ? 0.35 : 0.92);
+    final gradientBottom = baseSurface.withValues(alpha: isDark ? 0.70 : 0.55);
 
-    final borderColor = widget.isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : Colors.black.withValues(alpha: 0.08);
+    final borderColor = isDark
+        ? AppColors.pickerBorderDark.withValues(alpha: 0.15)
+        : AppColors.pickerBorderLight.withValues(alpha: 0.08);
 
     return ValueListenableBuilder<Offset>(
       valueListenable: widget.dialogOffsetNotifier,
@@ -85,69 +76,69 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
         },
         child: Align(
           alignment: Alignment.center,
-          child: RepaintBoundary(
-            child: Material(
-              type: MaterialType.transparency,
-              child: Container(
-                width: availableWidth,
-                constraints: BoxConstraints(maxHeight: maxHeight),
-                padding: const EdgeInsets.all(EditorConstants.pickerPadding),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    EditorConstants.pickerRadius,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Container(
+              width: availableWidth,
+              constraints: BoxConstraints(maxHeight: maxHeight),
+              padding: const EdgeInsets.all(EditorConstants.pickerPadding),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  EditorConstants.pickerRadius,
+                ),
+                border: Border.all(
+                  color: borderColor,
+                  width: EditorConstants.pickerBorderWidth,
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [gradientTop, gradientBottom],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: EditorConstants.pickerShadowAlpha,
+                    ),
+                    blurRadius: EditorConstants.pickerShadowBlur,
+                    offset: const Offset(
+                      0,
+                      EditorConstants.pickerShadowOffsetY,
+                    ),
                   ),
-                  border: Border.all(
-                    color: borderColor,
-                    width: EditorConstants.pickerBorderWidth,
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [gradientTop, gradientBottom],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: EditorConstants.pickerShadowAlpha,
-                      ),
-                      blurRadius: EditorConstants.pickerShadowBlur,
-                      offset: const Offset(
-                        0,
-                        EditorConstants.pickerShadowOffsetY,
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: EditorConstants.pickerHandleWidth,
+                        height: EditorConstants.pickerHandleHeight,
+                        margin: const EdgeInsets.only(
+                          bottom: EditorConstants.pickerHandleBottomMargin,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(
+                            EditorConstants.pickerHandleRadius,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: EditorConstants.pickerHandleWidth,
-                          height: EditorConstants.pickerHandleHeight,
-                          margin: const EdgeInsets.only(
-                            bottom: EditorConstants.pickerHandleBottomMargin,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(
-                              EditorConstants.pickerHandleRadius,
-                            ),
-                          ),
-                        ),
+                    Text(
+                      'Color',
+                      style: TextStyle(
+                        fontSize: EditorConstants.pickerTitleFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? AppColors.pickerTitleDark : AppColors.pickerTitleLight,
                       ),
-                      Text(
-                        'Color',
-                        style: TextStyle(
-                          fontSize: EditorConstants.pickerTitleFontSize,
-                          fontWeight: FontWeight.bold,
-                          color: widget.isDark ? Colors.white : Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      ColorPicker(
+                    ),
+                    const SizedBox(height: 16),
+                    RepaintBoundary(
+                      child: ColorPicker(
                         pickerColor: temporaryColor,
                         onColorChanged: (color) {
                           setState(() => temporaryColor = color);
@@ -164,9 +155,9 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                         portraitOnly: true,
                         colorPickerWidth: contentWidth,
                       ),
-                      _buildActionRow(displayColors),
-                    ],
-                  ),
+                    ),
+                    _buildActionRow(widget.recentColors),
+                  ],
                 ),
               ),
             ),
@@ -176,18 +167,19 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
     );
   }
 
-  Widget _buildActionRow(List<Color> displayColors) {
+  Widget _buildActionRow(List<Color> recentColors) {
+    final isDark = context.isDark;
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              "Recent",
+              'Recent',
               style: TextStyle(
                 fontSize: EditorConstants.pickerRecentLabelFontSize,
                 fontWeight: FontWeight.w600,
-                color: widget.isDark ? Colors.white54 : Colors.black45,
+                color: isDark ? AppColors.pickerRecentDark : AppColors.pickerRecentLight,
               ),
             ),
             Row(
@@ -214,7 +206,7 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
         Wrap(
           spacing: EditorConstants.pickerRecentGap,
           runSpacing: EditorConstants.pickerRecentGap,
-          children: displayColors
+          children: recentColors
               .map(
                 (color) => GestureDetector(
                   onTap: () {
@@ -231,7 +223,9 @@ class _PremiumColorPickerState extends State<PremiumColorPicker> {
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: widget.isDark ? Colors.white24 : Colors.black12,
+                        color: isDark
+                            ? AppColors.pickerSwatchBorderDark
+                            : AppColors.pickerSwatchBorderLight,
                       ),
                     ),
                   ),

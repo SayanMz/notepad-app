@@ -32,7 +32,7 @@ class ThemeFader {
     if (boundary == null) {
       // If the boundary is unavailable, swap immediately instead of hanging the UI.
       debugPrint(
-        "ThemeFader: Could not locate RenderRepaintBoundary. Swapping instantly.",
+        'ThemeFader: Could not locate RenderRepaintBoundary. Swapping instantly.',
       );
       executeThemeSwap();
       return;
@@ -84,4 +84,3 @@ class ThemeFader {
     });
   }
 }
-

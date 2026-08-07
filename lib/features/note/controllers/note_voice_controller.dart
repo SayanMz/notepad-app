@@ -1,4 +1,3 @@
-// Voice interaction state is isolated from the note editor and toolbar.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,7 +10,7 @@ import 'package:notepad/features/note/services/voice_ai/note_voice_feedback_serv
 import 'package:notepad/features/note/services/voice_ai/voice_formatting_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-// Voice UI state is isolated here so AI actions do not clutter the editor.
+/// Manages speech input, voice command parsing, and AI response feedback.
 class NoteVoiceController {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final NoteVoiceFeedbackService _voiceFeedback = NoteVoiceFeedbackService();
@@ -20,6 +19,7 @@ class NoteVoiceController {
   Timer? _speechTimer;
   String _lastWords = '';
   bool _speechInitialized = false;
+  bool get isSpeechInitialized => _speechInitialized;
 
   final ValueNotifier<bool> isProcessingVoice = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isListening = ValueNotifier<bool>(false);
@@ -64,6 +64,9 @@ class NoteVoiceController {
       await initSpeech();
       if (!_speechInitialized) {
         isProcessingVoice.value = false;
+        showErrorSnackBar(
+          'Microphone permission denied or speech recognition unavailable.',
+        );
         return;
       }
     }
@@ -106,7 +109,6 @@ class NoteVoiceController {
     isProcessingVoice.value = true;
 
     FocusManager.instance.primaryFocus?.unfocus();
-
     await Future.delayed(NoteConstants.aiProcessingDelay);
 
     try {
@@ -134,9 +136,12 @@ class NoteVoiceController {
       }
     } catch (e) {
       isProcessingVoice.value = false;
+      debugPrint('VOICE AI ERROR DETAILS: $e');
       showErrorSnackBar('AI service error. Try again.');
     } finally {
-      FocusManager.instance.primaryFocus?.unfocus(); }
+      FocusManager.instance.primaryFocus?.unfocus();
+      await Future.delayed(NoteConstants.aiProcessingDelay);
+    }
   }
 
   void stopHardwareListening() {

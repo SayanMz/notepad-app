@@ -1,18 +1,19 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:notepad/core/bootstrap/app_bootstrapper.dart';
-import 'package:notepad/core/bootstrap/bootstrap_app.dart';
+import 'package:notepad/core/bootstrap/app_initializer.dart';
+import 'package:notepad/core/bootstrap/app_startup_builder.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/ui_management/theme_fader.dart';
 import 'package:notepad/core/theme/app_theme.dart';
-import 'package:notepad/features/home/home_page.dart';
+import 'package:notepad/features/home/widgets/splash_page.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 // App startup wires global error handling, storage init, and theme bootstrapping.
@@ -21,7 +22,10 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      if (!kIsWeb) {
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS ||
+              defaultTargetPlatform == TargetPlatform.linux)) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }
@@ -47,13 +51,13 @@ Future<void> main() async {
 
       debugPrint('Starting Notepad bootstrap...');
 
-      final bootstrapper = AppBootstrapper(
+      final bootstrapper = AppInitializer(
         noteRepository: noteRepository,
         appSettingsRepository: appSettingsRepository,
       );
 
       runApp(
-        BootstrapApp(
+        AppStartupBuilder(
           bootstrapper: bootstrapper.initialize,
           child: const MyApp(),
         ),
@@ -71,9 +75,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isInitializationComplete =
+        BootstrapScope.of(context)?.isInitializationComplete ?? false;
+
     return ListenableBuilder(
-      listenable: appSettingsRepository,
-      builder: (_, settings) {
+      listenable: appSettingsRepository.themeRevision,
+      builder: (context, _) {
         return RepaintBoundary(
           key: ThemeFader.appBoundaryKey,
           child: MaterialApp(
@@ -82,7 +89,6 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: appSettingsRepository.themeMode,
-            home: const HomePage(),
             scaffoldMessengerKey: uiNotifier.scaffoldMessengerKey,
             supportedLocales: const [Locale('en')],
             localizationsDelegates: const [
@@ -98,6 +104,9 @@ class MyApp extends StatelessWidget {
                 PointerDeviceKind.stylus,
                 PointerDeviceKind.trackpad,
               },
+            ),
+            home: SplashPage(
+              isInitializationComplete: isInitializationComplete,
             ),
           ),
         );

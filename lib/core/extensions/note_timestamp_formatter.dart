@@ -1,4 +1,4 @@
-// Timestamp formatting stays in one place so note dates remain consistent.
+// Formats DateTime values into a compact readable date-time string.
 extension NoteDateFormatter on DateTime {
   String format({
     bool showDate = true,
@@ -6,7 +6,6 @@ extension NoteDateFormatter on DateTime {
     bool showTime = true,
   }) {
     final month = _monthName(this.month);
-
     final dateStr = '$month $day${showYear ? ', $year' : ''}';
 
     if (!showTime) return dateStr;
@@ -41,4 +40,3 @@ extension NoteDateFormatter on DateTime {
     return months[month - 1];
   }
 }
-

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Trash icon that animates the lid to show delete progress.
 class AnimatedTrashIcon extends StatelessWidget {
   const AnimatedTrashIcon({
     super.key,

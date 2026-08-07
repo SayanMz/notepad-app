@@ -1,157 +1,160 @@
-import 'package:animations/animations.dart';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/features/home/controllers/home_controller.dart';
+import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/note/note_page.dart';
 
+// Animated floating action entry point for creating a new note.
 class HomeFab extends StatelessWidget {
-  final HomeController controller;
-  final SelectionController selectionController;
-
   const HomeFab({
     super.key,
-    required this.controller,
+    required this.fabController,
     required this.selectionController,
   });
 
+  final HomeFabController fabController;
+  final SelectionController selectionController;
+
   @override
   Widget build(BuildContext context) {
-    final bool isSelectionActive = selectionController.isSelectionMode;
-    final bool isDraggingActive = controller.isDraggingNote;
-    final bool shouldHide = isSelectionActive || isDraggingActive;
-
     return SafeArea(
-      child: AnimatedSlide(
-        offset: shouldHide ? const Offset(0, 1.8) : Offset.zero,
-        duration: AnimationConstants.medium,
-        curve: Curves.fastOutSlowIn,
-        child: ListenableBuilder(
-          listenable: Listenable.merge([
-            controller.fabAlignX,
-            controller.isFabExtended,
-          ]),
-          builder: (context, _) {
-            final double alignX = controller.fabAlignX.value;
-            final bool isExtended = controller.isFabExtended.value;
+      child: ListenableBuilder(
+        listenable: Listenable.merge([
+          fabController.alignX,
+          fabController.isExtended,
+        ]),
+        builder: (context, _) {
+          final bool isSelectionActive = selectionController.isSelectionMode;
 
-            return AnimatedAlign(
+          return AnimatedSlide(
+            offset: isSelectionActive ? const Offset(0, 2.0) : Offset.zero,
+            duration: AnimationConstants.medium,
+            curve: Curves.fastOutSlowIn,
+            child: AnimatedAlign(
               duration: AnimationConstants.slow,
               curve: Curves.easeOutCubic,
-              alignment: Alignment(alignX, HomeConstants.fabAlignDefaultY),
-
-              // 🌟 THE SMOOTHNESS FIX: Isolate layout properties here, passing state down cleanly
-              child: _OptimizedMorphCanvas(
-                isExtended: isExtended,
-                shouldHide: shouldHide,
-                isSelectionActive: isSelectionActive,
+              alignment: Alignment(
+                fabController.alignX.value,
+                HomeConstants.fabAlignDefaultY,
               ),
-            );
-          },
-        ),
+              child: IgnorePointer(
+                ignoring: isSelectionActive,
+                child: _OptimizedMorphCanvas(
+                  isExtended: fabController.isExtended.value,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _OptimizedMorphCanvas extends StatelessWidget {
-  final bool isExtended;
-  final bool shouldHide;
-  final bool isSelectionActive;
+  const _OptimizedMorphCanvas({required this.isExtended});
 
-  const _OptimizedMorphCanvas({
-    required this.isExtended,
-    required this.shouldHide,
-    required this.isSelectionActive,
-  });
+  final bool isExtended;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = context.colorScheme;
     final isDark = context.isDark;
-    final Color fabColor = isDark
-        ? AppColors.homeFabDark
-        : AppColors.homeFabLight;
+    final Color fabColor = isDark ? colorScheme.secondary : colorScheme.primary;
     final Color contentColor = isDark
-        ? Colors.black.withValues(alpha: 0.8)
-        : Colors.white;
+        ? colorScheme.onSecondaryContainer.withValues(alpha: 0.8)
+        : colorScheme.onPrimary;
 
-    const double expandedWidth = HomeConstants.fabExpandedWidth;
-    const double collapsedWidth = HomeConstants.fabCollapsedWidth;
-    const double fabHeight = HomeConstants.fabHeight;
+    final double targetWidth = isExtended
+        ? HomeConstants.fabExpandedWidth
+        : HomeConstants.fabCollapsedWidth;
 
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(
-        begin: isExtended ? expandedWidth : collapsedWidth,
-        end: isExtended ? expandedWidth : collapsedWidth,
-      ),
+    return AnimatedContainer(
       duration: AnimationConstants.medium,
-      curve: Curves.easeOutBack,
-      builder: (context, animatedWidth, child) {
-        return SizedBox(
-          height: fabHeight,
-          width: animatedWidth,
-          child: OpenContainer(
-            // 🛠️ FIX 1: Use shared axis scaling fade, built for expanding components
-            transitionType: ContainerTransitionType.fade,
-            // 🛠️ FIX 2: Give the GPU 350ms to draw the full canvas smoothly
-            transitionDuration: const Duration(milliseconds: 350),
-            openColor: Theme.of(context).scaffoldBackgroundColor,
-            closedColor: fabColor,
-            // 🛠️ FIX 3: Pass your exact fabColor to the mid-transition layer.
-            // This instantly kills that ugly translucent grey block artifact!
-            middleColor: fabColor,
-            closedElevation: isSelectionActive ? 0 : UIConstants.elevationHigh,
-            closedShape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                HomeConstants.fabClosedRadius,
-              ),
-            ),
-            openShape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
-            closedBuilder: (context, openContainer) => RepaintBoundary(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: shouldHide ? null : openContainer,
-                  // 🛠️ FIX 4: Replace default muddy system ripples with a high-fidelity subtle splash
-                  splashColor: contentColor.withValues(alpha: 0.12),
-                  highlightColor: Colors.transparent,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(end: isExtended ? 1.0 : 0.0),
-                    duration: AnimationConstants.fast,
-                    curve: Curves.easeInOutCubic,
-                    builder: (context, animationProgress, _) {
-                      return CustomPaint(
-                        size: Size(animatedWidth, fabHeight),
-                        painter: FluidFabPainter(
-                          contentColor: contentColor,
-                          progress: animationProgress,
-                        ),
-                      );
-                    },
+      curve: Curves.easeOutCubic,
+      height: HomeConstants.fabHeight,
+      width: targetWidth,
+      child: RepaintBoundary(
+        child: Material(
+          color: fabColor,
+          elevation: UIConstants.elevationHigh,
+          borderRadius: BorderRadius.circular(HomeConstants.fabClosedRadius),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(HomeConstants.fabClosedRadius),
+            onTap: () {
+              Navigator.of(context).push(_buildSharedAxisTransition());
+            },
+            splashColor: contentColor.withValues(alpha: 0.12),
+            highlightColor: Colors.transparent,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: isExtended ? 1.0 : 0.0),
+              duration: AnimationConstants.medium,
+              curve: Curves.easeOutCubic,
+              builder: (context, progress, _) {
+                // Computes live canvas width for smooth frame-by-frame rendering.
+                final double currentWidth =
+                    lerpDouble(
+                      HomeConstants.fabCollapsedWidth,
+                      HomeConstants.fabExpandedWidth,
+                      progress,
+                    ) ??
+                    targetWidth;
+
+                return CustomPaint(
+                  size: Size(currentWidth, HomeConstants.fabHeight),
+                  painter: FluidFabPainter(
+                    contentColor: contentColor,
+                    progress: progress,
                   ),
-                ),
-              ),
+                );
+              },
             ),
-            openBuilder: (context, _) => const NotePage(),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
 
-// Keep your existing FluidFabPainter completely as it is!
+Route _buildSharedAxisTransition() {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => const NotePage(),
+    transitionDuration: AnimationConstants.medium,
+    reverseTransitionDuration: AnimationConstants.snappy,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final scaleTween = Tween<double>(begin: 0.92, end: 1.0).animate(
+        CurvedAnimation(parent: animation, curve: Curves.fastOutSlowIn),
+      );
+      final fadeTween = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: const Interval(
+            0.0,
+            AnimationConstants.sharedAxisFadeForwardCutoff,
+            curve: Curves.easeOut,
+          ),
+        ),
+      );
+
+      return FadeTransition(
+        opacity: fadeTween,
+        child: ScaleTransition(scale: scaleTween, child: child),
+      );
+    },
+  );
+}
+
+// Low-level painter to render morphing icon and text without extra layout work.
 class FluidFabPainter extends CustomPainter {
+  FluidFabPainter({required this.contentColor, required this.progress});
+
   final Color contentColor;
   final double progress;
-
-  FluidFabPainter({required this.contentColor, required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {

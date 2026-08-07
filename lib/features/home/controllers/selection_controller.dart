@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 
-// Selection state is isolated here so bulk actions stay predictable.
+// Manages which notes are selected and whether selection mode is active.
 class SelectionController extends ChangeNotifier {
   Set<String> _selectedIds = {};
-  bool _isSelectionMode = false;
 
   Set<String> get selectedIds => _selectedIds;
-
   bool get isSelectionMode => _isSelectionMode;
   bool get hasSelection => _selectedIds.isNotEmpty;
   int get selectionCount => _selectedIds.length;
 
   bool isNoteSelected(String id) => _selectedIds.contains(id);
+  bool _isSelectionMode = false;
 
   bool areAllSelected(List<NotesSection> activeNotes) {
     return activeNotes.isNotEmpty &&
@@ -59,12 +58,14 @@ class SelectionController extends ChangeNotifier {
 
   void clearSelection() {
     if (_selectedIds.isEmpty) return;
+
     _selectedIds.clear();
     notifyListeners();
   }
 
   void removeIds(Iterable<String> idsToRemove) {
     _selectedIds.removeAll(idsToRemove);
+
     if (_selectedIds.isEmpty) {
       _isSelectionMode = false;
     }

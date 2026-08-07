@@ -1,4 +1,3 @@
-// Note data changes are tracked by signature so redundant saves can be skipped.
 import 'dart:async';
 import 'dart:convert';
 
@@ -6,9 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/notes_repository.dart';
-import 'package:notepad/features/note/widgets/save_indicator.dart';
+import 'package:notepad/features/note/services/link_handlers/link_detector_service.dart';
+import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
-// Tracks note signatures so autosave can skip redundant writes.
+/// Handles note persistence, autosave, scroll state, and link detection triggers.
 class NoteDataController {
   final NoteRepository noteRepository;
   String? noteId;
@@ -16,6 +16,7 @@ class NoteDataController {
   NoteDataController({required this.noteRepository, this.noteId});
 
   Timer? _autosaveDebounce;
+  Timer? _detectionDebounce;
   bool _isSaving = false;
   bool _isDisposed = false;
 
@@ -24,55 +25,89 @@ class NoteDataController {
   );
 
   String? _lastEditorSignature;
+  double _lastSavedScrollOffset = 0.0;
 
-  void setInitialSignature(String title, Document document) {
+  void setInitialSignature(
+    String title,
+    Document document,
+    double scrollOffset,
+  ) {
     _lastEditorSignature = _editorSignature(title, document);
+    _lastSavedScrollOffset = scrollOffset;
   }
 
   String _editorSignature(String title, Document document) {
     return '${title.trim()}\n${jsonEncode(document.toDelta().toJson())}';
   }
 
-  bool _isStateUnchanged(String title, Document document) {
-    return _lastEditorSignature == _editorSignature(title, document);
-  }
-
-  bool hasPendingChanges(String title, Document document) {
-    return !_isStateUnchanged(title, document);
-  }
-
   void handleEditorChanged({
     required String title,
     required Document document,
+    required QuillController controller,
+    required DocChange? change,
   }) {
+    if (change != null && change.source != ChangeSource.local) return;
+
+    final textUnchanged =
+        _lastEditorSignature == _editorSignature(title, document);
+    if (textUnchanged) return;
+
     _autosaveDebounce?.cancel();
     _autosaveDebounce = Timer(
       AnimationConstants.saveIndicator,
       () => saveNote(title: title.trim(), document: document),
+    );
+
+    _detectionDebounce?.cancel();
+    _detectionDebounce = Timer(
+      const Duration(milliseconds: 600),
+      () => LinkDetectorService.scanAndLinkifyParagraph(controller),
+    );
+  }
+
+  void handleScrollEvent({
+    required String title,
+    required Document document,
+    required double scrollOffset,
+  }) {
+    // Prevent spamming the database if the pixel offset hasn't actually moved
+    final scrollUnchanged = _lastSavedScrollOffset == scrollOffset;
+    if (scrollUnchanged) return;
+
+    _lastSavedScrollOffset = scrollOffset;
+
+    _autosaveDebounce?.cancel();
+    _autosaveDebounce = Timer(
+      AnimationConstants.saveIndicator,
+      () => saveNote(
+        title: title.trim(),
+        document: document,
+        scrollOffset: scrollOffset,
+        isScrollUpdate: true,
+      ),
     );
   }
 
   Future<void> saveNote({
     required String title,
     required Document document,
+    double scrollOffset = 0.0,
+    bool isScrollUpdate = false,
     final bool notify = false,
   }) async {
     _autosaveDebounce?.cancel();
     final plainText = document.toPlainText().trim();
 
-    if (noteId == null && title.isEmpty && plainText.isEmpty) {
-      return;
-    }
+    if (noteId == null && title.isEmpty && plainText.isEmpty) return;
 
-    if (_isSaving || _isStateUnchanged(title, document)) {
-      return;
-    }
-
+    // Safety check against recursive loops
+    if (_isSaving) return;
     _isSaving = true;
 
     try {
-      saveState.value = SaveState.saving;
-
+      if (!isScrollUpdate) {
+        saveState.value = SaveState.saving;
+      }
       final resolvedTitle = title.isEmpty ? 'Untitled note' : title;
 
       final saved = await noteRepository.saveNote(
@@ -80,6 +115,7 @@ class NoteDataController {
         title: resolvedTitle,
         content: plainText,
         richContent: jsonEncode(document.toDelta().toJson()),
+        scrollOffset: scrollOffset,
         notify: notify,
       );
 
@@ -87,23 +123,24 @@ class NoteDataController {
         noteId = saved.id;
       }
 
+      // Update baselines
       _lastEditorSignature = _editorSignature(title, document);
 
-      Future.delayed(AnimationConstants.extraSlow, () {
-        if (_isDisposed) return;
-
-        saveState.value = SaveState.saved;
-
-        Future.delayed(AnimationConstants.saveIndicator, () {
+      if (!isScrollUpdate) {
+        Future.delayed(AnimationConstants.extraSlow, () {
           if (_isDisposed) return;
-          if (saveState.value == SaveState.saved) {
-            saveState.value = SaveState.idle;
-          }
+          saveState.value = SaveState.saved;
+          Future.delayed(AnimationConstants.saveIndicator, () {
+            if (_isDisposed) return;
+            if (saveState.value == SaveState.saved) {
+              saveState.value = SaveState.idle;
+            }
+          });
         });
-      });
+      }
     } catch (e) {
       saveState.value = SaveState.idle;
-      debugPrint("Data Controller Save Error: $e");
+      debugPrint('Data Controller Save Error: $e');
     } finally {
       _isSaving = false;
     }
@@ -112,24 +149,29 @@ class NoteDataController {
   Future<void> saveAndCleanupOnClose({
     required String title,
     required Document document,
+    required double scrollOffset,
   }) async {
     final plainText = document.toPlainText().trim();
     final cleanTitle = title.trim();
 
     if ((cleanTitle.isEmpty || cleanTitle == 'Untitled note') &&
         plainText.isEmpty) {
-      if (noteId != null) {
-        await noteRepository.deleteForever(noteId!);
-      }
+      if (noteId != null) await noteRepository.deleteForever(noteId!);
       return;
     }
 
-    await saveNote(title: cleanTitle, document: document, notify: true);
+    await saveNote(
+      title: cleanTitle,
+      document: document,
+      scrollOffset: scrollOffset,
+      notify: true,
+    );
   }
 
   void dispose() {
     _isDisposed = true;
     _autosaveDebounce?.cancel();
+    _detectionDebounce?.cancel();
     saveState.dispose();
   }
 }

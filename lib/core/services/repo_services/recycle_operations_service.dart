@@ -1,6 +1,5 @@
 // Recycle operations move notes between active and deleted collections in bulk.
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
 
 typedef BulkMoveResult = ({Map<String, NotesSection> dbUpdates});
 
@@ -22,7 +21,6 @@ class RecycleOperationsService {
           note.updatedAt = now;
           updates[note.id] = note;
           currentDeleted.add(note);
-          SqliteFtsService.remove(note.id);
           return true;
         }
         return false;
@@ -34,7 +32,6 @@ class RecycleOperationsService {
           note.updatedAt = now;
           updates[note.id] = note;
           currentActive.add(note);
-          SqliteFtsService.insertOrUpdate(note.id, note.title, note.content);
           return true;
         }
         return false;

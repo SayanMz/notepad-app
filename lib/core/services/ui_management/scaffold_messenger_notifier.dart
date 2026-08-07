@@ -135,7 +135,7 @@ Widget _buildElevatedAction(String label, VoidCallback onTap) {
 }
 
 void showSuccessSnackBar(String message, {Duration? duration}) {
-  final d = duration ?? AnimationConstants.snackbarShort;
+  final d = duration ?? AnimationConstants.snackbarLong;
   uiNotifier.showSnackBar(
     SnackBar(
       content: Text(

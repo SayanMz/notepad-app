@@ -1,5 +1,6 @@
 * text=auto
 
+# Handle text files explicitly
 *.dart text
 *.yaml text
 *.yml text
@@ -12,3 +13,13 @@
 *.js text
 *.bat text
 *.ps1 text
+
+# Protect binary assets from line-ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.pdf binary
