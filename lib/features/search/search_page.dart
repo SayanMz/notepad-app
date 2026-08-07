@@ -64,45 +64,46 @@ class _SearchPageState extends State<SearchPage> {
         body: SafeArea(
           child: NotificationListener<ScrollNotification>(
             onNotification: _handleScrollNotification,
-            child: Stack(
+            child: Column(
               children: [
-                Column(
-                  children: [
-                    ValueListenableBuilder<bool>(
-                      valueListenable: _showHeaders,
-                      builder: (context, show, _) => SmoothSlideFade(
-                        isVisible: show,
-                        child: AppBar(
-                          surfaceTintColor: Colors.transparent,
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          titleSpacing: 0,
-                          title: Padding(
-                            padding: const EdgeInsets.only(
-                              right: SearchConstants.appBarTitleRightPadding,
-                            ),
-                            child: SearchInputFieldBar(
-                              controller: _searchController,
-                              focusNode: _searchFocusNode,
-                            ),
-                          ),
-                          actions: [
-                            SearchFilterActionButton(
-                              controller: _searchController,
-                            ),
-                          ],
+                ValueListenableBuilder<bool>(
+                  valueListenable: _showHeaders,
+                  builder: (context, show, _) => SmoothSlideFade(
+                    isVisible: show,
+                    minHeight: kToolbarHeight,
+                    child: AppBar(
+                      surfaceTintColor: Colors.transparent,
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      titleSpacing: 0,
+                      title: Padding(
+                        padding: const EdgeInsets.only(
+                          right: SearchConstants.appBarTitleRightPadding,
+                        ),
+                        child: SearchInputFieldBar(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
                         ),
                       ),
+                      actions: [
+                        SearchFilterActionButton(
+                          controller: _searchController,
+                        ),
+                      ],
                     ),
-                    Expanded(child: _buildResultsPanel()),
-                  ],
+                  ),
                 ),
+                Expanded(child: _buildResultsPanel()),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _toggleHeaders(bool show) {
+    _showHeaders.value = show;
   }
 
   double _lastPixelOffset = 0.0;
@@ -128,14 +129,14 @@ class _SearchPageState extends State<SearchPage> {
 
     // Always show headers/chips at the top
     if (currentPixels <= 0) {
-      _showHeaders.value = true;
+      _toggleHeaders(true);
       _lastPixelOffset = 0.0;
       return false;
     }
 
     // Always hide headers/chips at the bottom
     if (currentPixels >= maxScroll - SearchConstants.scrollBottomBoundary) {
-      _showHeaders.value = false;
+      _toggleHeaders(false);
       return false;
     }
 
@@ -150,10 +151,10 @@ class _SearchPageState extends State<SearchPage> {
         delta.abs() > SearchConstants.scrollHideDeltaThreshold) {
       if (delta > 0 && _showHeaders.value) {
         if (currentPixels > SearchConstants.scrollLayoutShiftSafeZone) {
-          _showHeaders.value = false; // Scrolling down -> hide
+          _toggleHeaders(false); // Scrolling down -> hide
         }
       } else if (delta < 0 && !_showHeaders.value) {
-        _showHeaders.value = true; // Scrolling up -> show
+        _toggleHeaders(true); // Scrolling up -> show
       }
       _lastPixelOffset = currentPixels;
     } else if (!isPhysicalDrag) {
@@ -167,7 +168,7 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _onSearchStateChanged() async {
     if (_searchController.isShowingEmptyState) {
       if (!_showHeaders.value) {
-        _showHeaders.value = true;
+        _toggleHeaders(true);
         _lastPixelOffset = 0.0;
       }
     }
@@ -185,7 +186,7 @@ class _SearchPageState extends State<SearchPage> {
         scrollController: _scrollController,
         showChips: _showHeaders,
         onClearFilter: () {
-          _showHeaders.value = true;
+          _toggleHeaders(true);
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
               0.0,

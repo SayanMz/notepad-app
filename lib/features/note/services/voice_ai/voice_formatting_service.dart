@@ -397,15 +397,17 @@ class VoiceFormattingService {
             start + inlineLen - 1,
             start + inlineLen,
           );
-          if (lastChar == '\n' || lastChar == '.') {
+          if (lastChar == '\n' || lastChar == '.' || lastChar == ' ') {
             inlineLen--;
           } else {
             break;
           }
+        }
 
+        if (inlineLen > 0) {
           controller.formatText(
             start,
-            length,
+            inlineLen,
             Attribute.fromKeyValue(key, value),
           );
         }

@@ -3,15 +3,31 @@
 **Notepad** is a sophisticated, local-first workspace engineered to dissolve the friction between thought and digital record. Blending high-performance SQLite FTS power with advanced Groq AI integration, it transforms a minimalist interface into a secure, intelligent thinking partner. Every interaction is tuned for near-instant responsiveness, ensuring your focus remains entirely on your ideas.
 
 <div align="center">
-   <img src="web/screenshots/Readme/Home.webp" width="340"  alt="Home Screen"/>
-   <img src="web/screenshots/Readme/Editor.webp" width="339"  alt="Note Editor"/>
-   <img src="web/screenshots/Readme/Search.webp" width="342"  alt="Search Page"/>
-   <img src="web/screenshots/Readme/Trash.webp" width="338"  alt="Recycle Bin"/>
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="web/screenshots/Home/Home_Page_1.webp">
+     <source media="(prefers-color-scheme: light)" srcset="web/screenshots/Readme/Home.webp">
+     <img src="web/screenshots/Readme/Home.webp" width="340" alt="Home Screen"/>
+   </picture>
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="web/screenshots/Note/Note_Page_2.webp">
+     <source media="(prefers-color-scheme: light)" srcset="web/screenshots/Readme/Editor.webp">
+     <img src="web/screenshots/Readme/Editor.webp" width="339" alt="Note Editor"/>
+   </picture>
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="web/screenshots/Search/Search_Page_1.webp">
+     <source media="(prefers-color-scheme: light)" srcset="web/screenshots/Readme/Search.webp">
+     <img src="web/screenshots/Readme/Search.webp" width="342" alt="Search Page"/>
+   </picture>
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="web/screenshots/Trash/Trash_Page_1.webp">
+     <source media="(prefers-color-scheme: light)" srcset="web/screenshots/Readme/Trash.webp">
+     <img src="web/screenshots/Readme/Trash.webp" width="338" alt="Recycle Bin"/>
+   </picture>
 </div>
 
 ---
 ## 📥 Download
-[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/latest)
+[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Notepad_2.3.0.apk)
 
 ---
 # Core Pillars 🚀
@@ -53,10 +69,13 @@ Notepad is built on a **Feature-First** architecture with a strict **Controller-
 </details>
 
 ---
-### 🎬 Application Walkthrough
-[Watch Walkthrough Video](https://github.com/SayanMz/notepad-app/releases/download/v2.0.0/Notepad.2.0.mp4)
+
+### 🎬 Application Walkthroughs
+
+[📝 Note Editor](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Note_Editor_demo.mp4) &nbsp;|&nbsp; [🤖 Groq AI Assistant](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Groq_Ai_demo.mp4) &nbsp;|&nbsp; [🏠 Home Screen](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Home_Page.mp4) &nbsp;|&nbsp; [🔍 Search Filter](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Search_Page.mp4) &nbsp;|&nbsp; [🗑️ Recycle Bin](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Recycle_Page.mp4)
 
 ---
+
 ## 🚀 Local Setup
 <details>
 <summary><b>Show Installation Commands</b></summary>

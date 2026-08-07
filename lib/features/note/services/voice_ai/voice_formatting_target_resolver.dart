@@ -232,28 +232,55 @@ class VoiceFormattingTargetResolver {
     required String occurrence,
   }) {
     final lowPt = plainText.toLowerCase();
-    final pattern = RegExp.escape(target);
 
-    // Fallback Strategy 1: Try to match the exact phrase with strict word boundaries.
-    var matches = RegExp(
-      r'\b' + pattern + r'\b',
-      caseSensitive: false,
-    ).allMatches(lowPt).toList();
+    // Strategy 1: Clean the target of descriptive "junk" words that the AI might
+    // accidentally include (e.g., "word hello" -> "hello").
+    String cleanTarget = target.toLowerCase().trim();
+    final junkWords = ['word', 'letter', 'character', 'alphabet', 'phrase'];
 
-    // Fallback Strategy 2: Try to match as a prefix (e.g. "run" matches "running").
-    if (matches.isEmpty) {
-      matches = RegExp(
-        r'\b' + pattern,
-        caseSensitive: false,
-      ).allMatches(lowPt).toList();
+    for (var junk in junkWords) {
+      if (cleanTarget.startsWith('$junk ')) {
+        cleanTarget = cleanTarget.substring(junk.length + 1).trim();
+      } else if (cleanTarget.endsWith(' $junk')) {
+        cleanTarget = cleanTarget.substring(0, cleanTarget.length - junk.length - 1).trim();
+      }
     }
 
-    // Fallback Strategy 3: Loose match anywhere in the text.
-    if (matches.isEmpty) {
+    // Strip quotes if AI included them
+    if (cleanTarget.startsWith("'") && cleanTarget.endsWith("'")) {
+      cleanTarget = cleanTarget.substring(1, cleanTarget.length - 1);
+    } else if (cleanTarget.startsWith('"') && cleanTarget.endsWith('"')) {
+      cleanTarget = cleanTarget.substring(1, cleanTarget.length - 1);
+    }
+
+    final pattern = RegExp.escape(cleanTarget);
+    final isSingleChar = cleanTarget.length == 1;
+
+    List<RegExpMatch> matches = [];
+
+    // Strategy 2: If it's a single character, we usually want a loose match
+    // (e.g., "underline the letter s" should find all 's's).
+    if (isSingleChar) {
+      matches = RegExp(pattern, caseSensitive: false).allMatches(lowPt).toList();
+    } else {
+      // Strategy 3: Exact phrase with strict word boundaries.
       matches = RegExp(
-        pattern,
+        r'\b' + pattern + r'\b',
         caseSensitive: false,
       ).allMatches(lowPt).toList();
+
+      // Strategy 4: Match as a prefix (e.g. "run" matches "running").
+      if (matches.isEmpty) {
+        matches = RegExp(
+          r'\b' + pattern,
+          caseSensitive: false,
+        ).allMatches(lowPt).toList();
+      }
+
+      // Strategy 5: Loose match anywhere in the text.
+      if (matches.isEmpty) {
+        matches = RegExp(pattern, caseSensitive: false).allMatches(lowPt).toList();
+      }
     }
 
     // If the user specified an occurrence (e.g., "bold the *second* 'hello'"), filter the results.

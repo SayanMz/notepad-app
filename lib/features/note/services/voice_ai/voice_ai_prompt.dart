@@ -32,3 +32,5 @@ const String voiceAiSystemPrompt = '''
   - "Make menu items a checklist" -> {"instructions": [{"target": "menu items", "key": "list", "value": "unchecked", "occurrence": "all"}]}
   - "link this to google.com" -> {"instructions": [{"target": "selection", "key": "link", "value": "google.com", "occurrence": "all"}]}
 ''';
+
+//flutter test --reporter expanded test/features/note/services/voice_ai/

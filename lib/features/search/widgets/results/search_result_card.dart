@@ -26,11 +26,75 @@ class SearchResultCard extends StatefulWidget {
 
 class _SearchResultCardState extends State<SearchResultCard> {
   late final ScrollController _cardScrollController;
+  List<List<String>>? _memoizedBlocks;
+  List<TextSpan>? _memoizedTitleSpans;
+  List<List<List<TextSpan>>>? _memoizedBlockSpans;
+  String? _lastContent;
+  String? _lastQuery;
+  bool? _lastIsDark;
 
   @override
   void initState() {
     super.initState();
     _cardScrollController = ScrollController();
+  }
+
+  @override
+  void didUpdateWidget(SearchResultCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.note.content != oldWidget.note.content ||
+        widget.query != oldWidget.query) {
+      _memoizedBlocks = null;
+      _memoizedBlockSpans = null;
+    }
+  }
+
+  void _ensureBlocks() {
+    if (_memoizedBlocks != null &&
+        _lastContent == widget.note.content &&
+        _lastQuery == widget.query) {
+      return;
+    }
+    _memoizedBlocks = extractMultiSearchSnippets(
+      widget.note.content,
+      widget.query,
+    );
+    _lastContent = widget.note.content;
+    _lastQuery = widget.query;
+    _memoizedBlockSpans = null; // Invalidate spans if blocks changed
+  }
+
+  void _ensureSpans(TextStyle titleBase, TextStyle previewBase,
+      TextStyle highlight, bool isDark) {
+    if (_memoizedTitleSpans != null &&
+        _memoizedBlockSpans != null &&
+        _lastQuery == widget.query &&
+        _lastIsDark == isDark) {
+      return;
+    }
+
+    _memoizedTitleSpans = buildHighlightedTextSpans(
+      text: widget.note.displayTitle,
+      query: widget.query,
+      baseStyle: titleBase,
+      highlightStyle: titleBase.merge(highlight),
+    );
+
+    if (_memoizedBlocks != null) {
+      _memoizedBlockSpans = _memoizedBlocks!.map((block) {
+        return block.map((line) {
+          return buildHighlightedTextSpans(
+            text: line,
+            query: widget.query,
+            baseStyle: previewBase,
+            highlightStyle: previewBase.merge(highlight),
+          );
+        }).toList();
+      }).toList();
+    }
+
+    _lastIsDark = isDark;
+    _lastQuery = widget.query;
   }
 
   @override
@@ -41,13 +105,18 @@ class _SearchResultCardState extends State<SearchResultCard> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = context.isDark;
     final titleStyle = TextStyle(
       fontWeight: FontWeight.bold,
       fontSize: SearchConstants.resultTitleFontSize,
-      color: context.isDark ? AppColors.searchResultTitleDark : AppColors.searchResultTitleLight,
+      color: isDark
+          ? AppColors.searchResultTitleDark
+          : AppColors.searchResultTitleLight,
     );
     final previewStyle = TextStyle(
-      color: context.isDark ? AppColors.searchResultSubtitleDark : AppColors.searchResultSubtitleLight,
+      color: isDark
+          ? AppColors.searchResultSubtitleDark
+          : AppColors.searchResultSubtitleLight,
       height: 1.35,
       fontSize: 13,
     );
@@ -58,10 +127,10 @@ class _SearchResultCardState extends State<SearchResultCard> {
       color: AppColors.searchResultTitleLight,
     );
 
-    final List<List<String>> blocks = extractMultiSearchSnippets(
-      widget.note.content,
-      widget.query,
-    );
+    _ensureBlocks();
+    _ensureSpans(titleStyle, previewStyle, highlightStyle, isDark);
+
+    final List<List<List<TextSpan>>> blockSpans = _memoizedBlockSpans ?? [];
 
     return Card(
       margin: const EdgeInsets.only(bottom: SearchConstants.resultMarginBottom),
@@ -75,14 +144,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text.rich(
-              TextSpan(
-                children: buildHighlightedTextSpans(
-                  text: widget.note.displayTitle,
-                  query: widget.query,
-                  baseStyle: titleStyle,
-                  highlightStyle: titleStyle.merge(highlightStyle),
-                ),
-              ),
+              TextSpan(children: _memoizedTitleSpans),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -90,7 +152,9 @@ class _SearchResultCardState extends State<SearchResultCard> {
             Text(
               'Edited: ${widget.note.updatedAt.format()}',
               style: TextStyle(
-                color: context.isDark ? AppColors.searchResultSubtitleDark : AppColors.searchResultSubtitleLight,
+                color: isDark
+                    ? AppColors.searchResultSubtitleDark
+                    : AppColors.searchResultSubtitleLight,
                 fontSize: SearchConstants.resultEditedFontSize,
               ),
             ),
@@ -104,16 +168,16 @@ class _SearchResultCardState extends State<SearchResultCard> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 0, maxHeight: 115.0),
             child: SingleChildScrollView(
-              physics: ClampingScrollPhysics(),
+              physics: const ClampingScrollPhysics(),
               controller: _cardScrollController,
               primary: false,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ...blocks.asMap().entries.map((blockEntry) {
+                  ...blockSpans.asMap().entries.map((blockEntry) {
                     final blockIndex = blockEntry.key;
-                    final blockLines = blockEntry.value;
+                    final lineSpansList = blockEntry.value;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,8 +199,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
                               ],
                             ),
                           ),
-
-                        ...blockLines.map((line) {
+                        ...lineSpansList.map((lineSpans) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 3.0),
                             child: Row(
@@ -144,16 +207,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
                               children: [
                                 Expanded(
                                   child: Text.rich(
-                                    TextSpan(
-                                      children: buildHighlightedTextSpans(
-                                        text: line,
-                                        query: widget.query,
-                                        baseStyle: previewStyle,
-                                        highlightStyle: previewStyle.merge(
-                                          highlightStyle,
-                                        ),
-                                      ),
-                                    ),
+                                    TextSpan(children: lineSpans),
                                     maxLines: 3,
                                     overflow: TextOverflow.ellipsis,
                                   ),

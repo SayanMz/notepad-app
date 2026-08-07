@@ -5,11 +5,13 @@ import 'package:notepad/core/constants/animation_constants.dart';
 class SmoothSlideFade extends StatefulWidget {
   final Widget child;
   final bool isVisible;
+  final double? minHeight;
 
   const SmoothSlideFade({
     super.key,
     required this.child,
     required this.isVisible,
+    this.minHeight,
   });
 
   @override
@@ -65,9 +67,15 @@ class _SmoothSlideFadeState extends State<SmoothSlideFade>
         sizeFactor: _animation,
         alignment: Alignment.topCenter,
         child: RepaintBoundary(
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: widget.child,
+          child: IgnorePointer(
+            ignoring: !widget.isVisible,
+            child: SizedBox(
+              height: widget.minHeight,
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: widget.child,
+              ),
+            ),
           ),
         ),
       ),
