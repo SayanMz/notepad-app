@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/features/search/widgets/results/search_result_card.dart';
+import 'package:notepad/features/search/widgets/results/result_card.dart';
 
 void main() {
-  testWidgets('SearchResultCard displays title and handles highlights', (tester) async {
+  testWidgets('SearchResultCard displays title and handles highlights', (
+    tester,
+  ) async {
     final note = NotesSection(
       id: '1',
       title: 'Coffee recipes',
@@ -15,11 +17,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SearchResultCard(
-            note: note,
-            query: 'latte',
-            onTap: () {},
-          ),
+          body: ResultCard(note: note, query: 'latte', onTap: () {}),
         ),
       ),
     );

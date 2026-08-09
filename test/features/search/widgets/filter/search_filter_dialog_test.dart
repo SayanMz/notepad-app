@@ -11,7 +11,7 @@ class FakeSearchController extends Fake implements search_ctrl.SearchController 
 }
 
 void main() {
-  testWidgets('SearchFilterActionButton renders correctly', (tester) async {
+  testWidgets('SearchFilterButton renders correctly', (tester) async {
     final controller = FakeSearchController();
     
     await tester.pumpWidget(
@@ -19,18 +19,18 @@ void main() {
         home: Scaffold(
           appBar: AppBar(
             actions: [
-              SearchFilterActionButton(controller: controller),
+              SearchFilterButton(controller: controller),
             ],
           ),
         ),
       ),
     );
 
-    expect(find.byType(SearchFilterActionButton), findsOneWidget);
+    expect(find.byType(SearchFilterButton), findsOneWidget);
     expect(find.byType(IconButton), findsOneWidget);
   });
 
-  testWidgets('SearchFilterActionButton opens dialog when tapped', (tester) async {
+  testWidgets('SearchFilterButton opens dialog when tapped', (tester) async {
     final controller = FakeSearchController();
     
     await tester.pumpWidget(
@@ -38,7 +38,7 @@ void main() {
         home: Scaffold(
           appBar: AppBar(
             actions: [
-              SearchFilterActionButton(controller: controller),
+              SearchFilterButton(controller: controller),
             ],
           ),
         ),

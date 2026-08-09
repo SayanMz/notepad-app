@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
-// Combines slide and fade transitions natively
 class SmoothSlideFade extends StatefulWidget {
   final Widget child;
-  final bool isVisible;
-  final double? minHeight;
+  final bool showTopBars;
 
   const SmoothSlideFade({
     super.key,
     required this.child,
-    required this.isVisible,
-    this.minHeight,
+    required this.showTopBars,
   });
 
   @override
@@ -31,7 +28,7 @@ class _SmoothSlideFadeState extends State<SmoothSlideFade>
       vsync: this,
       duration: AnimationConstants.slow,
       reverseDuration: AnimationConstants.snappy,
-      value: widget.isVisible ? 1.0 : 0.0,
+      value: widget.showTopBars ? 1.0 : 0.0,
     );
     _animation = CurvedAnimation(
       parent: _controller,
@@ -43,13 +40,8 @@ class _SmoothSlideFadeState extends State<SmoothSlideFade>
   @override
   void didUpdateWidget(SmoothSlideFade oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Smoothly reverse or forward the animation from its exact current tick
-    if (widget.isVisible != oldWidget.isVisible) {
-      if (widget.isVisible) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
+    if (widget.showTopBars != oldWidget.showTopBars) {
+      widget.showTopBars ? _controller.forward() : _controller.reverse();
     }
   }
 
@@ -61,21 +53,15 @@ class _SmoothSlideFadeState extends State<SmoothSlideFade>
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _animation,
-      child: SizeTransition(
-        sizeFactor: _animation,
-        alignment: Alignment.topCenter,
+    return SizeTransition(
+      sizeFactor: _animation,
+      alignment: Alignment.topCenter,
+      child: FadeTransition(
+        opacity: _animation,
         child: RepaintBoundary(
           child: IgnorePointer(
-            ignoring: !widget.isVisible,
-            child: SizedBox(
-              height: widget.minHeight,
-              child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: widget.child,
-              ),
-            ),
+            ignoring: !widget.showTopBars,
+            child: widget.child,
           ),
         ),
       ),

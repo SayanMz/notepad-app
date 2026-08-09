@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart' hide SearchController;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart';
-import 'package:notepad/features/search/widgets/search_input_field_bar.dart';
+import 'package:notepad/features/search/widgets/header/search_input_field_bar.dart';
 
 void main() {
-  testWidgets('SearchInputFieldBar handles input and clear actions', (tester) async {
+  testWidgets('SearchInputFieldBar handles input and clear actions', (
+    tester,
+  ) async {
     final controller = SearchController();
     final focusNode = FocusNode();
 

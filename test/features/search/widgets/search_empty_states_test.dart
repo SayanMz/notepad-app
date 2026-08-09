@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/search/widgets/results/search_empty_states.dart';
+import 'package:notepad/features/search/widgets/results/empty_states.dart';
 
 void main() {
   testWidgets('SearchInitialState shows the default empty-search guidance', (

@@ -19,7 +19,7 @@ class SearchConstants {
   // --- Quick Filter Chips ---
   static const double chipBoltGap = 22.5;
   static const double chipGap = Tokens.spacingSM;
-  static const double chipLeftPadding = 5.0;
+  static const double chipLeftPadding = 16.0;
   static const double chipBottomPadding = Tokens.spacingM;
   static const double chipIconSize = Tokens.iconSM;
   static const double resultsRightPadding = 15.0;

@@ -12,7 +12,7 @@ void main() {
         const MaterialApp(
           home: Scaffold(
             body: SmoothSlideFade(
-              isVisible: false,
+              showTopBars: false,
               child: Text('Search panel'),
             ),
           ),
@@ -35,7 +35,10 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: SmoothSlideFade(isVisible: true, child: Text('Search panel')),
+            body: SmoothSlideFade(
+              showTopBars: true,
+              child: Text('Search panel'),
+            ),
           ),
         ),
       );

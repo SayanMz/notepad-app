@@ -7,8 +7,8 @@ import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
 import 'package:notepad/features/search/search_constants.dart';
 
 // Search result card highlights matches, snippets, and note metadata in one tile.
-class SearchResultCard extends StatefulWidget {
-  const SearchResultCard({
+class ResultCard extends StatefulWidget {
+  const ResultCard({
     required this.note,
     required this.query,
     required this.onTap,
@@ -21,17 +21,19 @@ class SearchResultCard extends StatefulWidget {
   final VoidCallback onTap;
 
   @override
-  State<SearchResultCard> createState() => _SearchResultCardState();
+  State<ResultCard> createState() => _ResultCardState();
 }
 
-class _SearchResultCardState extends State<SearchResultCard> {
+class _ResultCardState extends State<ResultCard> {
   late final ScrollController _cardScrollController;
-  List<List<String>>? _memoizedBlocks;
-  List<TextSpan>? _memoizedTitleSpans;
-  List<List<List<TextSpan>>>? _memoizedBlockSpans;
-  String? _lastContent;
-  String? _lastQuery;
-  bool? _lastIsDark;
+
+  // Single cached result set
+  List<TextSpan>? _titleSpans;
+  List<List<List<TextSpan>>>? _blockSpans;
+
+  // Single set of cache keys
+  String? _cachedContent;
+  String? _cachedQuery;
 
   @override
   void initState() {
@@ -39,62 +41,49 @@ class _SearchResultCardState extends State<SearchResultCard> {
     _cardScrollController = ScrollController();
   }
 
-  @override
-  void didUpdateWidget(SearchResultCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.note.content != oldWidget.note.content ||
-        widget.query != oldWidget.query) {
-      _memoizedBlocks = null;
-      _memoizedBlockSpans = null;
-    }
-  }
+  void _ensureCache({
+    required TextStyle titleBase,
+    required TextStyle previewBase,
+    required TextStyle highlight,
+  }) {
+    // Return early if nothing that affects rendering has changed
+    final isCacheValid =
+        _titleSpans != null &&
+        _blockSpans != null &&
+        _cachedContent == widget.note.content &&
+        _cachedQuery == widget.query;
 
-  void _ensureBlocks() {
-    if (_memoizedBlocks != null &&
-        _lastContent == widget.note.content &&
-        _lastQuery == widget.query) {
-      return;
-    }
-    _memoizedBlocks = extractMultiSearchSnippets(
+    if (isCacheValid) return;
+
+    // 1. Extract raw blocks
+    final blocks = extractMultiSearchSnippets(
       widget.note.content,
       widget.query,
     );
-    _lastContent = widget.note.content;
-    _lastQuery = widget.query;
-    _memoizedBlockSpans = null; // Invalidate spans if blocks changed
-  }
 
-  void _ensureSpans(TextStyle titleBase, TextStyle previewBase,
-      TextStyle highlight, bool isDark) {
-    if (_memoizedTitleSpans != null &&
-        _memoizedBlockSpans != null &&
-        _lastQuery == widget.query &&
-        _lastIsDark == isDark) {
-      return;
-    }
-
-    _memoizedTitleSpans = buildHighlightedTextSpans(
+    // 2. Build title spans
+    _titleSpans = buildHighlightedTextSpans(
       text: widget.note.displayTitle,
       query: widget.query,
       baseStyle: titleBase,
       highlightStyle: titleBase.merge(highlight),
     );
 
-    if (_memoizedBlocks != null) {
-      _memoizedBlockSpans = _memoizedBlocks!.map((block) {
-        return block.map((line) {
-          return buildHighlightedTextSpans(
-            text: line,
-            query: widget.query,
-            baseStyle: previewBase,
-            highlightStyle: previewBase.merge(highlight),
-          );
-        }).toList();
+    // 3. Build body snippet spans
+    _blockSpans = blocks.map((block) {
+      return block.map((line) {
+        return buildHighlightedTextSpans(
+          text: line,
+          query: widget.query,
+          baseStyle: previewBase,
+          highlightStyle: previewBase.merge(highlight),
+        );
       }).toList();
-    }
+    }).toList();
 
-    _lastIsDark = isDark;
-    _lastQuery = widget.query;
+    // 4. Update cached keys
+    _cachedContent = widget.note.content;
+    _cachedQuery = widget.query;
   }
 
   @override
@@ -106,6 +95,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
   @override
   Widget build(BuildContext context) {
     final bool isDark = context.isDark;
+
     final titleStyle = TextStyle(
       fontWeight: FontWeight.bold,
       fontSize: SearchConstants.resultTitleFontSize,
@@ -113,6 +103,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
           ? AppColors.searchResultTitleDark
           : AppColors.searchResultTitleLight,
     );
+
     final previewStyle = TextStyle(
       color: isDark
           ? AppColors.searchResultSubtitleDark
@@ -127,10 +118,13 @@ class _SearchResultCardState extends State<SearchResultCard> {
       color: AppColors.searchResultTitleLight,
     );
 
-    _ensureBlocks();
-    _ensureSpans(titleStyle, previewStyle, highlightStyle, isDark);
+    _ensureCache(
+      titleBase: titleStyle,
+      previewBase: previewStyle,
+      highlight: highlightStyle,
+    );
 
-    final List<List<List<TextSpan>>> blockSpans = _memoizedBlockSpans ?? [];
+    final List<List<List<TextSpan>>> blockSpans = _blockSpans ?? [];
 
     return Card(
       margin: const EdgeInsets.only(bottom: SearchConstants.resultMarginBottom),
@@ -144,7 +138,7 @@ class _SearchResultCardState extends State<SearchResultCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text.rich(
-              TextSpan(children: _memoizedTitleSpans),
+              TextSpan(children: _titleSpans),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -229,4 +223,3 @@ class _SearchResultCardState extends State<SearchResultCard> {
     );
   }
 }
-

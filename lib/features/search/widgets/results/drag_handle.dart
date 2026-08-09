@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 // Drag handle gives the search results list a compact scroll grip.
-class SearchDragHandle extends StatelessWidget {
-  const SearchDragHandle({super.key});
+class DragHandle extends StatelessWidget {
+  const DragHandle({super.key});
 
   @override
   Widget build(BuildContext context) {

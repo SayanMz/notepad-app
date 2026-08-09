@@ -27,7 +27,7 @@
 
 ---
 ## 📥 Download
-[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Notepad_2.3.0.apk)
+[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/app-release-2.3.apk)
 
 ---
 # Core Pillars 🚀

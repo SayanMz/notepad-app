@@ -1,17 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/app_router.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/note_page.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/search_constants.dart';
-import 'package:notepad/features/search/widgets/results/search_empty_states.dart';
-import 'package:notepad/features/search/widgets/results/search_result_card.dart';
-import 'package:notepad/features/search/widgets/search_drag_handle.dart';
+import 'package:notepad/features/search/widgets/results/drag_handle.dart';
+import 'package:notepad/features/search/widgets/results/empty_states.dart';
+import 'package:notepad/features/search/widgets/results/result_card.dart';
+import 'package:notepad/features/trash/recycle_constants.dart';
 
-// Search results list switches between empty, initial, and result states.
-class SearchResultsList extends StatefulWidget {
-  const SearchResultsList({
+// Matches Block A (112) + Block B (56) from SearchPage
+const double kTotalFloatingHeaderHeight = 168.0;
+
+class ResultsMetadataHeader extends StatelessWidget {
+  const ResultsMetadataHeader({
+    super.key,
+    required this.controller,
+    required this.onClearFilter,
+  });
+
+  final search_ctrl.SearchController controller;
+  final VoidCallback onClearFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final isDarkMode = context.isDark;
+        final resultsCount = controller.results.length;
+        final hasCriteria = controller.hasAnyCriteria;
+        final hasActiveFilters = controller.hasFilters;
+
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: hasActiveFilters
+                ? SearchConstants.panelPadding
+                : SearchConstants.panelPadding + RecycleConstants.listPadding,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (hasActiveFilters) ...[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    controller.clearFilter();
+                    onClearFilter();
+                  },
+                  icon: const Icon(Icons.filter_alt_off, size: 25),
+                  color: isDarkMode
+                      ? context.theme.colorScheme.onSurfaceVariant
+                      : AppColors.searchMetadataTextLight,
+                  tooltip: 'Clear filter',
+                ),
+              ],
+              if (hasCriteria || hasActiveFilters)
+                Text(
+                  resultsCount == 1 ? '1 result' : '$resultsCount results',
+                  style: TextStyle(
+                    color: isDarkMode
+                        ? context.theme.colorScheme.onSurfaceVariant
+                        : AppColors.searchMetadataTextLight,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ResultsView extends StatefulWidget {
+  const ResultsView({
     super.key,
     required this.controller,
     required this.scrollController,
@@ -21,18 +89,23 @@ class SearchResultsList extends StatefulWidget {
   final ScrollController scrollController;
 
   @override
-  State<SearchResultsList> createState() => SearchResultsListState();
+  State<ResultsView> createState() => ResultsViewState();
 }
 
-class SearchResultsListState extends State<SearchResultsList> {
+class ResultsViewState extends State<ResultsView> {
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: AnimationConstants.fast,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(opacity: animation, child: child);
+    return ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) {
+        return AnimatedSwitcher(
+          duration: AnimationConstants.fast,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          child: _buildCurrentContent(),
+        );
       },
-      child: _buildCurrentContent(),
     );
   }
 
@@ -42,10 +115,16 @@ class SearchResultsListState extends State<SearchResultsList> {
     final hasCriteria = widget.controller.hasAnyCriteria;
 
     if (!hasCriteria) {
-      return SearchInitialState(key: const ValueKey('initial'));
+      return const Padding(
+        padding: EdgeInsets.only(top: kTotalFloatingHeaderHeight),
+        child: SearchInitialState(key: ValueKey('initial')),
+      );
     }
     if (results.isEmpty) {
-      return SearchEmptyState(key: const ValueKey('empty'), query: query);
+      return Padding(
+        padding: const EdgeInsets.only(top: kTotalFloatingHeaderHeight),
+        child: SearchEmptyState(key: const ValueKey('empty'), query: query),
+      );
     }
 
     return Stack(
@@ -54,7 +133,8 @@ class SearchResultsListState extends State<SearchResultsList> {
           controller: widget.scrollController,
           key: const ValueKey('results_list'),
           padding: const EdgeInsets.only(
-            left: SearchConstants.chipGap,
+            top: kTotalFloatingHeaderHeight,
+            left: SearchConstants.panelPadding + SearchConstants.chipGap,
             right: SearchConstants.resultsRightPadding + 14.0,
             bottom: SearchConstants.resultsBottomPadding,
           ),
@@ -66,7 +146,7 @@ class SearchResultsListState extends State<SearchResultsList> {
           itemBuilder: (context, index) {
             final note = results[index];
 
-            return SearchResultCard(
+            return ResultCard(
               key: ValueKey(note.id),
               note: note,
               query: query,
@@ -81,9 +161,8 @@ class SearchResultsListState extends State<SearchResultsList> {
           },
         ),
 
-        // Custom Interactive Scrollbar Overlay
         Positioned(
-          top: 0,
+          top: kTotalFloatingHeaderHeight,
           bottom: SearchConstants.resultsBottomPadding,
           right: 2,
           child: LayoutBuilder(
@@ -95,7 +174,7 @@ class SearchResultsListState extends State<SearchResultsList> {
                 child: const RepaintBoundary(
                   child: Padding(
                     padding: EdgeInsets.only(left: 20.0),
-                    child: SearchDragHandle(),
+                    child: DragHandle(),
                   ),
                 ),
                 builder: (context, cachedHandle) {
