@@ -15,6 +15,7 @@ import 'package:notepad/features/trash/recycle_constants.dart';
 // Matches Block A (112) + Block B (56) from SearchPage
 const double kTotalFloatingHeaderHeight = 168.0;
 
+// Header widget that shows result count and provides filter-clearing controls.
 class ResultsMetadataHeader extends StatelessWidget {
   const ResultsMetadataHeader({
     super.key,
@@ -78,6 +79,7 @@ class ResultsMetadataHeader extends StatelessWidget {
   }
 }
 
+// Results screen that swaps between empty states, the results list, and has the draggable scroll handle.
 class ResultsView extends StatefulWidget {
   const ResultsView({
     super.key,

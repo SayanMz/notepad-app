@@ -8,6 +8,7 @@ import 'package:notepad/features/search/models/search_date_selection.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/search_constants.dart';
 
+// Quick chips apply common date-range filters for fast search narrowing.
 class SearchQuickChips extends StatelessWidget {
   const SearchQuickChips({super.key, required this.controller});
 

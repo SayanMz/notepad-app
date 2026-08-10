@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/search_constants.dart';
-import 'package:notepad/features/search/widgets/filter/search_filter_dialog.dart';
+import 'package:notepad/features/search/widgets/filter/search_filter_button.dart';
 import 'package:notepad/features/search/widgets/header/search_input_field_bar.dart';
 import 'package:notepad/features/search/widgets/header/search_quick_chips.dart';
 
+// Collapsible search header combines the query field, filter action, and quick date chips.
 class SearchCollapsibleHeader extends StatelessWidget {
   const SearchCollapsibleHeader({
     super.key,

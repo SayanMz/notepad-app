@@ -8,10 +8,11 @@ import 'package:notepad/features/search/services/smooth_slide_fade.dart';
 import 'package:notepad/features/search/widgets/header/search_collapsible_header.dart';
 import 'package:notepad/features/search/widgets/results/results_view.dart';
 
-// Strict heights to guarantee pixel-perfect padding
-const double kSearchTopBarHeight = 112.0; // 56 (AppBar) + 56 (Chips)
+// Strict heights to guarantee pixel-perfect padding = 56 (AppBar) + 56 (Chips)
+const double kSearchTopBarHeight = 112.0;
 const double kSearchMetadataHeight = 56.0;
 
+// Search page coordinates query input, filters, results, and scroll-driven header visibility.
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 

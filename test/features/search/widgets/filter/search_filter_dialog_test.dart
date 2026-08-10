@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/search/widgets/filter/search_filter_dialog.dart';
-import 'package:notepad/features/search/controllers/search_controller.dart' as search_ctrl;
+import 'package:notepad/features/search/widgets/filter/search_filter_button.dart';
+import 'package:notepad/features/search/controllers/search_controller.dart'
+    as search_ctrl;
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/widgets/filter/search_filter_sheet.dart';
 
-class FakeSearchController extends Fake implements search_ctrl.SearchController {
+class FakeSearchController extends Fake
+    implements search_ctrl.SearchController {
   @override
   final SearchFilters filters = const SearchFilters();
 }
@@ -13,15 +15,11 @@ class FakeSearchController extends Fake implements search_ctrl.SearchController 
 void main() {
   testWidgets('SearchFilterButton renders correctly', (tester) async {
     final controller = FakeSearchController();
-    
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          appBar: AppBar(
-            actions: [
-              SearchFilterButton(controller: controller),
-            ],
-          ),
+          appBar: AppBar(actions: [SearchFilterButton(controller: controller)]),
         ),
       ),
     );
@@ -32,15 +30,11 @@ void main() {
 
   testWidgets('SearchFilterButton opens dialog when tapped', (tester) async {
     final controller = FakeSearchController();
-    
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          appBar: AppBar(
-            actions: [
-              SearchFilterButton(controller: controller),
-            ],
-          ),
+          appBar: AppBar(actions: [SearchFilterButton(controller: controller)]),
         ),
       ),
     );

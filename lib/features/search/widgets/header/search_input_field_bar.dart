@@ -4,7 +4,7 @@ import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/search_constants.dart';
 
-// Search input bar owns query entry, clear handling, and keyboard focus recovery.
+// Search input bar handles query entry, clear actions, and focus recovery.
 class SearchInputFieldBar extends StatelessWidget {
   final search_ctrl.SearchController controller;
   final FocusNode focusNode;
@@ -77,4 +77,3 @@ class SearchInputFieldBar extends StatelessWidget {
     );
   }
 }
-

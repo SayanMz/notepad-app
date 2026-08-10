@@ -65,27 +65,30 @@ class _SplashPageState extends State<SplashPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Lottie.asset(
-                'assets/lotties/Notepad.json',
-                controller: _animationController,
-                width: 280,
-                height: 280,
-                fit: BoxFit.contain,
-                onLoaded: (composition) {
-                  _animationController.duration = composition.duration;
-                  _animationController.value = 0.08;
+              // Shift Lottie 20px left to center the notepad body relative to the text
+              Transform.translate(
+                offset: const Offset(20.0, 0.0),
+                child: Lottie.asset(
+                  'assets/lotties/Notepad.json',
+                  controller: _animationController,
+                  width: 280,
+                  height: 280,
+                  fit: BoxFit.contain,
+                  onLoaded: (composition) {
+                    _animationController.duration = composition.duration;
+                    _animationController.value = 0.08;
 
-                  setState(() {
-                    _isLoaded = true;
-                  });
+                    setState(() {
+                      _isLoaded = true;
+                    });
 
-                  _animationController.animateTo(0.82).then((_) {
-                    _animationFinished = true;
-                    _checkAndNavigate();
-                  });
-                },
+                    _animationController.animateTo(0.82).then((_) {
+                      _animationFinished = true;
+                      _checkAndNavigate();
+                    });
+                  },
+                ),
               ),
-              const SizedBox(height: 16),
               Text(
                 'Notepad',
                 style: TextStyle(

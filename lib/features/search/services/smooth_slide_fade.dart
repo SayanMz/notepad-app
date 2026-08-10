@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 
+// SmoothSlideFade animates the search top bars with a combined size and fade transition.
 class SmoothSlideFade extends StatefulWidget {
   final Widget child;
   final bool showTopBars;
