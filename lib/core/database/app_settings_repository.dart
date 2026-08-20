@@ -3,7 +3,12 @@ import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/storage_service.dart';
 
 // Manages global application configuration, persistence, and granular UI notification.
-class AppSettingsRepository{
+class AppSettingsRepository {
+  AppSettingsRepository({StorageServiceApi? storageService})
+      : _storageService = storageService ?? StorageService.to;
+
+  final StorageServiceApi _storageService;
+
   AppSettings _settings = const AppSettings();
   AppSettings get settings => _settings;
 
@@ -16,10 +21,9 @@ class AppSettingsRepository{
     return _settings.isDarkMode ? ThemeMode.dark : ThemeMode.light;
   }
 
-
   Future<void> load() async {
     try {
-      _settings = StorageService.loadSettings();
+      _settings = _storageService.loadSettings();
     } catch (e) {
       debugPrint('Settings load failed, resetting to defaults: $e');
       _settings = const AppSettings();
@@ -37,7 +41,7 @@ class AppSettingsRepository{
     await persist();
   }
 
-  Future<void> persist() => StorageService.saveSettings(_settings);
+  Future<void> persist() => _storageService.saveSettings(_settings);
 
   Future<void> setSeedVersion(int version) async {
     await update(_settings.copyWith(seedVersion: version));
@@ -59,7 +63,5 @@ class AppSettingsRepository{
     await update(_settings.copyWith(recentColorValues: updatedValues));
   }
 }
-
-
 
 final AppSettingsRepository appSettingsRepository = AppSettingsRepository();

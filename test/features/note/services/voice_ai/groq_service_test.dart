@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
@@ -57,10 +58,18 @@ void main() {
     test('parseVoiceCommand throws GroqServiceException on error', () async {
       fakeClient.response = http.Response('Error', 500);
 
-      expect(
-        () => GroqService.parseVoiceCommand('hello'),
-        throwsA(isA<GroqServiceException>()),
-      );
+      // Temporarily silence debugPrint to keep logs clean for expected failures
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {};
+
+      try {
+        await expectLater(
+          () => GroqService.parseVoiceCommand('hello'),
+          throwsA(isA<GroqServiceException>()),
+        );
+      } finally {
+        debugPrint = originalDebugPrint;
+      }
     });
   });
 }

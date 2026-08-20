@@ -137,7 +137,7 @@ class NoteVoiceController {
     } catch (e) {
       isProcessingVoice.value = false;
       debugPrint('VOICE AI ERROR DETAILS: $e');
-      showErrorSnackBar('AI service error. Try again.');
+      showErrorSnackBar('$e');
     } finally {
       FocusManager.instance.primaryFocus?.unfocus();
       await Future.delayed(NoteConstants.aiProcessingDelay);

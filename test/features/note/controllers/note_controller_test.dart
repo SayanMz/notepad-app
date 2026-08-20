@@ -24,7 +24,8 @@ void main() {
     controller.orchestrateButtonVisibility();
     expect(controller.aiButtonOpacity.value, NoteConstants.aiButtonOpacityDim);
 
-    await Future.delayed(AnimationConstants.extraLong + const Duration(milliseconds: 50));
+    // Wait for the timer to fire (extraLong is 800ms)
+    await Future.delayed(AnimationConstants.extraLong + const Duration(milliseconds: 200));
 
     expect(controller.aiButtonOpacity.value, NoteConstants.aiButtonOpacityFull);
     controller.dispose();

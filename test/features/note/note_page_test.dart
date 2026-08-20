@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/note/note_page.dart';
 
 void main() {
+  setUpAll(() async {
+    // Required to prevent 'NotInitializedError' during Groq warmup in initState
+    dotenv.loadFromString(envString: 'GROQ_API_KEY=test_key');
+  });
+
   testWidgets('NotePage shows the editor shell and opens the toolbar',
       (tester) async {
     // 1. Load a dummy starting point

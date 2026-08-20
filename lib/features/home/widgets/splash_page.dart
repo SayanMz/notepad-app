@@ -89,13 +89,16 @@ class _SplashPageState extends State<SplashPage>
                   },
                 ),
               ),
-              Text(
-                'Notepad',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                  color: context.colorScheme.onSurface.withValues(alpha: 0.9),
+              Transform.translate(
+                offset: const Offset(5.0, -28.0),
+                child: Text(
+                  'Notepad',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                    color: context.colorScheme.onSurface.withValues(alpha: 0.9),
+                  ),
                 ),
               ),
             ],

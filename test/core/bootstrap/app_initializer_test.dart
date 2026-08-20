@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/bootstrap/app_initializer.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
@@ -28,22 +29,30 @@ void main() {
   test('bootstrapper retries after a startup failure', () async {
     var persistenceCalls = 0;
 
-    final bootstrapper = AppInitializer.forTesting(
-      noteRepository: NoteRepository.internalForTesting(),
-      appSettingsRepository: AppSettingsRepository(),
-      initializePersistenceStep: () async {
-        persistenceCalls++;
-        throw StateError('boom');
-      },
-      initializeRepositoriesStep: () async {},
-    );
+    final oldDebugPrint = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {};
 
-    // Call 1: Should fail and reset _bootstrapFuture
-    await expectLater(bootstrapper.initialize(), throwsStateError);
-    expect(persistenceCalls, 1);
+    try {
+      final bootstrapper = AppInitializer.forTesting(
+        noteRepository: NoteRepository.internalForTesting(),
+        appSettingsRepository: AppSettingsRepository(),
+        initializePersistenceStep: () async {
+          persistenceCalls++;
+          throw StateError('boom');
+        },
+        initializeRepositoriesStep: () async {},
+        log: (_) {}, // Silence expected error logs in tests
+      );
 
-    // Call 2: Should trigger a fresh initialization attempt
-    await expectLater(bootstrapper.initialize(), throwsStateError);
-    expect(persistenceCalls, 2);
+      // Call 1: Should fail and reset _bootstrapFuture
+      await expectLater(bootstrapper.initialize(), throwsStateError);
+      expect(persistenceCalls, 1);
+
+      // Call 2: Should trigger a fresh initialization attempt
+      await expectLater(bootstrapper.initialize(), throwsStateError);
+      expect(persistenceCalls, 2);
+    } finally {
+      debugPrint = oldDebugPrint;
+    }
   });
 }

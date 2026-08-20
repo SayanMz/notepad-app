@@ -12,8 +12,17 @@ import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
 class GroqService {
   static const String _endpoint =
       'https://api.groq.com/openai/v1/chat/completions';
-  static Future<void>? _warmUpFuture;
+  static const String _model = 'qwen/qwen3.6-27b';
+
+  /*
+  List of latest model IDs available (bash command):
+  export $(grep -v '^#' .env | xargs)
+  curl -X GET "https://api.groq.com/openai/v1/models" \
+  -H "Authorization: Bearer $GROQ_API_KEY" | grep -o '"id": *"[^"]*"'
+  */
+
   static String? _apiKey;
+  static Future<void>? _warmUpFuture;
 
   @visibleForTesting
   static http.Client? httpClient;
@@ -61,7 +70,7 @@ class GroqService {
               'Authorization': 'Bearer $_apiKey',
             },
             body: jsonEncode({
-              'model': 'llama-3.3-70b-versatile',
+              'model': _model,
               'response_format': {'type': 'json_object'},
               'messages': [
                 {'role': 'system', 'content': voiceAiSystemPrompt},
@@ -98,6 +107,7 @@ class GroqService {
           : null;
     }
     //The HTTP Failure Exception
+    debugPrint('Groq API Error [${response.statusCode}]: ${response.body}');
     throw GroqServiceException(
       'AI service could not process the request right now. Please try again.',
     );

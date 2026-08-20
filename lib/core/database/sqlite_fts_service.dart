@@ -6,15 +6,62 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+abstract class SqliteFtsServiceApi {
+  Future<Database> get database;
+  Future<void> insertOrUpdate(NotesSection note);
+  Future<void> insertOrUpdateBulk(List<NotesSection> notes);
+  Future<void> remove(String id);
+  Future<void> removeBulk(Set<String> ids);
+  Future<void> reindexAllNotes(List<NotesSection> allNotes);
+  Future<Set<String>> searchIds(String query);
+  Future<Set<String>> searchIdsWithDateRange(
+    String query,
+    DateTime start,
+    DateTime end,
+  );
+  Future<void> close();
+}
+
 // Manages a high-performance SQLite search index using atomic batch transactions to
 // enable ultra-fast text matching and date filtering.
 class SqliteFtsService {
+  static SqliteFtsServiceApi to = _SqliteFtsServiceImpl();
+
+  static Future<Database> get database => to.database;
+
+  static Future<void> insertOrUpdate(NotesSection note) =>
+      to.insertOrUpdate(note);
+
+  static Future<void> insertOrUpdateBulk(List<NotesSection> notes) =>
+      to.insertOrUpdateBulk(notes);
+
+  static Future<void> remove(String id) => to.remove(id);
+
+  static Future<void> removeBulk(Set<String> ids) => to.removeBulk(ids);
+
+  static Future<void> reindexAllNotes(List<NotesSection> allNotes) =>
+      to.reindexAllNotes(allNotes);
+
+  static Future<Set<String>> searchIds(String query) => to.searchIds(query);
+
+  static Future<Set<String>> searchIdsWithDateRange(
+    String query,
+    DateTime start,
+    DateTime end,
+  ) =>
+      to.searchIdsWithDateRange(query, start, end);
+
+  static Future<void> close() => to.close();
+}
+
+class _SqliteFtsServiceImpl implements SqliteFtsServiceApi {
   static const String _dbName = 'notes_search.db';
   static const String _tableName = 'notes_fts';
 
-  static Database? _db;
+  Database? _db;
 
-  static Future<Database> get database async {
+  @override
+  Future<Database> get database async {
     if (_db != null) return _db!;
 
     try {
@@ -31,7 +78,7 @@ class SqliteFtsService {
     }
   }
 
-  static Future<Database> _initDb() async {
+  Future<Database> _initDb() async {
     final directory = await getApplicationDocumentsDirectory();
     final path = join(directory.path, _dbName);
 
@@ -53,14 +100,15 @@ class SqliteFtsService {
   }
 
   /// Maps a [NotesSection] object to a raw SQL data map.
-  static Map<String, dynamic> _noteToMap(NotesSection note) => {
+  Map<String, dynamic> _noteToMap(NotesSection note) => {
     'id': note.id,
     'title': note.title,
     'content': note.content,
     'updated_at': note.updatedAt.toIso8601String(),
   };
 
-  static Future<void> insertOrUpdate(NotesSection note) async {
+  @override
+  Future<void> insertOrUpdate(NotesSection note) async {
     if (note.id.trim().isEmpty) return;
 
     try {
@@ -75,7 +123,8 @@ class SqliteFtsService {
     }
   }
 
-  static Future<void> insertOrUpdateBulk(List<NotesSection> notes) async {
+  @override
+  Future<void> insertOrUpdateBulk(List<NotesSection> notes) async {
     if (notes.isEmpty) return;
 
     try {
@@ -95,7 +144,8 @@ class SqliteFtsService {
     }
   }
 
-  static Future<void> remove(String id) async {
+  @override
+  Future<void> remove(String id) async {
     if (id.trim().isEmpty) return;
 
     try {
@@ -106,7 +156,8 @@ class SqliteFtsService {
     }
   }
 
-  static Future<void> removeBulk(Set<String> ids) async {
+  @override
+  Future<void> removeBulk(Set<String> ids) async {
     final cleanIds = ids.where((id) => id.trim().isNotEmpty).toList();
     if (cleanIds.isEmpty) return;
 
@@ -133,7 +184,8 @@ class SqliteFtsService {
     }
   }
 
-  static Future<void> reindexAllNotes(List<NotesSection> allNotes) async {
+  @override
+  Future<void> reindexAllNotes(List<NotesSection> allNotes) async {
     try {
       final db = await database;
       final batch = db.batch();
@@ -154,7 +206,8 @@ class SqliteFtsService {
     }
   }
 
-  static Future<Set<String>> searchIds(String query) async {
+  @override
+  Future<Set<String>> searchIds(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return <String>{};
 
@@ -169,7 +222,7 @@ class SqliteFtsService {
 
       return maps
           .map((row) => row['id']) // Extract only the ID from the database row
-          .whereType<String>()     // Ensure it's a valid string
+          .whereType<String>() // Ensure it's a valid string
           .where((id) => id.trim().isNotEmpty) // Skip any empty IDs
           .toSet(); // Return as a Set for O(1) lookups
     } catch (e) {
@@ -178,7 +231,8 @@ class SqliteFtsService {
     }
   }
 
-  static Future<Set<String>> searchIdsWithDateRange(
+  @override
+  Future<Set<String>> searchIdsWithDateRange(
     String query,
     DateTime start,
     DateTime end,
@@ -202,7 +256,7 @@ class SqliteFtsService {
           textTerm, // Matches title LIKE ?
           textTerm, // Matches content LIKE ?
           isoStart, // Matches BETWEEN ?
-          isoEnd,   // Matches AND ?
+          isoEnd, // Matches AND ?
         ],
       );
 
@@ -215,5 +269,11 @@ class SqliteFtsService {
       debugPrint('SqliteFtsService Error (searchIdsWithDateRange): $e');
       return const {};
     }
+  }
+
+  @override
+  Future<void> close() async {
+    await _db?.close();
+    _db = null;
   }
 }

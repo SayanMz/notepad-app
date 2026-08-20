@@ -19,10 +19,12 @@ class NoteSearchService {
     }
 
     final filters = searchState.filters;
-    final startDate = _buildBoundary(filters.start, isEndOfRange: false);
+    final startDate = _buildBoundary(filters.start, useMaxValues: false);
     final endDate = filters.isRangeSearch
-        ? _buildBoundary(filters.end, isEndOfRange: true)
-        : _buildBoundary(filters.start, isEndOfRange: true);
+        ? _buildBoundary(filters.end, useMaxValues: true)
+        //If range search is false/no end date is passed,
+        //we create a 24-hour time window of existing start date
+        : _buildBoundary(filters.start, useMaxValues: true);
 
     Set<String> matchedIds;
 
@@ -35,7 +37,9 @@ class NoteSearchService {
       );
     } else if (searchState.hasQuery) {
       // Text only
-      matchedIds = await SqliteFtsService.searchIds(searchState.normalizedQuery);
+      matchedIds = await SqliteFtsService.searchIds(
+        searchState.normalizedQuery,
+      );
     } else {
       // Date only: Filter in memory for performance on smaller sets.
       return activeNotes
@@ -46,7 +50,11 @@ class NoteSearchService {
     return activeNotes.where((note) => matchedIds.contains(note.id)).toList();
   }
 
-  static bool _matchesFilters(NotesSection note, DateTime? start, DateTime? end) {
+  static bool _matchesFilters(
+    NotesSection note,
+    DateTime? start,
+    DateTime? end,
+  ) {
     if (start != null && note.updatedAt.isBefore(start)) return false;
     if (end != null && note.updatedAt.isAfter(end)) return false;
     return true;
@@ -54,25 +62,35 @@ class NoteSearchService {
 
   static DateTime? _buildBoundary(
     SearchDateSelection selection, {
-    required bool isEndOfRange,
+    required bool useMaxValues,
   }) {
     if (!selection.hasValues) return null;
 
     final now = DateTime.now();
     final year = selection.year ?? now.year;
-    final month = selection.month ?? (isEndOfRange ? 12 : 1);
-    
-    // If it's the end of a range and no day is specified, use the last day of that month.
-    final day = selection.day ?? (isEndOfRange ? DateTime(year, month + 1, 0).day : 1);
-    
-    final hour = selection.hour ?? (isEndOfRange ? 23 : 0);
-    final minute = selection.minute ?? (isEndOfRange ? 59 : 0);
-    final second = isEndOfRange ? 59 : 0;
-    
-    // Hardened precision: Ensure notes created at the exact edge of a day are captured.
-    final millisecond = isEndOfRange ? 999 : 0;
-    final microsecond = isEndOfRange ? 999 : 0;
+    final month = selection.month ?? (useMaxValues ? 12 : 1);
 
-    return DateTime(year, month, day, hour, minute, second, millisecond, microsecond);
+    // If it's the end of a range and no day is specified, use the last day of that month.
+    final day =
+        selection.day ?? (useMaxValues ? DateTime(year, month + 1, 0).day : 1);
+
+    final hour = selection.hour ?? (useMaxValues ? 23 : 0);
+    final minute = selection.minute ?? (useMaxValues ? 59 : 0);
+    final second = useMaxValues ? 59 : 0;
+
+    // Hardened precision: Ensure notes created at the exact edge of a day are captured.
+    final millisecond = useMaxValues ? 999 : 0;
+    final microsecond = useMaxValues ? 999 : 0;
+
+    return DateTime(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second,
+      millisecond,
+      microsecond,
+    );
   }
 }

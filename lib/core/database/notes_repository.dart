@@ -14,12 +14,48 @@ import 'package:notepad/core/services/repo_services/recycle_operations_service.d
 // Manages the core note data lifecycle, ensuring atomic state synchronization
 // across memory, Hive storage, and SQLite search indices.
 class NoteRepository {
-  factory NoteRepository() => _instance;
-  NoteRepository._internal();
+  factory NoteRepository({
+    StorageServiceApi? storageService,
+    SqliteFtsServiceApi? sqliteFtsService,
+    AppSettingsRepository? settingsRepository,
+  }) {
+    if (storageService == null &&
+        sqliteFtsService == null &&
+        settingsRepository == null) {
+      return _instance;
+    }
+
+    return NoteRepository.internalForTesting(
+      storageService: storageService,
+      sqliteFtsService: sqliteFtsService,
+      settingsRepository: settingsRepository,
+    );
+  }
+
+  NoteRepository._internal({
+    StorageServiceApi? storageService,
+    SqliteFtsServiceApi? sqliteFtsService,
+    AppSettingsRepository? settingsRepository,
+  })  : _storageService = storageService ?? StorageService.to,
+        _sqliteFtsService = sqliteFtsService ?? SqliteFtsService.to,
+        _appSettingsRepository = settingsRepository ?? appSettingsRepository;
+
   static final NoteRepository _instance = NoteRepository._internal();
 
   @visibleForTesting
-  NoteRepository.internalForTesting();
+  NoteRepository.internalForTesting({
+    StorageServiceApi? storageService,
+    SqliteFtsServiceApi? sqliteFtsService,
+    AppSettingsRepository? settingsRepository,
+  }) : this._internal(
+          storageService: storageService,
+          sqliteFtsService: sqliteFtsService,
+          settingsRepository: settingsRepository,
+        );
+
+  final StorageServiceApi _storageService;
+  final SqliteFtsServiceApi _sqliteFtsService;
+  final AppSettingsRepository _appSettingsRepository;
 
   final List<NotesSection> _activeNotes = [];
   final List<NotesSection> _deletedNotes = [];
@@ -44,7 +80,7 @@ class NoteRepository {
 
   Future<void> init() async {
     final result = await NotesInitializationService.initializeData(
-      installedSeedVersion: appSettingsRepository.settings.seedVersion,
+      installedSeedVersion: _appSettingsRepository.settings.seedVersion,
       currentSeedVersion: _currentSeedVersion,
     );
 
@@ -65,7 +101,8 @@ class NoteRepository {
     await NotesInitializationService.runMaintenanceTasks();
   }
 
-  NotesSection? findById(String id) => _cacheMap[id] ?? StorageService.getNoteById(id);
+  NotesSection? findById(String id) =>
+      _cacheMap[id] ?? _storageService.getNoteById(id);
 
   void reorderPinnedNotes(int oldIndex, int newIndex) =>
       _reorderZone(pinnedNotes.toList(), oldIndex, newIndex, true);
@@ -95,7 +132,7 @@ class NoteRepository {
     activeRevision.value++;
 
     try {
-      await StorageService.saveNotesBulk(bulkUpdates);
+      await _storageService.saveNotesBulk(bulkUpdates);
     } catch (e) {
       debugPrint('Reorder Save Error: $e');
     }
@@ -147,12 +184,12 @@ class NoteRepository {
       }
 
       unawaited(
-        StorageService
+        _storageService
             .saveNote(existingNote)
             .catchError((e) => debugPrint('Disk Write Error: $e')),
       );
 
-      await SqliteFtsService.insertOrUpdate(existingNote);
+      await _sqliteFtsService.insertOrUpdate(existingNote);
       return existingNote;
     }
 
@@ -170,7 +207,7 @@ class NoteRepository {
     )..scrollOffset = scrollOffset;
 
     _cacheMap[newNote.id] = newNote;
-    await SqliteFtsService.insertOrUpdate(newNote);
+    await _sqliteFtsService.insertOrUpdate(newNote);
 
     // Optimization: New notes always start at the beginning of the "Others" section.
     // By passing the pinned count as the index, we skip the linear search.
@@ -186,7 +223,7 @@ class NoteRepository {
     }
 
     unawaited(
-      StorageService
+      _storageService
           .saveNote(newNote)
           .catchError((e) => debugPrint('Disk Write Error: $e')),
     );
@@ -205,18 +242,18 @@ class NoteRepository {
     if (isDeleted) {
       _activeNotes.remove(note);
       _deletedNotes.insert(0, note);
-      await SqliteFtsService.remove(noteId);
+      await _sqliteFtsService.remove(noteId);
     } else {
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
-      await SqliteFtsService.insertOrUpdate(note);
+      await _sqliteFtsService.insertOrUpdate(note);
     }
 
     _rebuildSubListPointersOnly();
     activeRevision.value++;
     deletedRevision.value++;
 
-    unawaited(StorageService.saveNote(note));
+    unawaited(_storageService.saveNote(note));
     return true;
   }
 
@@ -237,13 +274,15 @@ class NoteRepository {
     NoteSortService.sortDeletedNotes(_deletedNotes);
     activeRevision.value++;
 
-    await StorageService.saveNotesBulk(result.dbUpdates);
+    await _storageService.saveNotesBulk(result.dbUpdates);
 
     // SQL Index Sync (Batch)
     if (isDeleted) {
-      await SqliteFtsService.removeBulk(noteIds);
+      await _sqliteFtsService.removeBulk(noteIds);
     } else {
-      await SqliteFtsService.insertOrUpdateBulk(result.dbUpdates.values.toList());
+      await _sqliteFtsService.insertOrUpdateBulk(
+        result.dbUpdates.values.toList(),
+      );
     }
   }
 
@@ -254,7 +293,7 @@ class NoteRepository {
     _deletedNotes.remove(note);
     deletedRevision.value++;
 
-    await StorageService.deleteNote(noteId);
+    await _storageService.deleteNote(noteId);
   }
 
   Future<void> deleteForeverBulk(Set<String> noteIds) async {
@@ -264,7 +303,7 @@ class NoteRepository {
     noteIds.forEach(_cacheMap.remove);
 
     deletedRevision.value++;
-    await StorageService.deleteNotesBulk(noteIds);
+    await _storageService.deleteNotesBulk(noteIds);
   }
 
   Future<void> togglePinStatus(String noteId) async {
@@ -276,7 +315,7 @@ class NoteRepository {
     _sortAndRebuildCache();
     activeRevision.value++;
 
-    unawaited(StorageService.saveNote(note));
+    unawaited(_storageService.saveNote(note));
   }
 
   Future<void> togglePinBulk(Set<String> noteIds, bool goalState) async {
@@ -292,7 +331,7 @@ class NoteRepository {
     _sortAndRebuildCache();
     activeRevision.value++;
 
-    await StorageService.saveNotesBulk(dbUpdates);
+    await _storageService.saveNotesBulk(dbUpdates);
   }
 
   void applyColorToSelection(Set<String> selectedIds, Color newColor) {
@@ -314,13 +353,13 @@ class NoteRepository {
       if (findById(id) case final note?) entries[id] = note;
     }
 
-    if (entries.isNotEmpty) await StorageService.saveNotesBulk(entries);
+    if (entries.isNotEmpty) await _storageService.saveNotesBulk(entries);
   }
 
   Future<(int, String)> exportNotesToBackupString() async {
     if (_activeNotes.isEmpty) return (0, '');
     try {
-      final jsonString = await StorageService.exportNotesToJSON(_activeNotes);
+      final jsonString = await _storageService.exportNotesToJSON(_activeNotes);
 
       return (_activeNotes.length, jsonString);
     } catch (e) {
@@ -335,7 +374,7 @@ class NoteRepository {
     List<NotesSection> importedNotes;
 
     try {
-      importedNotes = await StorageService.importNotesFromJSON(jsonString);
+      importedNotes = await _storageService.importNotesFromJSON(jsonString);
     } catch (e) {
       throw const FormatException('Invalid backup format or corrupted data.');
     }
@@ -359,8 +398,8 @@ class NoteRepository {
       _sortAndRebuildCache();
       activeRevision.value++;
 
-      await StorageService.saveNotesBulk(result.updates);
-      await SqliteFtsService.reindexAllNotes(_activeNotes);
+      await _storageService.saveNotesBulk(result.updates);
+      await _sqliteFtsService.reindexAllNotes(_activeNotes);
     }
 
     return (result.updates.length, result.skippedCount);
