@@ -59,7 +59,7 @@ class NoteConstants {
   // --- Interaction Delays & Spacers ---
   static const Duration notePageKeyboardDismissDelay = Duration(milliseconds: 200);
   static const Duration notePageToolbarSizeDelay = Duration(milliseconds: 250);
-  static const Duration notePageFabScaleDuration = Duration(milliseconds: 250);
+  static const Duration notePageFabScaleDuration = Duration(milliseconds: 150);
   static const Duration notePageFabFadeDuration = Duration(milliseconds: 200);
   static const double notePageReadonlySpacerHeight = 0.0;
   static const double notePageToolbarPaddingBottom = 8.0;

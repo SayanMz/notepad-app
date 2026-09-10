@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
+import 'package:notepad/core/extensions/timestamp_formatter.dart';
 
 void main() {
   test('NoteDateFormatter renders date and time in a consistent format', () {

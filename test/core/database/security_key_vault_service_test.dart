@@ -59,14 +59,20 @@ void main() {
 
       // Hive AES-256 keys are 32 bytes (256 bits)
       expect(key, hasLength(32));
-      expect(await storage.containsKey(key: 'secure_persistence_encryption_key'), isTrue);
+      expect(
+        await storage.containsKey(key: 'secure_persistence_encryption_key'),
+        isTrue,
+      );
     });
 
     test('getOrCreateKey reuses existing key if present', () async {
       final storage = FakeSecureStorage();
       final originalKey = List<int>.generate(32, (i) => i);
       final base64Key = base64Url.encode(originalKey);
-      await storage.write(key: 'secure_persistence_encryption_key', value: base64Key);
+      await storage.write(
+        key: 'secure_persistence_encryption_key',
+        value: base64Key,
+      );
 
       final service = SecureKeyVaultService(secureStorage: storage);
       final retrievedKey = await service.getOrCreateKey();

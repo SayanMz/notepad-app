@@ -1,3 +1,5 @@
+import com.android.build.gradle.BaseExtension
+
 allprojects {
     repositories {
         google()
@@ -17,7 +19,25 @@ subprojects {
 }
 
 subprojects {
-    project.evaluationDependsOn(":app")
+    if (project.path != ":app") {
+        project.evaluationDependsOn(":app")
+    }
+
+    fun configureAndroid() {
+        val android = project.extensions.findByName("android")
+        if (android is BaseExtension) {
+            android.compileSdkVersion(36)
+            android.defaultConfig.targetSdkVersion(36)
+        }
+    }
+
+    if (project.state.executed) {
+        configureAndroid()
+    } else {
+        afterEvaluate {
+            configureAndroid()
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

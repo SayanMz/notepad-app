@@ -3,13 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
+import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/core/database/storage_service.dart';
-import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
-import 'package:notepad/core/services/repo_services/note_sort_service.dart';
-import 'package:notepad/core/services/repo_services/notes_initialization_service.dart';
-import 'package:notepad/core/services/repo_services/pin_operations_service.dart';
-import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
+import 'package:notepad/core/database/vector_storage.dart';
+import 'package:notepad/core/services/repo_services/backup_sync.dart';
+import 'package:notepad/core/services/repo_services/notes_initialization.dart';
+import 'package:notepad/core/services/repo_services/notes_sort.dart';
+import 'package:notepad/core/services/repo_services/pin_operations.dart';
+import 'package:notepad/core/services/repo_services/recycle_operations.dart';
+import 'package:notepad/features/search/services/fuzzy_search.dart';
+import 'package:notepad/features/search/services/semantic_search.dart';
 
 // Manages the core note data lifecycle, ensuring atomic state synchronization
 // across memory, Hive storage, and SQLite search indices.
@@ -36,9 +39,9 @@ class NoteRepository {
     StorageServiceApi? storageService,
     SqliteFtsServiceApi? sqliteFtsService,
     AppSettingsRepository? settingsRepository,
-  })  : _storageService = storageService ?? StorageService.to,
-        _sqliteFtsService = sqliteFtsService ?? SqliteFtsService.to,
-        _appSettingsRepository = settingsRepository ?? appSettingsRepository;
+  }) : _storageService = storageService ?? StorageService.to,
+       _sqliteFtsService = sqliteFtsService ?? SqliteFtsService.to,
+       _appSettingsRepository = settingsRepository ?? appSettingsRepository;
 
   static final NoteRepository _instance = NoteRepository._internal();
 
@@ -48,10 +51,10 @@ class NoteRepository {
     SqliteFtsServiceApi? sqliteFtsService,
     AppSettingsRepository? settingsRepository,
   }) : this._internal(
-          storageService: storageService,
-          sqliteFtsService: sqliteFtsService,
-          settingsRepository: settingsRepository,
-        );
+         storageService: storageService,
+         sqliteFtsService: sqliteFtsService,
+         settingsRepository: settingsRepository,
+       );
 
   final StorageServiceApi _storageService;
   final SqliteFtsServiceApi _sqliteFtsService;
@@ -67,6 +70,7 @@ class NoteRepository {
   List<NotesSection> _cachedPinnedNotes = [];
   List<NotesSection> _cachedUnpinnedNotes = [];
 
+  Map<String, NotesSection> get cacheMap => Map.unmodifiable(_cacheMap);
   List<NotesSection> get activeNotes => List.unmodifiable(_activeNotes);
   List<NotesSection> get deletedNotes => List.unmodifiable(_deletedNotes);
 
@@ -98,7 +102,11 @@ class NoteRepository {
 
     _sortAndRebuildCache();
 
-    await NotesInitializationService.runMaintenanceTasks();
+    unawaited(() async {
+      NotesInitializationService.runMaintenanceTasks();
+      NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
+      FuzzySearchService.rebuildIndex(_activeNotes);
+    }());
   }
 
   NotesSection? findById(String id) =>
@@ -160,6 +168,14 @@ class NoteRepository {
     );
   }
 
+  //Triggered when user presses back from the editor page
+  Future<void> triggerDeferredEmbedding(String? noteId) async {
+    if (findById(noteId ?? '') case final note?) {
+      SemanticSearchService.embedNoteInBackground(note);
+    }
+    SemanticSearchService.invalidateTopicCache();
+  }
+
   Future<NotesSection?> saveNote({
     required String? noteId,
     required String title,
@@ -190,6 +206,7 @@ class NoteRepository {
       );
 
       await _sqliteFtsService.insertOrUpdate(existingNote);
+      FuzzySearchService.indexNote(existingNote);
       return existingNote;
     }
 
@@ -208,6 +225,7 @@ class NoteRepository {
 
     _cacheMap[newNote.id] = newNote;
     await _sqliteFtsService.insertOrUpdate(newNote);
+    FuzzySearchService.indexNote(newNote);
 
     // Optimization: New notes always start at the beginning of the "Others" section.
     // By passing the pinned count as the index, we skip the linear search.
@@ -243,10 +261,12 @@ class NoteRepository {
       _activeNotes.remove(note);
       _deletedNotes.insert(0, note);
       await _sqliteFtsService.remove(noteId);
+      FuzzySearchService.removeNote(noteId);
     } else {
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
       await _sqliteFtsService.insertOrUpdate(note);
+      FuzzySearchService.indexNote(note);
     }
 
     _rebuildSubListPointersOnly();
@@ -254,6 +274,8 @@ class NoteRepository {
     deletedRevision.value++;
 
     unawaited(_storageService.saveNote(note));
+    SemanticSearchService.invalidateTopicCache();
+
     return true;
   }
 
@@ -275,14 +297,17 @@ class NoteRepository {
     activeRevision.value++;
 
     await _storageService.saveNotesBulk(result.dbUpdates);
+    SemanticSearchService.invalidateTopicCache();
 
     // SQL Index Sync (Batch)
     if (isDeleted) {
       await _sqliteFtsService.removeBulk(noteIds);
+      FuzzySearchService.removeNotesBulk(noteIds);
     } else {
       await _sqliteFtsService.insertOrUpdateBulk(
         result.dbUpdates.values.toList(),
       );
+      FuzzySearchService.indexNotesBulk(result.dbUpdates.values.toList());
     }
   }
 
@@ -294,6 +319,7 @@ class NoteRepository {
     deletedRevision.value++;
 
     await _storageService.deleteNote(noteId);
+    await VectorStorageService.to.remove(noteId);
   }
 
   Future<void> deleteForeverBulk(Set<String> noteIds) async {
@@ -304,6 +330,7 @@ class NoteRepository {
 
     deletedRevision.value++;
     await _storageService.deleteNotesBulk(noteIds);
+    await VectorStorageService.to.removeBulk(noteIds);
   }
 
   Future<void> togglePinStatus(String noteId) async {
@@ -400,6 +427,9 @@ class NoteRepository {
 
       await _storageService.saveNotesBulk(result.updates);
       await _sqliteFtsService.reindexAllNotes(_activeNotes);
+      NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
+      SemanticSearchService.invalidateTopicCache();
+      FuzzySearchService.rebuildIndex(_activeNotes);
     }
 
     return (result.updates.length, result.skippedCount);

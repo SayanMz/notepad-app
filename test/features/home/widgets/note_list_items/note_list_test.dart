@@ -6,7 +6,7 @@ import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
-import 'package:notepad/features/home/widgets/note_list_items/note_list.dart';
+import 'package:notepad/features/home/widgets/note_list.dart';
 
 class MockNoteRepository extends NoteRepository {
   MockNoteRepository() : super.internalForTesting();
@@ -35,9 +35,17 @@ void main() {
     );
     final fabController = HomeFabController();
 
-    final pinnedNote = NotesSection(id: '1', title: 'Pinned Note', isPinned: true);
-    final unpinnedNote = NotesSection(id: '2', title: 'Other Note', isPinned: false);
-    
+    final pinnedNote = NotesSection(
+      id: '1',
+      title: 'Pinned Note',
+      isPinned: true,
+    );
+    final unpinnedNote = NotesSection(
+      id: '2',
+      title: 'Other Note',
+      isPinned: false,
+    );
+
     repo.mockActive = [pinnedNote, unpinnedNote];
     repo.mockPinned = [pinnedNote];
     repo.mockUnpinned = [unpinnedNote];
@@ -47,10 +55,7 @@ void main() {
         home: Scaffold(
           body: CustomScrollView(
             slivers: [
-              NoteList(
-                controller: controller,
-                fabController: fabController,
-              ),
+              NoteList(controller: controller, fabController: fabController),
             ],
           ),
         ),

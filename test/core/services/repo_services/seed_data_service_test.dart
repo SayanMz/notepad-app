@@ -1,15 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/core/services/repo_services/seed_data_service.dart';
+import 'package:notepad/core/services/repo_services/seed_data.dart';
 
 void main() {
   test('generateWelcomeNotes returns the expected seeded notes', () {
     final notes = SeedDataService.generateWelcomeNotes();
 
-    expect(notes, hasLength(3));
+    expect(notes, hasLength(6));
     expect(notes.first.title, '📝 Welcome to Notepad');
     expect(notes.first.isPinned, isTrue);
-    expect(notes[1].title, '🎙️ Your Smart AI Assistant');
-    expect(notes[2].title, '🪄 Advanced AI Masterclass');
+    expect(notes[1].title, '🎙️ Smart Voice AI & Formatting Commands');
+    expect(notes[1].isPinned, isTrue);
+    expect(notes[2].title, 'Strength & Conditioning Regimen');
+    expect(notes[3].title, 'Monthly Budget & Savings Plan');
+    expect(notes[4].title, 'Artisan Sourdough Bread Recipe & Baking Guide');
+    expect(notes[5].title, 'Software Engineering & App Code Optimization');
   });
 
   test('generateStressTestNotes creates unique test entries', () {

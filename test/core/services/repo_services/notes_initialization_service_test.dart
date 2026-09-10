@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
+import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/core/database/storage_service.dart';
-import 'package:notepad/core/services/repo_services/notes_initialization_service.dart';
+import 'package:notepad/core/services/repo_services/notes_initialization.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -49,14 +49,14 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(pathProviderChannel, (call) async {
-      switch (call.method) {
-        case 'getApplicationDocumentsDirectory':
-        case 'getTemporaryDirectory':
-          return tempDir.path;
-        default:
-          return null;
-      }
-    });
+          switch (call.method) {
+            case 'getApplicationDocumentsDirectory':
+            case 'getTemporaryDirectory':
+              return tempDir.path;
+            default:
+              return null;
+          }
+        });
   });
 
   setUp(() async {
@@ -90,68 +90,73 @@ void main() {
         currentSeedVersion: 1,
       );
 
-      expect(result.activeNotes, hasLength(3));
+      expect(result.activeNotes, hasLength(6));
       expect(result.deletedNotes, isEmpty);
-      expect(result.cacheMap, hasLength(3));
+      expect(result.cacheMap, hasLength(6));
       expect(StorageService.getNoteById('legacy-note'), isNull);
-      expect(StorageService.loadAllNotes(), hasLength(3));
+      expect(StorageService.loadAllNotes(), hasLength(6));
       expect(appSettingsRepository.settings.seedVersion, 1);
     });
 
-    test('initializeData loads active notes and purges expired trash', () async {
-      final activeNote = buildNote(
-        'active-note',
-        title: 'Active note',
-        deleted: false,
-        updatedAt: DateTime.utc(2024, 1, 10),
-      );
-      final freshTrash = buildNote(
-        'fresh-trash',
-        title: 'Fresh trash',
-        deleted: true,
-        updatedAt: DateTime.now().subtract(const Duration(days: 10)),
-      );
-      final expiredTrash = buildNote(
-        'expired-trash',
-        title: 'Expired trash',
-        deleted: true,
-        updatedAt: DateTime.now().subtract(const Duration(days: 31)),
-      );
+    test(
+      'initializeData loads active notes and purges expired trash',
+      () async {
+        final activeNote = buildNote(
+          'active-note',
+          title: 'Active note',
+          deleted: false,
+          updatedAt: DateTime.utc(2024, 1, 10),
+        );
+        final freshTrash = buildNote(
+          'fresh-trash',
+          title: 'Fresh trash',
+          deleted: true,
+          updatedAt: DateTime.now().subtract(const Duration(days: 10)),
+        );
+        final expiredTrash = buildNote(
+          'expired-trash',
+          title: 'Expired trash',
+          deleted: true,
+          updatedAt: DateTime.now().subtract(const Duration(days: 31)),
+        );
 
-      await StorageService.saveNotesBulk({
-        activeNote.id: activeNote,
-        freshTrash.id: freshTrash,
-        expiredTrash.id: expiredTrash,
-      });
-      await appSettingsRepository.setSeedVersion(1);
+        await StorageService.saveNotesBulk({
+          activeNote.id: activeNote,
+          freshTrash.id: freshTrash,
+          expiredTrash.id: expiredTrash,
+        });
+        await appSettingsRepository.setSeedVersion(1);
 
-      final result = await NotesInitializationService.initializeData(
-        installedSeedVersion: 1,
-        currentSeedVersion: 1,
-      );
+        final result = await NotesInitializationService.initializeData(
+          installedSeedVersion: 1,
+          currentSeedVersion: 1,
+        );
 
-      expect(result.activeNotes.map((note) => note.id), ['active-note']);
-      expect(result.deletedNotes.map((note) => note.id), ['fresh-trash']);
-      expect(result.cacheMap.keys, {'active-note', 'fresh-trash'});
-      expect(StorageService.getNoteById('expired-trash'), isNull);
-      expect(
-        StorageService.loadAllNotes().map((note) => note.id).toSet(),
-        {'active-note', 'fresh-trash'},
-      );
-    });
+        expect(result.activeNotes.map((note) => note.id), ['active-note']);
+        expect(result.deletedNotes.map((note) => note.id), ['fresh-trash']);
+        expect(result.cacheMap.keys, {'active-note', 'fresh-trash'});
+        expect(StorageService.getNoteById('expired-trash'), isNull);
+        expect(StorageService.loadAllNotes().map((note) => note.id).toSet(), {
+          'active-note',
+          'fresh-trash',
+        });
+      },
+    );
 
-    test('runMaintenanceTasks refreshes the saved maintenance timestamp',
-        () async {
-      final staleDate = DateTime.utc(2024, 1, 1, 12);
-      await appSettingsRepository.update(
-        AppSettings(lastMaintenanceDate: staleDate),
-      );
+    test(
+      'runMaintenanceTasks refreshes the saved maintenance timestamp',
+      () async {
+        final staleDate = DateTime.utc(2024, 1, 1, 12);
+        await appSettingsRepository.update(
+          AppSettings(lastMaintenanceDate: staleDate),
+        );
 
-      await NotesInitializationService.runMaintenanceTasks();
+        await NotesInitializationService.runMaintenanceTasks();
 
-      final updated = appSettingsRepository.settings.lastMaintenanceDate;
-      expect(updated, isNotNull);
-      expect(updated!.isAfter(staleDate), isTrue);
-    });
+        final updated = appSettingsRepository.settings.lastMaintenanceDate;
+        expect(updated, isNotNull);
+        expect(updated!.isAfter(staleDate), isTrue);
+      },
+    );
   });
 }

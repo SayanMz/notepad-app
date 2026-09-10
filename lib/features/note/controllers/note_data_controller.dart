@@ -166,6 +166,7 @@ class NoteDataController {
       scrollOffset: scrollOffset,
       notify: true,
     );
+    unawaited(noteRepository.triggerDeferredEmbedding(noteId));
   }
 
   void dispose() {

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/services/repo_services/notes_initialization_service.dart';
+import 'package:notepad/core/services/repo_services/notes_initialization.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockStorageService {
   static List<NotesSection> notes = [];
@@ -10,10 +11,15 @@ class MockStorageService {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
+
   group('Trash Auto-Cleanup Integration', () {
     test('NotesInitializationService logic path for standard load', () async {
       // This integration test verifies the logic paths of the service.
-      
+
       final result = await NotesInitializationService.initializeData(
         installedSeedVersion: 1,
         currentSeedVersion: 1,

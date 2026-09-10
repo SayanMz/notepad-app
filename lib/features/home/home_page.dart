@@ -9,11 +9,11 @@ import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/controllers/sync_controller.dart';
-import 'package:notepad/features/home/widgets/drawer_items/home_drawer.dart';
+import 'package:notepad/features/home/widgets/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';
-import 'package:notepad/features/home/widgets/note_list_items/note_list.dart';
-import 'package:notepad/features/home/widgets/selection_tools/selection_overlay.dart';
+import 'package:notepad/features/home/widgets/note_list.dart';
+import 'package:notepad/features/home/widgets/selection_overlay.dart';
 
 // Home page shell that coordinates note browsing, actions, and list state.
 class HomePage extends StatefulWidget {

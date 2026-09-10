@@ -12,8 +12,8 @@ import 'package:notepad/features/search/widgets/results/empty_states.dart';
 import 'package:notepad/features/search/widgets/results/result_card.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
-// Matches Block A (112) + Block B (56) from SearchPage
-const double kTotalFloatingHeaderHeight = 168.0;
+// Matches Search bar + 2 Chip rows + Section title + Filter/Metadata count row
+const double kTotalFloatingHeaderHeight = 248.0;
 
 // Header widget that shows result count and provides filter-clearing controls.
 class ResultsMetadataHeader extends StatelessWidget {
@@ -54,7 +54,7 @@ class ResultsMetadataHeader extends StatelessWidget {
                     controller.clearFilter();
                     onClearFilter();
                   },
-                  icon: const Icon(Icons.filter_alt_off, size: 25),
+                  icon: const Icon(Icons.filter_alt_off, size: 22),
                   color: isDarkMode
                       ? context.theme.colorScheme.onSurfaceVariant
                       : AppColors.searchMetadataTextLight,
@@ -133,6 +133,7 @@ class ResultsViewState extends State<ResultsView> {
       children: [
         ListView.builder(
           controller: widget.scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           key: const ValueKey('results_list'),
           padding: const EdgeInsets.only(
             top: kTotalFloatingHeaderHeight,
@@ -157,7 +158,9 @@ class ResultsViewState extends State<ResultsView> {
                   context,
                   AppRouter.slide(NotePage(noteId: note.id)),
                 );
-                widget.controller.refresh();
+                if (context.mounted) {
+                  widget.controller.refresh();
+                }
               },
             );
           },
@@ -205,6 +208,20 @@ class ResultsViewState extends State<ResultsView> {
                             currentOffset +
                             (deltaProgress *
                                 scrollCtrl.position.maxScrollExtent);
+
+                        final double deltaPixel = newOffset - currentOffset;
+
+                        // Manually sync header visibility since jumpTo lacks dragDetails
+                        if (deltaPixel > 0 &&
+                            widget.controller.showTopBars.value) {
+                          if (currentOffset >
+                              SearchConstants.scrollLayoutShiftSafeZone) {
+                            widget.controller.hideHeaders();
+                          }
+                        } else if (deltaPixel < 0 &&
+                            !widget.controller.showTopBars.value) {
+                          widget.controller.showHeaders();
+                        }
 
                         scrollCtrl.jumpTo(
                           newOffset.clamp(

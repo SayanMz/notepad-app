@@ -69,7 +69,7 @@ class _SplashPageState extends State<SplashPage>
               Transform.translate(
                 offset: const Offset(20.0, 0.0),
                 child: Lottie.asset(
-                  'assets/lotties/Notepad.json',
+                  'assets/lotties/Notepad_Splash.json',
                   controller: _animationController,
                   width: 280,
                   height: 280,
@@ -116,7 +116,9 @@ class _SplashPageState extends State<SplashPage>
 
   void _checkAndNavigate() {
     if (widget.isInitializationComplete && _animationFinished) {
-      _navigateToHome();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToHome();
+      });
     }
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/services/repo_services/recycle_operations_service.dart';
+import 'package:notepad/core/services/repo_services/recycle_operations.dart';
 
 void main() {
   group('RecycleOperationsService', () {

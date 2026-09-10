@@ -1,10 +1,13 @@
 // Handles the startup heavy lifting including seeding, trash purging, and maintenance.
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
+import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/core/database/storage_service.dart';
-import 'package:notepad/core/services/repo_services/seed_data_service.dart';
+import 'package:notepad/core/services/repo_services/seed_data.dart';
+import 'package:notepad/features/search/services/semantic_search.dart';
 
 /// Result of the repository initialization process.
 class InitializationResult {
@@ -89,6 +92,9 @@ class NotesInitializationService {
       );
       await StorageService.deleteNotesBulk(expiredNoteIds);
     }
+
+    // Always reseed the RAM-backed in-memory FTS database on startup
+    await SqliteFtsService.reindexAllNotes(activeNotes);
   }
 
   /// Runs periodic database maintenance tasks (e.g. Hive compaction).
@@ -107,5 +113,13 @@ class NotesInitializationService {
         debugPrint('Maintenance failed, will retry next launch: $e');
       }
     }
+  }
+
+  /// Triggers semantic search initialization and missing embedding sweep.
+  static Future<void> runSemanticSearchMaintenance(
+    List<NotesSection> activeNotes,
+  ) async {
+    await SemanticSearchService.init();
+    await SemanticSearchService.runMaintenanceSweep(activeNotes);
   }
 }

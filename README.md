@@ -26,46 +26,50 @@
 </div>
 
 ---
+
 ## 📥 Download
-[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/app-release-2.3.apk)
+
+[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.5.0/app-release-2.5.apk)
 
 ---
-# Core Pillars 🚀
+
+## 🚀 Core Pillars
 
 ### 🧠 Intelligence & Search
 * **Smart AI Assistant:** Execute hands-free commands and dictate thoughts via high-speed Groq AI integration. Transform documents in real-time with natural commands like *"Make the first line green"* or *"Underline all instances of 'Notepad'"*.
-* **Lightning-Fast Search:** Locate precise keywords instantly using a local SQLite FTS (Full-Text Search) engine. Features real-time text highlighting and smart date-range filtering.
+* **Lightning-Fast Search:** Locate precise keywords instantly with local SQLite FTS and smart fuzzy search. Catches typos effortlessly, with real-time text highlighting and smart date-range filtering.
 * **Intelligent Auto-Save:** Every stroke is captured in real-time with zero latency, backed by visual save-status indicators.
+* **Smart Topic Discovery:** Automatically organizes and tags your notes by topic using an on-device AI model. Finds related ideas instantly without any of your personal notes ever leaving your phone.
 
 ### 🔒 Uncompromising Privacy & Safety
 * **Privacy-First Design:** Your data is your business. Every note is secured on-device using local, high-security hardware-backed encryption (AES-256).
-* **Secure Cloud Backup:** Never lose a moment of inspiration. Authenticate safely to sync encrypted database backups directly to your personal Google Drive storage on-demand.
+* **Secure Cloud Backup:** Never lose a moment of inspiration. Authenticate safely to sync your notes directly to your personal, private Google Drive storage on-demand.
 * **Managed Recycle Bin:** A robust safety net to recover accidental deletions or perform permanent data purging from a dedicated bin.
 
-### ✨ Premium Productive Experience
-* **Professional Editor:** A highly responsive rich-text engine supporting headers, styles, hyperlinks, and interactive bullet lists.
+### ✨ Editor & Workspace
+* **Professional Editor:** A highly responsive rich-text engine supporting headers, styles, hyperlinks, interactive bullet lists, and smart link overlays for instant calling, emailing, or adding calendar events.
 * **Smart Organization:** Power-user multi-select tools for batch pinning, sharing, or deleting, plus a bespoke draggable color picker interface for workspace personalization.
 * **Modern Design System:** AMOLED-optimized dark mode, adaptive grid layouts for tablets, and silky-smooth cross-fade transitions powered by a central Design Token engine.
 
 ---
 
-## 🏗️ Engineering & Tech Stack 
+## 🏗️ Engineering & Tech Stack
 
 Notepad is built on a **Feature-First** architecture with a strict **Controller-Service-Repository** pattern, ensuring the app is highly optimized, testable, and production-ready.
 
 - **Decoupled Logic**: Separation into distinct layers (UI → Controller → Service → Repository) for maximum modularity.
-- **Robust Test Coverage**: Supported by a comprehensive suite of **140+ automated tests** utilizing Dependency Injection to ensure 100% logic reliability.
-- **Hybrid Data Layer**: High-speed **Hive (NoSQL)** for live document state combined with **SQLite (Relational)** for complex full-text indexing.
+- **Robust Test Coverage**: Supported by a comprehensive suite of **250+ automated tests** utilizing Dependency Injection to ensure 100% logic reliability.
+- **Polyglot Data Layer**: High-speed **Hive (NoSQL)** for live document state, in-memory **SQLite FTS5** for zero-latency text indexing, and dedicated persistent on-device **Vector Storage** for semantic embeddings.
 - **Data Integrity**: Uses **ULID-based identifiers** for consistent lexicographical ordering and reliable local-to-cloud synchronization.
 - **Semantic Theming**: Unified `Tokens` engine and `context_extensions` for instant, type-safe UI consistency across the entire app.
 
 <details>
 <summary><b>View Detailed Package Breakdown</b></summary>
 
-- **AI**: `speech_to_text`, `Groq Cloud API`, `flutter_tts`
+- **AI & ML**: `onnxruntime`, `bert_tokenizer`, `Groq Cloud API`, `speech_to_text`, `flutter_tts`
 - **Data**: `sqflite` (FTS Engine), `hive_flutter`, `ulid`
-- **Security**: `flutter_secure_storage`, `googleapis` (Drive Sync)
-- **UI & PDF**: `flutter_quill`, `pdf`, `printing`, `flutter_colorpicker`, `lottie`, `share_plus`
+- **Security & Sync**: `flutter_secure_storage`, `googleapis` (Drive Sync), `google_sign_in`
+- **UI & Export**: `flutter_quill`, `pdf`, `printing`, `flutter_colorpicker`, `lottie`, `share_plus`
 </details>
 
 ---
@@ -77,18 +81,23 @@ Notepad is built on a **Feature-First** architecture with a strict **Controller-
 ---
 
 ## 🚀 Local Setup
+
 <details>
 <summary><b>Show Installation Commands</b></summary>
 
-### Prerequisites
-- **Flutter SDK**: ^3.24.0 (Latest Stable)
-- **Dart SDK**: ^3.5.0
-- A configured `.env` file containing required Google API keys.
+<br/>
 
-### Installation
+**Prerequisites**
+- **Flutter SDK**: ^3.44.8 (Latest Stable)
+- **Dart SDK**: ^3.12.2
+- A configured `.env` file at root (refer to [.env.example](.env.example)).
+
+**Installation**
 1. `flutter pub get`
 2. `dart run build_runner build --delete-conflicting-outputs` (Generates Hive adapters)
-3. `flutter run`
+3. `flutter create --platforms=ios,macos,web,linux,windows .` (Optional: add platform runners if missing)
+4. `flutter run`
+
 </details>
 
 ---

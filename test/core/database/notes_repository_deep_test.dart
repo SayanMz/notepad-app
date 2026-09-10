@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
-import 'package:notepad/core/database/sqlite_fts_service.dart';
+import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/core/database/storage_service.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -124,15 +124,14 @@ class RecordingSqliteFtsService extends Fake implements SqliteFtsServiceApi {
   }
 
   @override
-  Future<Set<String>> searchIds(String query) async => <String>{};
+  Future<List<String>> searchIds(String query) async => [];
 
   @override
-  Future<Set<String>> searchIdsWithDateRange(
+  Future<List<String>> searchIdsWithDateRange(
     String query,
     DateTime start,
     DateTime end,
-  ) async =>
-      <String>{};
+  ) async => [];
 }
 
 void main() {
@@ -153,34 +152,37 @@ void main() {
       );
     });
 
-    test('reorders pinned notes and recalculates every position index', () async {
-      final createdIds = <String>[];
+    test(
+      'reorders pinned notes and recalculates every position index',
+      () async {
+        final createdIds = <String>[];
 
-      for (var i = 0; i < 10; i++) {
-        final note = await repository.saveNote(
-          noteId: null,
-          title: 'Note $i',
-          content: 'Content $i',
-          notify: false,
+        for (var i = 0; i < 10; i++) {
+          final note = await repository.saveNote(
+            noteId: null,
+            title: 'Note $i',
+            content: 'Content $i',
+            notify: false,
+          );
+          createdIds.add(note!.id);
+        }
+
+        storage.resetCounters();
+        await repository.togglePinBulk(createdIds.toSet(), true);
+        storage.resetCounters();
+
+        final beforeMoveId = repository.pinnedNotes[5].id;
+        repository.reorderPinnedNotes(5, 0);
+
+        expect(repository.pinnedNotes.first.id, beforeMoveId);
+        expect(
+          repository.pinnedNotes.map((note) => note.positionIndex).toList(),
+          List<int>.generate(10, (index) => index),
         );
-        createdIds.add(note!.id);
-      }
-
-      storage.resetCounters();
-      await repository.togglePinBulk(createdIds.toSet(), true);
-      storage.resetCounters();
-
-      final beforeMoveId = repository.pinnedNotes[5].id;
-      repository.reorderPinnedNotes(5, 0);
-
-      expect(repository.pinnedNotes.first.id, beforeMoveId);
-      expect(
-        repository.pinnedNotes.map((note) => note.positionIndex).toList(),
-        List<int>.generate(10, (index) => index),
-      );
-      expect(storage.saveBulkCalls, hasLength(1));
-      expect(storage.saveBulkCalls.single.keys, contains(beforeMoveId));
-    });
+        expect(storage.saveBulkCalls, hasLength(1));
+        expect(storage.saveBulkCalls.single.keys, contains(beforeMoveId));
+      },
+    );
 
     test('bulk pinning and recycling use batched persistence paths', () async {
       final ids = <String>{};
@@ -203,7 +205,9 @@ void main() {
       expect(storage.saveBulkCalls, hasLength(1));
       expect(storage.saveBulkCalls.single, hasLength(50));
       expect(
-        repository.pinnedNotes.map((note) => note.isPinned).every((value) => value),
+        repository.pinnedNotes
+            .map((note) => note.isPinned)
+            .every((value) => value),
         isTrue,
       );
       expect(

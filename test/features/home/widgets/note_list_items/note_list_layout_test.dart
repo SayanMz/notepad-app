@@ -6,7 +6,7 @@ import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
-import 'package:notepad/features/home/widgets/note_list_items/note_list.dart';
+import 'package:notepad/features/home/widgets/note_list.dart';
 
 class MockNoteRepository extends NoteRepository {
   MockNoteRepository() : super.internalForTesting();
@@ -19,7 +19,9 @@ class MockNoteRepository extends NoteRepository {
 }
 
 void main() {
-  testWidgets('NoteList adapts maxPreviewLines based on screen width', (tester) async {
+  testWidgets('NoteList adapts maxPreviewLines based on screen width', (
+    tester,
+  ) async {
     final repo = MockNoteRepository();
     final controller = HomeController(
       selectionController: SelectionController(),
@@ -36,18 +38,20 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: CustomScrollView(
-            slivers: [NoteList(controller: controller, fabController: fabController)],
+            slivers: [
+              NoteList(controller: controller, fabController: fabController),
+            ],
           ),
         ),
       ),
     );
-    
+
     expect(find.text('Test Note'), findsOneWidget);
 
     // 2. Test Desktop Width
     tester.view.physicalSize = const Size(1400, 900);
     await tester.pumpAndSettle();
-    
+
     expect(find.text('Test Note'), findsOneWidget);
 
     // Reset view

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
-import 'package:notepad/features/search/widgets/filter/search_filter_sheet.dart';
+import 'package:notepad/features/search/widgets/filter/filter_sheet.dart';
 
 void main() {
-  testWidgets('SearchFilterBottomSheet renders and toggles range mode', (tester) async {
+  testWidgets('SearchFilterBottomSheet renders and toggles range mode', (
+    tester,
+  ) async {
     const initialFilters = SearchFilters();
 
     await tester.pumpWidget(

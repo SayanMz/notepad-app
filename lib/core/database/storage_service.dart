@@ -48,7 +48,8 @@ class StorageService {
 
   static Future<void> deleteNote(String id) => to.deleteNote(id);
 
-  static Future<void> deleteNotesBulk(Set<String> ids) => to.deleteNotesBulk(ids);
+  static Future<void> deleteNotesBulk(Set<String> ids) =>
+      to.deleteNotesBulk(ids);
 
   static Future<void> clearAllNotes() => to.clearAllNotes();
 

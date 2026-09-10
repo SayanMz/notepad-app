@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/services/repo_services/note_sort_service.dart';
+import 'package:notepad/core/services/repo_services/notes_sort.dart';
 
 NotesSection _note(
   String id, {
@@ -57,26 +57,29 @@ void main() {
     ]);
   });
 
-  test('sortDeletedNotes keeps the most recently created note first (by ID)', () {
-    final notes = [
-      _note(
-        'id-1', // older
-        pinned: false,
-        positionIndex: 0,
-        updatedAt: DateTime(2024, 1, 1, 9),
-      ),
-      _note(
-        'id-2', // newer
-        pinned: false,
-        positionIndex: 0,
-        updatedAt: DateTime(2024, 1, 1, 12),
-      ),
-    ];
+  test(
+    'sortDeletedNotes keeps the most recently created note first (by ID)',
+    () {
+      final notes = [
+        _note(
+          'id-1', // older
+          pinned: false,
+          positionIndex: 0,
+          updatedAt: DateTime(2024, 1, 1, 9),
+        ),
+        _note(
+          'id-2', // newer
+          pinned: false,
+          positionIndex: 0,
+          updatedAt: DateTime(2024, 1, 1, 12),
+        ),
+      ];
 
-    NoteSortService.sortDeletedNotes(notes);
+      NoteSortService.sortDeletedNotes(notes);
 
-    expect(notes.map((note) => note.id), ['id-2', 'id-1']);
-  });
+      expect(notes.map((note) => note.id), ['id-2', 'id-1']);
+    },
+  );
 
   test('insertSorted places a note ahead of later notes in the same zone', () {
     final notes = [
@@ -107,8 +110,15 @@ void main() {
   });
 
   test('insertSorted with atIndex bypasses search and inserts directly', () {
-    final notes = [_note('a', pinned: false, positionIndex: 0, updatedAt: DateTime.now())];
-    final note = _note('b', pinned: false, positionIndex: 5, updatedAt: DateTime.now());
+    final notes = [
+      _note('a', pinned: false, positionIndex: 0, updatedAt: DateTime.now()),
+    ];
+    final note = _note(
+      'b',
+      pinned: false,
+      positionIndex: 5,
+      updatedAt: DateTime.now(),
+    );
 
     final index = NoteSortService.insertSorted(notes, note, atIndex: 0);
 
@@ -119,8 +129,18 @@ void main() {
   test('sortActiveNotes uses ULID as a final tie-break (Reverse Order)', () {
     // note_01h... is older than note_01j...
     final notes = [
-      _note('note_01h123', pinned: true, positionIndex: 0, updatedAt: DateTime.now()),
-      _note('note_01j456', pinned: true, positionIndex: 0, updatedAt: DateTime.now()),
+      _note(
+        'note_01h123',
+        pinned: true,
+        positionIndex: 0,
+        updatedAt: DateTime.now(),
+      ),
+      _note(
+        'note_01j456',
+        pinned: true,
+        positionIndex: 0,
+        updatedAt: DateTime.now(),
+      ),
     ];
 
     NoteSortService.sortActiveNotes(notes);

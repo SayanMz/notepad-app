@@ -3,7 +3,7 @@ import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
+import 'package:notepad/core/extensions/timestamp_formatter.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:notepad/features/home/home_constants.dart';
 
@@ -38,8 +38,9 @@ class NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = context.screenSize.width;
 
-    final List<PreviewLine> cachedLines =
-        note.getPreview(HomeConstants.noteCardPreviewFetchLimit);
+    final List<PreviewLine> cachedLines = note.getPreview(
+      HomeConstants.noteCardPreviewFetchLimit,
+    );
 
     final regularTextWidgets = cachedLines
         .where((line) => !line.isList)
@@ -143,8 +144,9 @@ class NoteCard extends StatelessWidget {
                                 color: !context.isDark
                                     ? note.cardColor
                                     : note.cardColor.withValues(alpha: 0.5),
-                                borderRadius:
-                                    BorderRadius.circular(UIConstants.paddingXXS),
+                                borderRadius: BorderRadius.circular(
+                                  UIConstants.paddingXXS,
+                                ),
                               ),
                             ),
                           );
@@ -152,7 +154,9 @@ class NoteCard extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(left: UIConstants.paddingMD),
+                      padding: const EdgeInsets.only(
+                        left: UIConstants.paddingMD,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
@@ -192,7 +196,9 @@ class NoteCard extends StatelessWidget {
                                     curve: Curves.easeOutCubic,
                                   ),
                                   padding: EdgeInsets.only(
-                                    left: isSelectionMode ? 0.0 : UIConstants.paddingXS,
+                                    left: isSelectionMode
+                                        ? 0.0
+                                        : UIConstants.paddingXS,
                                   ),
                                   child: Text(
                                     note.displayTitle,
@@ -226,7 +232,9 @@ class NoteCard extends StatelessWidget {
                                       onPressed: isSelectionMode ? null : onPin,
                                     ),
                                   if (!isSelectionMode) ...[
-                                    const SizedBox(width: UIConstants.paddingMD),
+                                    const SizedBox(
+                                      width: UIConstants.paddingMD,
+                                    ),
                                     ReorderableDragStartListener(
                                       index: index,
                                       child: Icon(
@@ -293,7 +301,9 @@ class _ChecklistPreviewGroup extends StatelessWidget {
             children: items
                 .map(
                   (item) => Padding(
-                    padding: const EdgeInsets.only(right: UIConstants.paddingSM),
+                    padding: const EdgeInsets.only(
+                      right: UIConstants.paddingSM,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: UIConstants.paddingSM,
@@ -303,7 +313,9 @@ class _ChecklistPreviewGroup extends StatelessWidget {
                         color: context.colorScheme.primary.withValues(
                           alpha: 0.08,
                         ),
-                        borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+                        borderRadius: BorderRadius.circular(
+                          UIConstants.radiusMD,
+                        ),
                         border: Border.all(
                           color: context.colorScheme.primary.withValues(
                             alpha: 0.2,
@@ -361,8 +373,8 @@ class _NotePreviewLine extends StatelessWidget {
         maxLines: width > HomeConstants.noteListLargeDesktopBreakpoint
             ? HomeConstants.noteCardPreviewLargeDesktopLines
             : (width > HomeConstants.noteListCompactBreakpoint
-                ? HomeConstants.noteCardPreviewMidWidthLines
-                : HomeConstants.noteCardPreviewCompactWidthLines),
+                  ? HomeConstants.noteCardPreviewMidWidthLines
+                  : HomeConstants.noteCardPreviewCompactWidthLines),
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: Colors.grey[700],

@@ -10,14 +10,16 @@ void main() {
     const channelTTS = MethodChannel('flutter_tts');
 
     setUp(() {
-      channelSTT.setMockMethodCallHandler((MethodCall methodCall) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channelSTT, (MethodCall methodCall) async {
         if (methodCall.method == 'initialize') {
           return true;
         }
         return null;
       });
 
-      channelTTS.setMockMethodCallHandler((MethodCall methodCall) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channelTTS, (MethodCall methodCall) async {
         if (methodCall.method == 'getVoices') {
           return [];
         }
@@ -26,8 +28,10 @@ void main() {
     });
 
     tearDown(() {
-      channelSTT.setMockMethodCallHandler(null);
-      channelTTS.setMockMethodCallHandler(null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channelSTT, null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channelTTS, null);
     });
 
     test('initial state is idle', () async {

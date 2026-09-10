@@ -10,10 +10,26 @@ class FakeHttpClient extends Fake implements http.Client {
   bool postCalled = false;
 
   @override
+  Future<http.Response> get(Uri url, {Map<String, String>? headers}) async {
+    if (url.toString().contains('/models')) {
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {'id': 'qwen/qwen-2.5-32b'}
+          ]
+        }),
+        200,
+      );
+    }
+    if (response != null) return response!;
+    throw Exception('No response set in FakeHttpClient for GET $url');
+  }
+
+  @override
   Future<http.Response> post(Uri url, {Map<String, String>? headers, Object? body, Encoding? encoding}) async {
     postCalled = true;
     if (response != null) return response!;
-    throw Exception('No response set in FakeHttpClient');
+    throw Exception('No response set in FakeHttpClient for POST $url');
   }
 }
 

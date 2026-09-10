@@ -3,7 +3,7 @@ import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
-import 'package:notepad/core/extensions/note_timestamp_formatter.dart';
+import 'package:notepad/core/extensions/timestamp_formatter.dart';
 import 'package:notepad/features/search/search_constants.dart';
 
 // Search result card highlights matches, snippets, and note metadata in one tile.

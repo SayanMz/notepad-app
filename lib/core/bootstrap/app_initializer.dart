@@ -6,6 +6,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/storage_service.dart';
+import 'package:notepad/core/services/repo_services/notes_initialization.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/search/services/model_download_service.dart.dart';
+import 'package:notepad/features/search/services/semantic_search.dart';
 
 typedef BootstrapStep = Future<void> Function();
 
@@ -42,6 +46,7 @@ class AppInitializer {
 
   Future<void> initialize() async {
     if (_bootstrapFuture != null) return _bootstrapFuture!;
+    _setupBackgroundBridges();
 
     try {
       _bootstrapFuture = _runBootstrapPipeline();
@@ -84,6 +89,22 @@ class AppInitializer {
     return () async {
       await appSettingsRepository.load();
       await noteRepository.init();
+    };
+  }
+
+  /// Registers global cross-feature event bridges
+  void _setupBackgroundBridges() {
+    ModelDownloadService.onModelDownloaded = () async {
+      try {
+        await NotesInitializationService.runSemanticSearchMaintenance(
+          noteRepository.activeNotes,
+        );
+        SemanticSearchService.invalidateTopicCache();
+        ModelDownloadService.isModelDownloaded.value = true;
+        showSuccessSnackBar('Smart Search is ready!');
+      } catch (e) {
+        debugPrint('Post-download semantic maintenance error: $e');
+      }
     };
   }
 }

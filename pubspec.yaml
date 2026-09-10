@@ -2,7 +2,7 @@ name: notepad
 description: "A feature-rich offline notepad app built with Flutter, featuring rich text editing, Google Drive sync, SQL & Hive storage, HTML-PDF sharing and much more."
 publish_to: 'none'
 
-version: 2.3.0
+version: 2.5.0
 
 environment:
   sdk: ^3.12.2
@@ -13,37 +13,50 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+# UI, Styling & Editor
   flutter_quill: ^11.5.1
-  lottie: ^3.5.1 
   flutter_colorpicker: ^1.1.0
   google_fonts: ^8.2.0
+  lottie: ^3.5.1
 
+  # Local Persistence & Databases
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   sqflite: ^2.4.3
   sqflite_common_ffi: ^2.4.2
-  sqlite3: ^3.0.0
+  sqlite3_flutter_libs: ^0.5.25
   flutter_secure_storage: ^10.3.1
 
-  googleapis: ^16.0.0
+  # Machine Learning & Search
+  onnxruntime: ^1.4.1
+  bert_tokenizer: ^1.2.0
+  crypto: ^3.0.3
+
+  # Authentication & Google Cloud APIs
   google_sign_in: ^7.2.0
+  googleapis: ^16.0.0
   extension_google_sign_in_as_googleapis_auth: ^3.0.0
 
-  file_picker: ^11.0.2
-  path_provider: ^2.1.6
-  pdf: ^3.13.0
-  printing: ^5.15.0
-  share_plus: ^12.0.2
-  url_launcher: ^6.3.2
-  http: ^1.6.0
-  path: ^1.9.1
-  ulid: ^2.0.0
-
+  # Speech & Audio
   speech_to_text: ^7.4.0
   flutter_tts: ^4.2.5
 
-  flutter_dotenv: ^6.0.1
+  # Documents & Media Export
+  pdf: ^3.13.0
+  printing: ^5.15.0
+  file_picker: ^11.0.2
+
+  # Platform & System Integrations
   android_intent_plus: ^6.1.0
+  share_plus: ^12.0.2
+  url_launcher: ^6.3.2
+  path_provider: ^2.1.6
+
+  # Utilities, Networking & Environment
+  http: ^1.6.0
+  flutter_dotenv: ^6.0.1
+  path: ^1.9.1
+  ulid: ^2.0.0
 
 dev_dependencies:
   flutter_test:
@@ -60,10 +73,10 @@ flutter:
    - .env
    - assets/lotties/
    - assets/images/
+   - assets/models/
   
 flutter_launcher_icons:
   android: "launcher_icon"
   image_path: "assets/images/notepad.png"
-  min_sdk_android: 21 
   adaptive_icon_background: "#FFFFFF" 
   adaptive_icon_foreground: "assets/images/notepad.png"

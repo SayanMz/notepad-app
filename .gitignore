@@ -13,6 +13,8 @@ Thumbs.db
 .svn/
 .swiftpm/
 migrate_working_dir/
+.codex/
+debug_info/
 
 # IntelliJ related
 *.iml
@@ -34,6 +36,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+devtools_options.yaml
 
 # Symbolication related
 app.*.symbols

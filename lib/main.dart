@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -22,10 +23,8 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
 
-      if (!kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.windows ||
-              defaultTargetPlatform == TargetPlatform.macOS ||
-              defaultTargetPlatform == TargetPlatform.linux)) {
+      // Route all platforms to FFI to ensure FTS5 consistency
+      if (!kIsWeb) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }
@@ -112,5 +111,19 @@ class MyApp extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+// lib/main.dart
+
+class LoggingHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..findProxy = (uri) {
+        debugPrint('🚨 [NETWORK REQUEST TRIGGERED] -> URI: $uri');
+        debugPrintStack(maxFrames: 8);
+        return 'DIRECT';
+      };
   }
 }

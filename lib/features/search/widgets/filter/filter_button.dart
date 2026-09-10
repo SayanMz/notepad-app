@@ -5,7 +5,7 @@ import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/search_constants.dart';
-import 'package:notepad/features/search/widgets/filter/search_filter_sheet.dart';
+import 'package:notepad/features/search/widgets/filter/filter_sheet.dart';
 
 // Search filter dialog provides the modal shell for the filter sheet.
 class SearchFilterButton extends StatelessWidget {

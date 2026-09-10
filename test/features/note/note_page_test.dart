@@ -1,12 +1,31 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:notepad/features/note/note_page.dart';
+import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
+
+class _FakeHttpClient extends Fake implements http.Client {
+  @override
+  Future<http.Response> get(Uri url, {Map<String, String>? headers}) async {
+    return http.Response(
+      jsonEncode({
+        'data': [
+          {'id': 'qwen/qwen-2.5-32b'}
+        ]
+      }),
+      200,
+    );
+  }
+}
 
 void main() {
   setUpAll(() async {
     // Required to prevent 'NotInitializedError' during Groq warmup in initState
     dotenv.loadFromString(envString: 'GROQ_API_KEY=test_key');
+    GroqService.httpClient = _FakeHttpClient();
   });
 
   testWidgets('NotePage shows the editor shell and opens the toolbar',

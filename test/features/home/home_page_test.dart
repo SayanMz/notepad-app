@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/home/home_page.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';
-import 'package:notepad/features/home/widgets/note_list_items/note_list.dart';
+import 'package:notepad/features/home/widgets/note_list.dart';
 
 void main() {
   testWidgets('HomePage renders essential components', (tester) async {
@@ -12,11 +12,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: HomePage(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
 
     // Initial pump to build the UI
     await tester.pump();
@@ -27,11 +23,7 @@ void main() {
   });
 
   testWidgets('HomePage shows the drawer when menu is tapped', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: HomePage(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
 
     await tester.pump();
 

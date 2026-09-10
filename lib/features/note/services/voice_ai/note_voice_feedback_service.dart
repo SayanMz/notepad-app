@@ -62,9 +62,9 @@ class NoteVoiceFeedbackService {
 
       if (selectedVoice != null) {
         await _tts.setVoice(selectedVoice);
-        debugPrint('SUCCESS: Forced Voice to -> ${selectedVoice['name']}');
+        debugPrint('NoteVoiceFeedbackService: Forced voice to -> ${selectedVoice['name']}');
       } else {
-        debugPrint('FAILED: Network voices missing. Trying local default.');
+        debugPrint('NoteVoiceFeedbackService: Network voices missing. Using local default voice.');
         await _tts.setLanguage('en-US');
       }
       //audio playback parameters

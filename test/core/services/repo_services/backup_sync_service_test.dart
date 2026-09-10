@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/services/repo_services/backup_sync_service.dart';
+import 'package:notepad/core/services/repo_services/backup_sync.dart';
 
 void main() {
   test('calculateImportUpdates keeps only notes missing locally', () {

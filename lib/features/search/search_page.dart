@@ -8,8 +8,9 @@ import 'package:notepad/features/search/services/smooth_slide_fade.dart';
 import 'package:notepad/features/search/widgets/header/search_collapsible_header.dart';
 import 'package:notepad/features/search/widgets/results/results_view.dart';
 
-// Strict heights to guarantee pixel-perfect padding = 56 (AppBar) + 56 (Chips)
-const double kSearchTopBarHeight = 112.0;
+// Strict heights to guarantee pixel-perfect padding
+// 56 (AppBar) + 12 (Gap) + 124 (2 Chip Rows + Section Header + Padding)
+const double kSearchTopBarHeight = 192.0;
 const double kSearchMetadataHeight = 56.0;
 
 // Search page coordinates query input, filters, results, and scroll-driven header visibility.
@@ -60,8 +61,12 @@ class _SearchPageState extends State<SearchPage> {
       },
       child: Scaffold(
         body: SafeArea(
+          bottom: false,
           child: NotificationListener<ScrollNotification>(
-            onNotification: _searchController.handleScrollNotification,
+            onNotification: (notification) {
+              _searchController.handleScrollNotification(notification);
+              return false;
+            },
             child: Stack(
               children: [
                 Positioned.fill(

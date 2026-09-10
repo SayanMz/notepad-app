@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/controllers/sync_controller.dart';
-import 'package:notepad/features/home/widgets/drawer_items/home_drawer.dart';
+import 'package:notepad/features/home/widgets/home_drawer.dart';
 
 class MockAuthController extends AuthController {
   @override
@@ -24,17 +24,16 @@ class MockSyncController extends SyncController {
 }
 
 void main() {
-  testWidgets('HomeDrawer displays user info and storage stats', (tester) async {
+  testWidgets('HomeDrawer displays user info and storage stats', (
+    tester,
+  ) async {
     final auth = MockAuthController();
     final sync = MockSyncController(authController: auth);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          drawer: HomeDrawer(
-            authController: auth,
-            syncController: sync,
-          ),
+          drawer: HomeDrawer(authController: auth, syncController: sync),
         ),
       ),
     );

@@ -154,10 +154,7 @@ class _NotePageState extends State<NotePage>
   QuillController _createContentController(NotesSection? note) {
     final doc = note != null
         ? Document.fromJson(
-            doc_delta.decodeRichContent(
-              note.richContent,
-              note.content,
-            ),
+            doc_delta.decodeRichContent(note.richContent, note.content),
           )
         : (widget.content.isNotEmpty
               ? (Document()..insert(0, widget.content))
@@ -346,16 +343,25 @@ class _NotePageState extends State<NotePage>
                       const SizedBox(height: UIConstants.paddingMD),
 
                       Expanded(
-                        child: NotificationListener<ScrollEndNotification>(
-                          // Autosave note scroll offset when editor scrolling comes to a rest.
+                        child: NotificationListener<ScrollNotification>(
                           onNotification: (notification) {
-                            if (!_isTransitionAnimating.value &&
-                                notification.depth == 0) {
-                              _dataController.handleScrollEvent(
-                                title: titleController.text,
-                                document: contentController.document,
-                                scrollOffset: notification.metrics.pixels,
-                              );
+                            // 1. Dim the AI button whenever the user is actively scrolling
+                            if (notification is ScrollUpdateNotification &&
+                                notification.scrollDelta != null &&
+                                notification.scrollDelta != 0.0) {
+                              _uiController.orchestrateButtonVisibility();
+                            }
+
+                            // 2. Autosave scroll offset when scrolling comes to a rest
+                            if (notification is ScrollEndNotification) {
+                              if (!_isTransitionAnimating.value &&
+                                  notification.depth == 0) {
+                                _dataController.handleScrollEvent(
+                                  title: titleController.text,
+                                  document: contentController.document,
+                                  scrollOffset: notification.metrics.pixels,
+                                );
+                              }
                             }
                             return false;
                           },
@@ -498,14 +504,25 @@ class _NotePageState extends State<NotePage>
                       ),
                     );
                   },
-                  child: VoiceAssistantButton(
-                    lottieController: _lottieController,
-                    voiceController: _voiceController,
-                    uiController: _uiController,
-                    contentController: contentController,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _uiController.aiButtonOpacity,
+                    builder: (context, opacity, fabChild) {
+                      return AnimatedOpacity(
+                        opacity: opacity,
+                        duration: AnimationConstants.snappy,
+                        curve: Curves.easeInOut,
+                        child: fabChild!,
+                      );
+                    },
+                    child: VoiceAssistantButton(
+                      lottieController: _lottieController,
+                      voiceController: _voiceController,
+                      uiController: _uiController,
+                      contentController: contentController,
+                    ),
                   ),
-                ),
-        ), // End of Scaffold
+                ), // End of Scaffold
+        ),
       ),
     );
   }
