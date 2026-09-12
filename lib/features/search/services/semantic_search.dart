@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/search/services/semantic/onnx_embedding_engine.dart';
 import 'package:notepad/features/search/services/semantic/semantic_maintenance.dart';
@@ -12,9 +13,6 @@ class SemanticSearchService {
       OnnxEmbeddingEngine.isModelAvailable();
   static Future<void> init() => OnnxEmbeddingEngine.init();
 
-  static Future<List<Float32List>> generateDocumentEmbeddings(String text) =>
-      OnnxEmbeddingEngine.generateDocumentEmbeddings(text);
-
   static Future<void> runMaintenanceSweep([List<dynamic>? notesList]) =>
       SemanticMaintenanceService.runMaintenanceSweep(notesList);
 
@@ -23,25 +21,18 @@ class SemanticSearchService {
 
   static Future<List<MapEntry<String, int>>> discoverSuggestedTopics({
     required Set<String> activeNoteIds,
-    int maxTopics = 6,
-    double minSimilarity = 0.32,
   }) => TopicDiscoveryService.discoverSuggestedTopics(
     activeNoteIds: activeNoteIds,
-    maxTopics: maxTopics,
-    minSimilarity: minSimilarity,
   );
 
   static Future<List<String>> getNoteIdsForTopic(
     String topic, {
     DateTime? start,
     DateTime? end,
-    double minSimilarity = 0.32,
-  }) => TopicDiscoveryService.getNoteIdsForTopic(
-    topic,
-    start: start,
-    end: end,
-    minSimilarity: minSimilarity,
-  );
+  }) => TopicDiscoveryService.getNoteIdsForTopic(topic, start: start, end: end);
+
+  static Future<void> warmupTaxonomyVectors() =>
+      TopicDiscoveryService.warmupTaxonomyVectors();
 
   static double computeCosineSimilarity(Float32List a, Float32List b) =>
       VectorMath.cosineSimilarity(a, b);

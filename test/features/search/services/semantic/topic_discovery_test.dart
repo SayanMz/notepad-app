@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/search/services/semantic/topic_discovery_service.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,9 @@ void main() {
   const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 
   setUpAll(() async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+
     tempDir = await Directory.systemTemp.createTemp('topic_discovery_test_');
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -62,7 +66,7 @@ void main() {
       'getNoteIdsForTopic returns empty list when AI model is missing',
       () async {
         final ids = await TopicDiscoveryService.getNoteIdsForTopic(
-          'Software & Programming',
+          'Software & Tech',
         );
         expect(ids, isEmpty);
       },

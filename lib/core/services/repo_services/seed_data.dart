@@ -1,93 +1,119 @@
 import 'package:notepad/core/database/app_data.dart';
 
-/// Seed data provides the initial onboarding notes for fresh installations.
+/// Seed data service providing initial onboarding notes, AI voice tutorials, smart search templates, and benchmark utilities.
 class SeedDataService {
   SeedDataService._();
 
-  /// Generates a curated set of 6 notes: 2 onboarding feature guides
-  /// and 4 distinct, orthogonal semantic notes for smart search topic discovery.
   static List<NotesSection> generateWelcomeNotes() {
     return [
-      // --- NOTE 1: THE FOUNDATION FEATURES ---
+      // --- NOTE 1: ENGAGING ONBOARDING ---
       NotesSection(
-        title: '📝 Welcome to Notepad',
+        title: '📝 Welcome to your new Notepad',
         content:
-            'Your new favorite workspace for capturing thoughts and organizing your life.\n\n'
-            'Privacy is built-in: Everything you write is secured with local encryption and stays private on your device.\n\n'
-            '✨ Quick Tips:\n'
-            '- Tap a note to edit.\n'
-            '- Use the toolbar 🪄 below to apply styles like bold, italic, or custom colors.\n'
-            '- Swipe any note in the list to move it to the Recycle Bin.',
+            'Welcome to a simpler, smarter space for your thoughts. Whether you are jotting down a quick grocery list, journaling your day, or planning your next big project, Notepad is designed to get out of your way and let your ideas flow.\n\n'
+            '🔒 Total Privacy\n'
+            'Your thoughts belong to you. Everything you write is safely locked right here on your phone. No snooping and no tracking—just a completely private space, with the option to securely back up to your personal Google Drive whenever you are ready.\n\n'
+            '⚡ Lightning Fast\n'
+            'Find exactly what you are looking for in milliseconds, even if you make a typo. And never worry about losing your work again—every single keystroke is automatically saved the moment you type it.\n\n'
+            '🧠 A Little Magic\n'
+            'Watch your notes organize themselves! Our smart topic discovery quietly groups related ideas together for you. Plus, you can use your voice to format text instantly—check out the next notes to see how the AI assistant works.',
         isPinned: true,
         cardColorValue: 0xFF14B8A6, // Teal Branding
       ),
 
-      // --- NOTE 2: AI ASSISTANT & COMMAND MASTERCLASS ---
+      // --- NOTE 2: AI COMMANDS (BASICS & SELECTION) ---
       NotesSection(
-        title: '🎙️ Smart Voice AI & Formatting Commands',
+        title: '🎙️ AI Voice Formatting: The Basics',
         content:
-            'Capture ideas faster than you can type. Tap the floating circle icon to activate your Voice AI assistant.\n\n'
-            'Speak naturally to transform text and structure your thoughts instantly:\n'
-            '- "Make the first line green" or "Underline the last line"\n'
-            '- "Make this bold" or "Link this to google.com"\n'
-            '- "Turn this paragraph into a checklist"\n'
-            '- "Align the starting line to the center"\n'
-            '- "Clear all formatting" if you want to start fresh.\n\n'
-            'The AI understands context and respects your document structure without tap-fatigue.',
+            'Execute hands-free commands and dictate thoughts via high-speed Groq AI integration. Tap the floating circle icon to activate your Voice AI assistant.\n\n'
+            'Try highlighting some text and using these selection commands:\n'
+            '- "Make this bold"\n'
+            '- "Link this to google.com"\n'
+            '- "Make this small"\n\n'
+            'You can also control the entire document at once:\n'
+            '- "Make everything red"\n'
+            '- "Align the entire document to the center"\n'
+            '- "Clear all formatting" (wipes all styles to reset your note)',
         isPinned: true,
         cardColorValue: 0xFF6366F1, // Indigo AI Theme
       ),
 
-      // --- NOTE 3: FITNESS & WORKOUT ---
+      // --- NOTE 3: AI COMMANDS (ADVANCED TARGETING) ---
       NotesSection(
-        title: 'Strength & Conditioning Regimen',
+        title: '🪄 AI Voice Formatting: Advanced Targeting',
         content:
-            'Weekly Training Split:\n'
-            '- Monday: Heavy bench press, overhead dumbbell press, and tricep pushdowns.\n'
-            '- Wednesday: Deadlifts, pull-ups, and seated cable rows.\n'
-            '- Friday: Barbell squats, Bulgarian split squats, and calf raises.\n\n'
-            'Goal: Aim for progressive overload on compound lifts while keeping rest intervals strictly under 90 seconds.',
-        cardColorValue: 0xFFEC4899, // Pink
+            'Your AI understands document structure natively, allowing you to format text without lifting a finger.\n\n'
+            'Target specific lines and blocks:\n'
+            '- "Make the first line bold"\n'
+            '- "Underline the second sentence"\n'
+            '- "Center the last paragraph"\n'
+            '- "Make menu items a checklist"\n\n'
+            'Target exact words and phrases:\n'
+            '- "Make the word dog red"\n'
+            '- "Make the second instance of dog bold"\n'
+            '- "Make household 40 pixel"\n'
+            '- "Direct golden retriever to google.com"',
+        isPinned: true,
+        cardColorValue: 0xFF8B5CF6, // Purple AI Theme
       ),
+    ];
+  }
 
-      // --- NOTE 4: PERSONAL FINANCE & BILLS ---
+  /// Injected post-download to populate the Smart Search UI with distinct,
+  /// useful templates that the user can either keep or delete.
+  static List<NotesSection> generateSmartSearchTemplates() {
+    return [
+      // --- TOPIC: FOOD & COOKING ---
       NotesSection(
-        title: 'Monthly Budget & Savings Plan',
+        title: 'Garlic Butter Pasta Prep',
         content:
-            'Fixed Obligations:\n'
-            '- Electricity, water, and broadband subscriptions cleared on the 1st.\n'
-            '- Apartment rent dispatched via standing instruction.\n\n'
-            'Investment Allocations:\n'
-            '- Transfer 30% of net income into broad-market index mutual funds.\n'
-            '- Deposit surplus liquidity into high-yield emergency liquid savings.',
-        cardColorValue: 0xFF14B8A6, // Teal
-      ),
-
-      // --- NOTE 5: FOOD & COOKING ---
-      NotesSection(
-        title: 'Artisan Sourdough Bread Recipe & Baking Guide',
-        content:
-            'Home Cooking & Baking Instructions:\n'
-            '- 500g unbleached bread flour\n'
-            '- 350ml lukewarm water (70% hydration)\n'
-            '- 100g active sourdough starter\n'
-            '- 10g fine sea salt\n\n'
-            'Culinary Method:\n'
-            'Mix flour and water for a 45-minute autolyse. Fold in the starter and salt, '
-            'perform stretch-and-folds every 30 minutes, and bake your meal in a preheated Dutch oven kitchen pot at 230°C.',
+            'A quick 15-minute dinner for busy weeknights.\n\n'
+            'Ingredients:\n'
+            '- 200g spaghetti or fettuccine\n'
+            '- 4 cloves minced garlic\n'
+            '- 3 tbsp unsalted butter\n'
+            '- Olive oil, salt, red pepper flakes, and parmesan cheese.\n\n'
+            'Boil the pasta until al dente. While it cooks, sauté the garlic in olive oil and butter on low heat. Toss the drained pasta directly into the pan with a splash of pasta water and stir until the sauce emulsifies.',
         cardColorValue: 0xFFF59E0B, // Amber
       ),
 
-      // --- NOTE 6: SOFTWARE & TECH ---
+      // --- TOPIC: HEALTH & FITNESS ---
       NotesSection(
-        title: 'Software Engineering & App Code Optimization',
+        title: 'Morning Dumbbell Routine',
         content:
-            'Computer Science & Programming Roadmap:\n'
-            '- Isolate database queries off the main thread to prevent frame drops in the app.\n'
-            '- Introduce secondary indexes on foreign key columns in SQLite.\n'
-            '- Profile raster thread compile times and eliminate layout reflows during scroll transitions.\n'
-            '- Implement caching algorithms and coding routines for high-frequency model inference outputs.',
-        cardColorValue: 0xFF6366F1, // Indigo
+            'Full body workout routine to run 3 days a week. Keep rest times under 60 seconds to maintain heart rate.\n\n'
+            '- Warmup: 5 minutes of jumping jacks and dynamic stretching.\n'
+            '- Goblet Squats: 3 sets of 12 reps\n'
+            '- Dumbbell Romanian Deadlifts: 3 sets of 10 reps\n'
+            '- Overhead Shoulder Press: 3 sets of 8 reps\n'
+            '- Bent-over Rows: 3 sets of 10 reps\n\n'
+            'Remember to drink at least a liter of water and stretch the hamstrings after finishing.',
+        cardColorValue: 0xFFEC4899, // Pink
+      ),
+
+      // --- TOPIC: TRAVEL & TRANSPORT ---
+      NotesSection(
+        title: 'Weekend Cabin Trip Checklist',
+        content:
+            'Packing list for the mountain getaway next weekend:\n\n'
+            '- Download offline maps for the mountain roads since cell service drops off near the highway exit.\n'
+            '- Pack hiking boots, heavy wool socks, and a waterproof windbreaker.\n'
+            '- Bring the portable tire inflator and jumper cables for the car trunk.\n'
+            '- Confirm the Airbnb digital lock code and check-in time before we start the drive.',
+        cardColorValue: 0xFF8B5CF6, // Purple
+      ),
+
+      // --- TOPIC: WORK & STUDY ---
+      NotesSection(
+        title: 'Q3 Product Strategy Sync',
+        content:
+            'Meeting notes from the afternoon planning session with the design team.\n\n'
+            'Key Action Items:\n'
+            '- Finalize the mobile wireframes before the sprint review on Thursday.\n'
+            '- Follow up with the marketing team regarding the email campaign timeline.\n'
+            '- Review the user retention metrics from the last quarter to see where onboarding drops off.\n\n'
+            'I need to draft the project roadmap document and send it to the stakeholders by Friday morning.',
+        cardColorValue: 0xFF3B82F6, // Blue
       ),
     ];
   }

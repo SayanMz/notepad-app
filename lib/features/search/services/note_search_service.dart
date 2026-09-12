@@ -1,5 +1,4 @@
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/features/search/models/search_date_selection.dart';
 import 'package:notepad/features/search/models/search_state.dart';
@@ -11,11 +10,10 @@ import 'package:notepad/features/search/services/semantic_search.dart';
 class NoteSearchService {
   static Future<List<NotesSection>> searchAsync(
     SearchState searchState, {
-    NoteRepository? repository,
+    required Map<String, NotesSection> liveCacheMap,
   }) async {
     if (!searchState.hasAnyCriteria) return const [];
 
-    final repo = repository ?? noteRepository;
     final filters = searchState.filters;
     final startDate = _buildBoundary(filters.start, useMaxValues: false);
     final endDate = filters.isRangeSearch
@@ -70,9 +68,8 @@ class NoteSearchService {
     }
 
     // 4. O(M) Hydration via repository cache
-    final cache = repo.cacheMap;
     return finalOrderedIds
-        .map((id) => cache[id])
+        .map((id) => liveCacheMap[id])
         .whereType<NotesSection>()
         .where((n) => !n.isDeleted)
         .toList();

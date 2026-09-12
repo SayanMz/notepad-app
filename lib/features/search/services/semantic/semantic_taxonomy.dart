@@ -4,27 +4,27 @@
 class SemanticTaxonomy {
   static const Map<String, String> topicDescriptions = {
     'Software & Tech':
-        'Notes and documentation about software engineering, programming, app development, computer science, hardware, and coding.',
+        'Software engineering, source code, app development, IT systems, tech hardware, and programming.',
 
     'Entertainment':
-        'Notes about entertainment, including video games, movies, television shows, anime, streaming, music, and books.',
+        'Video games, movies, television shows, anime, streaming, music, cinema, novels, and books.',
 
     'Work & Study':
-        'Notes related to work, education, studying, university academics, career planning, job interviews, and office meetings.',
+        'Work tasks, business strategy, project planning, meetings, roadmaps, sprint reviews, school homework, studying exams, mathematics, academics, and education.',
 
     'Finance & Shopping':
-        'Notes about personal finance, money management, budgets, utility bills, investments, shopping lists, and purchases.',
+        'Personal finance, money management, budgets, utility bills, taxes, legal documents, investments, shopping lists, and purchases.',
 
     'Health & Fitness':
-        'Notes regarding health, fitness, workouts, gym exercises, strength training, wellness, and medical information.',
+        'Health, fitness, workouts, gym exercises, strength training, wellness, nutrition, and medical information.',
 
     'Food & Cooking':
-        'Notes about food, cooking, baking recipes, culinary ingredients, kitchen preparation, meals, and dining.',
+        'Food recipes, culinary ingredients, kitchen preparation, baking, cooking, culinary dishes, and cooking methods.',
 
     'Travel & Transport':
-        'Notes concerning travel itineraries, vacations, tourism, transit, vehicles, flights, commuting, and road trips.',
+        'Travel itineraries, vacations, tourism, transit, vehicles, flights, commuting, and road trips.',
 
     'Personal & Social':
-        'Personal journal entries, diary thoughts, social events, gatherings, friends, family, and personal memories.',
+        'Personal journal entries, diary reflections, feelings, nostalgia, friends, family, pets, hobbies, household chores, social gatherings, hangouts, and life memories.',
   };
 }

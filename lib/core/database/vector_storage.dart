@@ -13,12 +13,15 @@ abstract class VectorStorageServiceApi {
     DateTime updatedAt,
   );
   Future<List<Map<String, dynamic>>> fetchAllEmbeddings({
+    Set<String>? noteIds,
     DateTime? start,
     DateTime? end,
   });
   Future<void> remove(String noteId);
   Future<void> removeBulk(Set<String> noteIds);
   Future<List<String>> getNoteIdsMissingEmbeddings(List<String> activeNoteIds);
+  Future<Map<String, Uint8List>> fetchAllTaxonomyVectors();
+  Future<void> saveTaxonomyVector(String topicTitle, Uint8List embedding);
   Future<void> close();
 }
 
@@ -35,9 +38,10 @@ class VectorStorageService {
   ) => to.upsertEmbeddings(noteId, embeddings, updatedAt);
 
   static Future<List<Map<String, dynamic>>> fetchAllEmbeddings({
+    Set<String>? noteIds,
     DateTime? start,
     DateTime? end,
-  }) => to.fetchAllEmbeddings(start: start, end: end);
+  }) => to.fetchAllEmbeddings(noteIds: noteIds, start: start, end: end);
 
   static Future<void> remove(String noteId) => to.remove(noteId);
 
@@ -47,15 +51,24 @@ class VectorStorageService {
     List<String> activeNoteIds,
   ) => to.getNoteIdsMissingEmbeddings(activeNoteIds);
 
+  static Future<Map<String, Uint8List>> fetchAllTaxonomyVectors() =>
+      to.fetchAllTaxonomyVectors();
+
+  static Future<void> saveTaxonomyVector(
+    String topicTitle,
+    Uint8List embedding,
+  ) => to.saveTaxonomyVector(topicTitle, embedding);
+
   static Future<void> close() => to.close();
 }
 
 class _VectorStorageServiceImpl implements VectorStorageServiceApi {
   static const String _dbName = 'vectors.db';
   static const String _embeddingTable = 'note_embeddings';
+  static const String _taxonomyTable = 'taxonomy_vectors';
 
   Database? _db;
-  final _dbVersion = 1;
+  final _dbVersion = 2;
 
   @override
   Future<Database> get database async {
@@ -87,11 +100,14 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
       version: _dbVersion,
       onCreate: (db, version) async {
         await _createEmbeddingTable(db);
+        await _createTaxonomyTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < _dbVersion) {
           await db.execute('DROP TABLE IF EXISTS $_embeddingTable');
+          await db.execute('DROP TABLE IF EXISTS $_taxonomyTable');
           await _createEmbeddingTable(db);
+          await _createTaxonomyTable(db);
         }
       },
     );
@@ -112,6 +128,15 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_note_embeddings_updated_at ON $_embeddingTable(updated_at)',
     );
+  }
+
+  Future<void> _createTaxonomyTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_taxonomyTable (
+        topic_title TEXT PRIMARY KEY,
+        embedding BLOB NOT NULL
+      )
+    ''');
   }
 
   /// Atomically replaces all existing embedding chunks for [noteId] with fresh vectors and timestamp.
@@ -150,34 +175,46 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
 
   @override
   Future<List<Map<String, dynamic>>> fetchAllEmbeddings({
+    Set<String>? noteIds,
     DateTime? start,
     DateTime? end,
   }) async {
     try {
       final db = await database;
-      String? where;
-      List<dynamic>? whereArgs;
+      final List<String> whereConditions = [];
+      final List<dynamic> whereArgs = [];
 
-      // Construct conditional SQL WHERE clause based on optional start/end epoch millisecond timestamps.
+      // Filter note IDs directly via SQLite index
+      if (noteIds != null) {
+        if (noteIds.isEmpty) return [];
+        final placeholders = List.filled(noteIds.length, '?').join(',');
+        whereConditions.add('note_id IN ($placeholders)');
+        whereArgs.addAll(noteIds);
+      }
+
       final startMs = start?.millisecondsSinceEpoch;
       final endMs = end?.millisecondsSinceEpoch;
 
       if (startMs != null && endMs != null) {
-        where = 'updated_at BETWEEN ? AND ?';
-        whereArgs = [startMs, endMs];
+        whereConditions.add('updated_at BETWEEN ? AND ?');
+        whereArgs.addAll([startMs, endMs]);
       } else if (startMs != null) {
-        where = 'updated_at >= ?';
-        whereArgs = [startMs];
+        whereConditions.add('updated_at >= ?');
+        whereArgs.add(startMs);
       } else if (endMs != null) {
-        where = 'updated_at <= ?';
-        whereArgs = [endMs];
+        whereConditions.add('updated_at <= ?');
+        whereArgs.add(endMs);
       }
+
+      final whereClause = whereConditions.isNotEmpty
+          ? whereConditions.join(' AND ')
+          : null;
 
       return await db.query(
         _embeddingTable,
         columns: ['note_id', 'embedding'],
-        where: where,
-        whereArgs: whereArgs,
+        where: whereClause,
+        whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       );
     } catch (e) {
       debugPrint('Embedding Fetch Error: $e');
@@ -237,6 +274,40 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
     } catch (e) {
       debugPrint('Missing Embedding Search Error: $e');
       return [];
+    }
+  }
+
+  @override
+  Future<Map<String, Uint8List>> fetchAllTaxonomyVectors() async {
+    try {
+      final db = await database;
+      final rows = await db.query(
+        _taxonomyTable,
+        columns: ['topic_title', 'embedding'],
+      );
+      return {
+        for (final row in rows)
+          row['topic_title'] as String: row['embedding'] as Uint8List,
+      };
+    } catch (e) {
+      debugPrint('Taxonomy Vectors Fetch Error: $e');
+      return {};
+    }
+  }
+
+  @override
+  Future<void> saveTaxonomyVector(
+    String topicTitle,
+    Uint8List embedding,
+  ) async {
+    try {
+      final db = await database;
+      await db.insert(_taxonomyTable, {
+        'topic_title': topicTitle,
+        'embedding': embedding,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    } catch (e) {
+      debugPrint('Taxonomy Vector Insert Error: $e');
     }
   }
 

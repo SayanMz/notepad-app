@@ -64,6 +64,9 @@ class _StorageServiceImpl implements StorageServiceApi {
   static const String _settingsBoxName = 'settings_box';
   static const String _settingsKey = 'current_settings';
 
+  bool get _isNotesBoxOpen => Hive.isBoxOpen(_notesBoxName);
+  bool get _isSettingsBoxOpen => Hive.isBoxOpen(_settingsBoxName);
+
   Box<NotesSection> get _notesBox => Hive.box<NotesSection>(_notesBoxName);
   Box<AppSettings> get _settingsBox => Hive.box<AppSettings>(_settingsBoxName);
 
@@ -103,6 +106,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> performMaintenance() async {
+    if (!_isNotesBoxOpen) return;
     try {
       await _notesBox.compact();
       debugPrint('StorageService: Notes box compaction complete.');
@@ -155,6 +159,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   List<NotesSection> loadAllNotes() {
+    if (!_isNotesBoxOpen) return [];
     try {
       return _notesBox.values.toList();
     } catch (e) {
@@ -164,6 +169,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   NotesSection? getNoteById(String id) {
+    if (!_isNotesBoxOpen) return null;
     try {
       return _notesBox.get(id);
     } catch (e) {
@@ -173,6 +179,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> saveNote(NotesSection note) async {
+    if (!_isNotesBoxOpen) return;
     try {
       await _notesBox.put(note.id, note);
     } catch (e) {
@@ -182,7 +189,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> saveNotesBulk(Map<String, NotesSection> notes) async {
-    if (notes.isEmpty) return;
+    if (notes.isEmpty || !_isNotesBoxOpen) return;
     try {
       await _notesBox.putAll(notes);
     } catch (e) {
@@ -192,6 +199,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> deleteNote(String id) async {
+    if (!_isNotesBoxOpen) return;
     try {
       await _notesBox.delete(id);
     } catch (e) {
@@ -201,7 +209,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> deleteNotesBulk(Set<String> ids) async {
-    if (ids.isEmpty) return;
+    if (ids.isEmpty || !_isNotesBoxOpen) return;
     try {
       await _notesBox.deleteAll(ids);
     } catch (e) {
@@ -211,6 +219,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> clearAllNotes() async {
+    if (!_isNotesBoxOpen) return;
     try {
       await _notesBox.clear();
       await _notesBox.compact();
@@ -221,6 +230,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   AppSettings loadSettings() {
+    if (!_isSettingsBoxOpen) return const AppSettings();
     try {
       return _settingsBox.get(_settingsKey) ?? const AppSettings();
     } catch (e) {
@@ -231,6 +241,7 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   @override
   Future<void> saveSettings(AppSettings settings) async {
+    if (!_isSettingsBoxOpen) return;
     try {
       await _settingsBox.put(_settingsKey, settings);
     } catch (e) {

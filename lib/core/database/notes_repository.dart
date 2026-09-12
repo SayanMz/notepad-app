@@ -101,11 +101,38 @@ class NoteRepository {
       ..addAll(result.cacheMap);
 
     _sortAndRebuildCache();
+  }
 
+  void runPostStartupMaintenance() async {
+    await Future.wait([
+      NotesInitializationService.runMaintenanceTasks(),
+      FuzzySearchService.rebuildIndex(_activeNotes),
+    ]);
+    await NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
+  }
+
+  /// Programmatically injects new seed notes at runtime for Semantic Ai model testing.
+  Future<void> injectSeedNotesBulk(List<NotesSection> seedNotes) async {
+    if (seedNotes.isEmpty) return;
+
+    final now = DateTime.now();
+    final Map<String, NotesSection> notesToSave = {};
+
+    for (final note in seedNotes) {
+      note.updatedAt = now;
+      notesToSave[note.id] = note;
+      _cacheMap[note.id] = note;
+      NoteSortService.insertSorted(_activeNotes, note);
+    }
+
+    _sortAndRebuildCache();
+    activeRevision.value++;
+
+    // Persist to encrypted storage and search indices
     unawaited(() async {
-      NotesInitializationService.runMaintenanceTasks();
-      NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
-      FuzzySearchService.rebuildIndex(_activeNotes);
+      _storageService.saveNotesBulk(notesToSave);
+      _sqliteFtsService.insertOrUpdateBulk(seedNotes);
+      FuzzySearchService.indexNotesBulk(seedNotes);
     }());
   }
 
@@ -173,7 +200,6 @@ class NoteRepository {
     if (findById(noteId ?? '') case final note?) {
       SemanticSearchService.embedNoteInBackground(note);
     }
-    SemanticSearchService.invalidateTopicCache();
   }
 
   Future<NotesSection?> saveNote({
@@ -428,7 +454,6 @@ class NoteRepository {
       await _storageService.saveNotesBulk(result.updates);
       await _sqliteFtsService.reindexAllNotes(_activeNotes);
       NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
-      SemanticSearchService.invalidateTopicCache();
       FuzzySearchService.rebuildIndex(_activeNotes);
     }
 

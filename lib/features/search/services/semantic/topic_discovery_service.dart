@@ -5,59 +5,193 @@ import 'onnx_embedding_engine.dart';
 import 'semantic_taxonomy.dart';
 import 'vector_math.dart';
 
-/// Discovers candidate taxonomy topics and matches notes against topic vector embeddings.
-class TopicDiscoveryService {
-  static List<MapEntry<String, int>>? _cachedTopics;
-  static final Map<String, List<String>> _topicNoteIdsCache = {};
+class _DiscoveryComputationResult {
+  final List<MapEntry<String, int>> qualifiedTopics;
+  final Map<String, List<String>> topicNoteIds;
 
-  // Runtime vector cache for candidate taxonomy strings to avoid redundant neural passes.
-  static final Map<String, Float32List> _topicVectorCache = {};
+  _DiscoveryComputationResult({
+    required this.qualifiedTopics,
+    required this.topicNoteIds,
+  });
+}
+
+/// Evaluates topic scores and applies winner-take-all filtering synchronously.
+_DiscoveryComputationResult _evaluateTopics({
+  required Map<String, Float32List> topicVectors,
+  required List<Map<String, dynamic>> parsedEntries,
+  required double minSimilarity,
+  required int? maxTopics,
+}) {
+  final rawTopicNoteScores = <String, Map<String, double>>{};
+  final noteGlobalBestScore = <String, double>{};
+  final noteWinningTopic = <String, String>{};
+
+  for (final entry in topicVectors.entries) {
+    final topicTitle = entry.key;
+    final topicVector = entry.value;
+    final noteScores = <String, double>{};
+
+    for (final note in parsedEntries) {
+      final noteId = note['note_id'] as String;
+      final chunkVector = note['vector'] as Float32List;
+
+      final chunkScore = VectorMath.cosineSimilarity(topicVector, chunkVector);
+      if (chunkScore >= minSimilarity) {
+        final currentBest = noteScores[noteId] ?? 0.0;
+        if (chunkScore > currentBest) {
+          noteScores[noteId] = chunkScore;
+        }
+      }
+    }
+
+    if (noteScores.isNotEmpty) {
+      rawTopicNoteScores[topicTitle] = noteScores;
+      for (final e in noteScores.entries) {
+        final currentMax = noteGlobalBestScore[e.key] ?? 0.0;
+        if (e.value > currentMax) {
+          noteGlobalBestScore[e.key] = e.value;
+          noteWinningTopic[e.key] = topicTitle;
+        }
+      }
+    }
+  }
+
+  final qualifiedTopics = <MapEntry<String, int>>[];
+  final topicNoteIds = <String, List<String>>{};
+
+  for (final entry in rawTopicNoteScores.entries) {
+    final topicTitle = entry.key;
+    final noteScores = entry.value;
+
+    final winningNotes =
+        noteScores.entries
+            .where((e) => noteWinningTopic[e.key] == topicTitle)
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (winningNotes.isNotEmpty) {
+      qualifiedTopics.add(MapEntry(topicTitle, winningNotes.length));
+      topicNoteIds[topicTitle] = winningNotes.map((e) => e.key).toList();
+    }
+  }
+
+  qualifiedTopics.sort((a, b) => b.value.compareTo(a.value));
+  return _DiscoveryComputationResult(
+    qualifiedTopics: maxTopics != null
+        ? qualifiedTopics.take(maxTopics).toList()
+        : qualifiedTopics,
+    topicNoteIds: topicNoteIds,
+  );
+}
+
+/// Evaluates and sorts note candidates for a single topic vector synchronously.
+List<String> _filterAndSortTopicNotes({
+  required Float32List topicVector,
+  required List<Map<String, dynamic>> rawCandidates,
+  required double minSimilarity,
+}) {
+  final Map<String, double> noteBestScores = {};
+
+  for (final entry in rawCandidates) {
+    final noteId = entry['note_id'] as String;
+    final blob = entry['embedding'] as Uint8List;
+    final chunkVector = Uint8List.fromList(blob).buffer.asFloat32List();
+
+    final chunkScore = VectorMath.cosineSimilarity(topicVector, chunkVector);
+    if (chunkScore >= minSimilarity) {
+      final currentBestScore = noteBestScores[noteId] ?? 0.0;
+      if (chunkScore > currentBestScore) {
+        noteBestScores[noteId] = chunkScore;
+      }
+    }
+  }
+
+  final sorted = noteBestScores.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return sorted.map((e) => e.key).toList();
+}
+
+/// Discovers candidate taxonomy topics and matches notes against topic vector embeddings using BGE v1.5 queries.
+class TopicDiscoveryService {
+  static List<MapEntry<String, int>>? _discoveredTopicChips;
+  static final Map<String, List<String>> _topicMatchedNoteIds = {};
+
   static final Map<String, String> _candidateTaxonomy =
       SemanticTaxonomy.topicDescriptions;
 
+  // BGE v1.5 official instruction prefix required to align asymmetric query/document vector spaces.
+  static const String _bgeQueryPrefix =
+      'Represent this sentence for searching relevant passages: ';
+
   /// Clears in-memory topic suggestion and note ID caches.
   static void invalidateCache() {
-    _cachedTopics = null;
-    _topicNoteIdsCache.clear();
+    _discoveredTopicChips = null;
+    _topicMatchedNoteIds.clear();
   }
 
-  /// Computes or retrieves cached 384-d vector embedding for a taxonomy topic string.
-  static Future<Float32List?> _getOrComputeTopicVector(
+  /// Computes a single topic vector using ONNX and writes it directly to SQLite.
+  static Future<Float32List?> _computeAndSaveTopicVector(
     String topicTitle,
     String description,
   ) async {
-    Float32List? topicVector = _topicVectorCache[topicTitle];
-    if (topicVector == null) {
-      // We embed the rich description, not just the short title, to cast a wider semantic net.
-      final vecs = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
-        description,
+    final queryText = '$_bgeQueryPrefix$description';
+    final vecs = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
+      queryText,
+    );
+    if (vecs.isNotEmpty) {
+      final topicVector = vecs.first;
+      await VectorStorageService.to.saveTaxonomyVector(
+        topicTitle,
+        topicVector.buffer.asUint8List(),
       );
-      if (vecs.isNotEmpty) {
-        topicVector = vecs.first;
-        _topicVectorCache[topicTitle] = topicVector;
+      return topicVector;
+    }
+    return null;
+  }
+
+  /// Loads taxonomy vectors directly from SQLite, computing any missing ones sequentially.
+  static Future<Map<String, Float32List>> _loadTaxonomyVectorsFromDb() async {
+    final storedTaxonomy = await VectorStorageService.to
+        .fetchAllTaxonomyVectors();
+
+    final result = <String, Float32List>{
+      for (final entry in storedTaxonomy.entries)
+        entry.key: entry.value.buffer.asFloat32List(),
+    };
+
+    final missingEntries = _candidateTaxonomy.entries
+        .where((e) => !result.containsKey(e.key))
+        .toList();
+
+    if (missingEntries.isNotEmpty) {
+      for (final entry in missingEntries) {
+        final vec = await _computeAndSaveTopicVector(entry.key, entry.value);
+        if (vec != null) {
+          result[entry.key] = vec;
+        }
       }
     }
-    return topicVector;
+
+    return result;
   }
 
   /// Evaluates candidate topics against active note vector embeddings and returns top qualified topic matches.
   static Future<List<MapEntry<String, int>>> discoverSuggestedTopics({
     required Set<String> activeNoteIds,
-    int maxTopics = 6,
-    double minSimilarity = 0.32,
+    int? maxTopics,
+    double minSimilarity = 0.45,
   }) async {
-    if (_cachedTopics != null && _cachedTopics!.isNotEmpty) {
-      return _cachedTopics!;
+    if (_discoveredTopicChips != null && _discoveredTopicChips!.isNotEmpty) {
+      return _discoveredTopicChips!;
     }
     if (!await OnnxEmbeddingEngine.isModelAvailable()) return [];
     await OnnxEmbeddingEngine.init();
 
     try {
-      // Fetch all stored vector blobs from SQLite and parse Uint8List buffers into Float32List vectors.
-      final allEmbeddings = await VectorStorageService.to.fetchAllEmbeddings();
-      final activeEmbeddings = allEmbeddings
-          .where((e) => activeNoteIds.contains(e['note_id'] as String))
-          .toList();
+      // 1. Fetch only active note vectors directly from the SQLite index.
+      final activeEmbeddings = await VectorStorageService.to.fetchAllEmbeddings(
+        noteIds: activeNoteIds,
+      );
       if (activeEmbeddings.isEmpty) return [];
 
       final List<Map<String, dynamic>> parsedEntries = activeEmbeddings.map((
@@ -70,85 +204,23 @@ class TopicDiscoveryService {
         };
       }).toList();
 
-      // Intermediate score collection: { topicTitle: { noteId: maxChunkScore } }
-      final Map<String, Map<String, double>> rawTopicNoteScores = {};
-      // Tracks the absolute highest score and winning topic per note across all candidate topics.
-      final Map<String, double> noteGlobalBestScore = {};
-      final Map<String, String> noteWinningTopic = {};
+      // 2. Load taxonomy vectors from SQLite
+      final topicVectors = await _loadTaxonomyVectorsFromDb();
 
-      // Cross-reference candidate taxonomy topic vectors against note chunk vectors using cosine similarity.
-      for (final taxonomyEntry in _candidateTaxonomy.entries) {
-        final topicTitle = taxonomyEntry.key;
-        final topicDescription = taxonomyEntry.value;
+      // 3. Perform vector dot-product scoring and winner-take-all evaluation synchronously
+      final result = _evaluateTopics(
+        topicVectors: topicVectors,
+        parsedEntries: parsedEntries,
+        minSimilarity: minSimilarity,
+        maxTopics: maxTopics,
+      );
 
-        final topicVector = await _getOrComputeTopicVector(
-          topicTitle,
-          topicDescription,
-        );
-        if (topicVector == null) continue;
+      _topicMatchedNoteIds
+        ..clear()
+        ..addAll(result.topicNoteIds);
 
-        final Map<String, double> noteScores = {};
-
-        for (final entry in parsedEntries) {
-          final noteId = entry['note_id'] as String;
-          final chunkVector = entry['vector'] as Float32List;
-
-          final chunkScore = VectorMath.cosineSimilarity(
-            topicVector,
-            chunkVector,
-          );
-          if (chunkScore >= minSimilarity) {
-            final currentBestScore = noteScores[noteId] ?? 0.0;
-            if (chunkScore > currentBestScore) {
-              noteScores[noteId] = chunkScore;
-            }
-          }
-        }
-
-        if (noteScores.isNotEmpty) {
-          rawTopicNoteScores[topicTitle] = noteScores;
-
-          // Track which topic yields the global maximum score for each note.
-          for (final e in noteScores.entries) {
-            final noteId = e.key;
-            final score = e.value;
-            final currentMax = noteGlobalBestScore[noteId] ?? 0.0;
-            if (score > currentMax) {
-              noteGlobalBestScore[noteId] = score;
-              noteWinningTopic[noteId] = topicTitle;
-            }
-          }
-        }
-      }
-
-      final List<MapEntry<String, int>> qualifiedTopics = [];
-      _topicNoteIdsCache.clear();
-
-      // Global winner-take-all pass: Retain a note strictly within its highest-scoring topic.
-      for (final entry in rawTopicNoteScores.entries) {
-        final topicTitle = entry.key;
-        final noteScores = entry.value;
-
-        final winningNotesForTopic =
-            noteScores.entries
-                .where((e) => noteWinningTopic[e.key] == topicTitle)
-                .toList()
-              ..sort((a, b) => b.value.compareTo(a.value));
-
-        if (winningNotesForTopic.isNotEmpty) {
-          qualifiedTopics.add(
-            MapEntry(topicTitle, winningNotesForTopic.length),
-          );
-          _topicNoteIdsCache[topicTitle] = winningNotesForTopic
-              .map((e) => e.key)
-              .toList();
-        }
-      }
-
-      // Cache top qualified topic matches and their corresponding note IDs sorted by similarity score.
-      qualifiedTopics.sort((a, b) => b.value.compareTo(a.value));
-      _cachedTopics = qualifiedTopics.take(maxTopics).toList();
-      return _cachedTopics!;
+      _discoveredTopicChips = result.qualifiedTopics;
+      return _discoveredTopicChips!;
     } catch (e) {
       debugPrint('TopicDiscoveryService: Discovery error: $e');
       return [];
@@ -160,10 +232,10 @@ class TopicDiscoveryService {
     String topicTitle, {
     DateTime? start,
     DateTime? end,
-    double minSimilarity = 0.32,
+    double minSimilarity = 0.45,
   }) async {
     if (start == null && end == null) {
-      final cachedIds = _topicNoteIdsCache[topicTitle];
+      final cachedIds = _topicMatchedNoteIds[topicTitle];
       if (cachedIds != null && cachedIds.isNotEmpty) return cachedIds;
     }
 
@@ -174,47 +246,41 @@ class TopicDiscoveryService {
       final topicDescription = _candidateTaxonomy[topicTitle];
       if (topicDescription == null) return [];
 
-      final topicVector = await _getOrComputeTopicVector(
-        topicTitle,
-        topicDescription,
-      );
+      final topicVectors = await _loadTaxonomyVectorsFromDb();
+      final topicVector = topicVectors[topicTitle];
       if (topicVector == null) return [];
 
       final candidates = await VectorStorageService.to.fetchAllEmbeddings(
         start: start,
         end: end,
       );
+      if (candidates.isEmpty) return [];
 
-      final Map<String, double> noteBestScores = {};
-
-      for (final entry in candidates) {
-        final noteId = entry['note_id'] as String;
-        final blob = entry['embedding'] as Uint8List;
-        final chunkVector = Uint8List.fromList(blob).buffer.asFloat32List();
-
-        final chunkScore = VectorMath.cosineSimilarity(
-          topicVector,
-          chunkVector,
-        );
-        if (chunkScore >= minSimilarity) {
-          final currentBestScore = noteBestScores[noteId] ?? 0.0;
-          if (chunkScore > currentBestScore) {
-            noteBestScores[noteId] = chunkScore;
-          }
-        }
-      }
-
-      final sorted = noteBestScores.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      final resultIds = sorted.map((e) => e.key).toList();
+      final resultIds = _filterAndSortTopicNotes(
+        topicVector: topicVector,
+        rawCandidates: candidates,
+        minSimilarity: minSimilarity,
+      );
 
       if (start == null && end == null && resultIds.isNotEmpty) {
-        _topicNoteIdsCache[topicTitle] = resultIds;
+        _topicMatchedNoteIds[topicTitle] = resultIds;
       }
       return resultIds;
     } catch (e) {
       debugPrint('TopicDiscoveryService: getNoteIdsForTopic error: $e');
       return [];
+    }
+  }
+
+  /// Pre-computes and caches taxonomy embeddings in SQLite
+  static Future<void> warmupTaxonomyVectors() async {
+    if (!await OnnxEmbeddingEngine.isModelAvailable()) return;
+    await OnnxEmbeddingEngine.init();
+
+    try {
+      await _loadTaxonomyVectorsFromDb();
+    } catch (e) {
+      debugPrint('TopicDiscoveryService: Warmup error: $e');
     }
   }
 }

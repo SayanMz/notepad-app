@@ -7,8 +7,9 @@ import 'package:notepad/core/database/notes_repository.dart';
 class RecycleController extends ChangeNotifier {
   final NoteRepository noteRepository;
 
-  RecycleController({required this.noteRepository}) {
-    noteRepository.deletedRevision.addListener(_proxyListener);
+  RecycleController({NoteRepository? noteRepository})
+      : noteRepository = noteRepository ?? NoteRepository() {
+    this.noteRepository.deletedRevision.addListener(_proxyListener);
   }
 
   void _proxyListener() {

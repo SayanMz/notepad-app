@@ -7,7 +7,7 @@ import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/models/search_state.dart';
 import 'package:notepad/features/search/search_constants.dart';
-import 'package:notepad/features/search/services/model_download_service.dart.dart';
+import 'package:notepad/features/search/services/model_download_service.dart';
 import 'package:notepad/features/search/services/note_search_service.dart';
 import 'package:notepad/features/search/services/semantic_search.dart';
 
@@ -15,26 +15,24 @@ import 'package:notepad/features/search/services/semantic_search.dart';
 /// result recomputation, and scroll-driven header visibility.
 class SearchController extends ChangeNotifier {
   SearchController() {
-    _loadSuggestedTopics();
-    ModelDownloadService.isModelDownloaded.addListener(_onDownloadCompleted);
+    _initModelStatus();
+    ModelDownloadService.statusNotifier.addListener(_onModelStatusChanged);
   }
 
+  // --- Public UI Controllers & Notifiers ---
   final TextEditingController textController = TextEditingController();
   final ValueNotifier<bool> showTopBars = ValueNotifier<bool>(true);
-  double _lastPixelOffset = 0.0;
 
+  // --- Internal State & Variables ---
   SearchState _state = const SearchState();
   List<NotesSection> _results = const [];
   List<MapEntry<String, int>> _suggestedTopics = const [];
-  bool _isModelAvailable = false;
-  bool _isAnalyzing = false;
+  double _lastPixelOffset = 0.0;
   Timer? _debounce;
+  bool _isAnalyzing = false;
   bool _isDisposed = false;
 
-  List<NotesSection> get results => _results;
-  List<MapEntry<String, int>> get suggestedTopics => _suggestedTopics;
-  bool get isModelAvailable => _isModelAvailable;
-  bool get isAnalyzing => _isAnalyzing;
+  // --- Getters ---
   String get query => _state.query;
   String? get selectedTopic => _state.selectedTopic;
   SearchFilters get filters => _state.filters;
@@ -42,6 +40,12 @@ class SearchController extends ChangeNotifier {
   bool get hasAnyCriteria => _state.hasAnyCriteria;
   bool get isShowingEmptyState => _results.isEmpty || !hasAnyCriteria;
 
+  bool get isAnalyzing => _isAnalyzing;
+  List<NotesSection> get results => _results;
+  List<MapEntry<String, int>> get suggestedTopics => _suggestedTopics;
+  Map<String, NotesSection> get cacheMap => noteRepository.cacheMap;
+
+  // --- Public Actions & Search Criteria ---
   void onQueryChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(AnimationConstants.debounceStandard, () {
@@ -60,6 +64,11 @@ class SearchController extends ChangeNotifier {
     _recompute();
   }
 
+  void applyFilters(SearchFilters newfilters) {
+    _state = _state.copyWith(filters: newfilters);
+    _recompute();
+  }
+
   void clearQuery() {
     _debounce?.cancel();
     textController.clear();
@@ -72,72 +81,12 @@ class SearchController extends ChangeNotifier {
     _recompute();
   }
 
-  void applyFilters(SearchFilters newfilters) {
-    _state = _state.copyWith(filters: newfilters);
-    _recompute();
-  }
-
   void refresh() {
     _recompute();
     _loadSuggestedTopics();
   }
 
-  void _recompute() async {
-    final searchState = _state;
-    final newResults = await NoteSearchService.searchAsync(searchState);
-
-    // If the controller was disposed or the state changed while we were
-    // awaiting the results, discard them and return.
-    if (_isDisposed || searchState != _state) return;
-
-    _results = newResults;
-
-    if (isShowingEmptyState) {
-      showHeaders();
-    }
-
-    notifyListeners();
-  }
-
-  void _onDownloadCompleted() {
-    if (!_isDisposed && ModelDownloadService.isModelDownloaded.value) {
-      _loadSuggestedTopics();
-    }
-  }
-
-  void _loadSuggestedTopics() async {
-    _isModelAvailable = await SemanticSearchService.isModelAvailable();
-    if (!_isModelAvailable) return;
-
-    _isAnalyzing = true;
-    notifyListeners();
-
-    try {
-      final activeIds = noteRepository.activeNotes.map((n) => n.id).toSet();
-      _suggestedTopics = await SemanticSearchService.discoverSuggestedTopics(
-        activeNoteIds: activeIds,
-      );
-    } catch (e) {
-      debugPrint('Failed to discover suggested topics: $e');
-      _suggestedTopics = [];
-    } finally {
-      _isAnalyzing = false;
-      if (!_isDisposed) notifyListeners();
-    }
-  }
-
   // --- Scroll Visibility & Physics Logic ---
-  void _updateTopBars(bool visible) {
-    if (showTopBars.value == visible) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isDisposed && showTopBars.value != visible) {
-        showTopBars.value = visible;
-        if (visible) _lastPixelOffset = 0.0;
-      }
-    });
-  }
-
   void showHeaders() => _updateTopBars(true);
   void hideHeaders() => _updateTopBars(false);
 
@@ -190,13 +139,79 @@ class SearchController extends ChangeNotifier {
     }
   }
 
+  void _updateTopBars(bool visible) {
+    if (showTopBars.value == visible) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isDisposed && showTopBars.value != visible) {
+        showTopBars.value = visible;
+        if (visible) _lastPixelOffset = 0.0;
+      }
+    });
+  }
+
+  // --- Query Recomputation & AI Lifecycle ---
+  void _recompute() async {
+    final searchState = _state;
+    final newResults = await NoteSearchService.searchAsync(
+      searchState,
+      liveCacheMap: cacheMap,
+    );
+
+    // If the controller was disposed or the state changed while we were
+    // awaiting the results, discard them and return.
+    if (_isDisposed || searchState != _state) return;
+
+    _results = newResults;
+
+    if (isShowingEmptyState) {
+      showHeaders();
+    }
+
+    notifyListeners();
+  }
+
+  void _onModelStatusChanged() {
+    if (_isDisposed) return;
+    if (ModelDownloadService.statusNotifier.value == ModelDownloadState.ready) {
+      _loadSuggestedTopics();
+    }
+  }
+
+  Future<void> _initModelStatus() async {
+    if (ModelDownloadService.statusNotifier.value == ModelDownloadState.ready) {
+      _loadSuggestedTopics();
+    }
+  }
+
+  Future<void> _loadSuggestedTopics() async {
+    if (_isDisposed) return;
+
+    _isAnalyzing = true;
+    notifyListeners();
+
+    try {
+      final activeIds = noteRepository.activeNotes.map((n) => n.id).toSet();
+      _suggestedTopics = await SemanticSearchService.discoverSuggestedTopics(
+        activeNoteIds: activeIds,
+      );
+    } catch (e) {
+      debugPrint('Failed to discover suggested topics: $e');
+      _suggestedTopics = [];
+    } finally {
+      _isAnalyzing = false;
+      if (!_isDisposed) notifyListeners();
+    }
+  }
+
+  // --- Lifecycle Cleanup ---
   @override
   void dispose() {
     _isDisposed = true;
     _debounce?.cancel();
     textController.dispose();
     showTopBars.dispose();
-    ModelDownloadService.isModelDownloaded.removeListener(_onDownloadCompleted);
+    ModelDownloadService.statusNotifier.removeListener(_onModelStatusChanged);
     super.dispose();
   }
 }

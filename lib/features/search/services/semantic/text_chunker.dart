@@ -1,11 +1,12 @@
 /// Splits document text into overlapping character chunks fitting safely within BERT token sequence limits.
 class TextChunker {
   /// Breaks [text] into sliding character windows bounded by [maxChunkChars], sharing [overlapChars] across chunks.
+  /// Scaled up to 1500 chars (~375 tokens) to fully utilize BGE's 512-token context window.
   static List<String> chunkText(
     String text, {
-    int maxChunkChars = 350,
+    int maxChunkChars = 1500,
     int minChunkChars = 30,
-    int overlapChars = 60,
+    int overlapChars = 150, // preserves wider semantic continuity
   }) {
     final normalized = text.toLowerCase().trim();
     if (normalized.isEmpty) return [];

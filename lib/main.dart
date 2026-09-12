@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -111,19 +110,5 @@ class MyApp extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-// lib/main.dart
-
-class LoggingHttpOverrides extends HttpOverrides {
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..findProxy = (uri) {
-        debugPrint('🚨 [NETWORK REQUEST TRIGGERED] -> URI: $uri');
-        debugPrintStack(maxFrames: 8);
-        return 'DIRECT';
-      };
   }
 }

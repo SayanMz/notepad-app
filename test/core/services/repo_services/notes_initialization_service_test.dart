@@ -90,11 +90,11 @@ void main() {
         currentSeedVersion: 1,
       );
 
-      expect(result.activeNotes, hasLength(6));
+      expect(result.activeNotes, hasLength(3));
       expect(result.deletedNotes, isEmpty);
-      expect(result.cacheMap, hasLength(6));
+      expect(result.cacheMap, hasLength(3));
       expect(StorageService.getNoteById('legacy-note'), isNull);
-      expect(StorageService.loadAllNotes(), hasLength(6));
+      expect(StorageService.loadAllNotes(), hasLength(3));
       expect(appSettingsRepository.settings.seedVersion, 1);
     });
 

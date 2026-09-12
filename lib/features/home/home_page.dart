@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide SelectionOverlay;
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
@@ -9,8 +13,8 @@ import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/controllers/sync_controller.dart';
-import 'package:notepad/features/home/widgets/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
+import 'package:notepad/features/home/widgets/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';
 import 'package:notepad/features/home/widgets/note_list.dart';
 import 'package:notepad/features/home/widgets/selection_overlay.dart';
@@ -66,6 +70,17 @@ class _HomePageState extends State<HomePage> {
     );
     _authController.initialize();
     noteRepository.activeRevision.addListener(_handleNotesChanged);
+
+    // Defer maintenance until the home page is completely idle
+    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+       // Skip deferred maintenance in widget tests to avoid dangling timers.
+    } else {
+      SchedulerBinding.instance.scheduleTask(() {
+        if (mounted) {
+          noteRepository.runPostStartupMaintenance();
+        }
+      }, Priority.idle);
+    }
   }
 
   @override

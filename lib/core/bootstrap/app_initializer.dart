@@ -7,8 +7,8 @@ import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/storage_service.dart';
 import 'package:notepad/core/services/repo_services/notes_initialization.dart';
-import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
-import 'package:notepad/features/search/services/model_download_service.dart.dart';
+import 'package:notepad/core/services/repo_services/seed_data.dart';
+import 'package:notepad/features/search/services/model_download_service.dart';
 import 'package:notepad/features/search/services/semantic_search.dart';
 
 typedef BootstrapStep = Future<void> Function();
@@ -79,6 +79,7 @@ class AppInitializer {
 
     await Hive.initFlutter();
     await StorageService.initializeEncryptedStorage();
+    await ModelDownloadService.init();
   }
 
   // Settings must load first so seed checks read the persisted notes version.
@@ -96,12 +97,15 @@ class AppInitializer {
   void _setupBackgroundBridges() {
     ModelDownloadService.onModelDownloaded = () async {
       try {
+        // 1. Generate and inject seed notes into active state & disk
+        final smartTemplates = SeedDataService.generateSmartSearchTemplates();
+        await noteRepository.injectSeedNotesBulk(smartTemplates);
+
+        // 2. Run background embedding maintenance on the updated note collection
         await NotesInitializationService.runSemanticSearchMaintenance(
           noteRepository.activeNotes,
         );
-        SemanticSearchService.invalidateTopicCache();
-        ModelDownloadService.isModelDownloaded.value = true;
-        showSuccessSnackBar('Smart Search is ready!');
+        await SemanticSearchService.warmupTaxonomyVectors();
       } catch (e) {
         debugPrint('Post-download semantic maintenance error: $e');
       }

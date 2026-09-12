@@ -5,36 +5,68 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
+import 'package:notepad/features/search/services/semantic_search.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+
+enum ModelDownloadState { idle, downloading, ready }
 
 /// Handles background downloading and SHA-256 verification for local AI model files.
 class ModelDownloadService {
   static const MethodChannel _channel = MethodChannel(
     'com.notepad.app/native_downloader',
   );
-  static final ValueNotifier<double?> downloadProgressNotifier = ValueNotifier(
-    null,
+  static final ValueNotifier<ModelDownloadState> statusNotifier =
+      ValueNotifier<ModelDownloadState>(ModelDownloadState.idle);
+
+  static final ValueNotifier<double> progressNotifier = ValueNotifier<double>(
+    0.0,
   );
-  static final ValueNotifier<bool> isModelDownloaded = ValueNotifier<bool>(
-    false,
-  );
-  static VoidCallback? onModelDownloaded;
+  static Future<void> Function()? onModelDownloaded;
 
   static Timer? _pollTimer;
-  static bool _isDownloading = false;
-  static const String _subPath = 'models/all-minilm-l6-v2-int8.onnx';
+  static const String _subPath = 'models/bge-small-en-v1.5.onnx';
 
   static const String _modelUrl =
-      'https://github.com/SayanMz/notepad-app/releases/download/2.5.0/all-minilm-l6-v2-int8.onnx';
+      'https://github.com/SayanMz/notepad-app/releases/download/2.5.0/bge-small-en-v1.5.onnx';
 
-  static void init() {}
+  static Future<void> init() async {
+    final available = await SemanticSearchService.isModelAvailable();
+    if (available) {
+      statusNotifier.value = ModelDownloadState.ready;
+    }
+  }
+
+  static Future<bool> _hasActiveInternet() async {
+    try {
+      // 1. Resolve host
+      final addresses = await InternetAddress.lookup(
+        'github.com',
+      ).timeout(const Duration(seconds: 2));
+      if (addresses.isEmpty || addresses.first.rawAddress.isEmpty) return false;
+
+      // 2. Actually open a raw TCP socket to verify outbound connectivity
+      final socket = await Socket.connect(
+        addresses.first,
+        443,
+        timeout: const Duration(seconds: 2),
+      );
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static Future<bool> startBackgroundDownload() async {
-    if (_isDownloading || (_pollTimer != null && _pollTimer!.isActive)) {
+    if (statusNotifier.value == ModelDownloadState.downloading) {
       return true;
     }
-    _isDownloading = true;
+
+    // Pre-flight check: Fail fast if offline
+    if (!await _hasActiveInternet()) {
+      return false;
+    }
 
     try {
       final baseDir =
@@ -48,11 +80,11 @@ class ModelDownloadService {
       );
 
       if (downloadId == null || downloadId == -1) {
-        _isDownloading = false;
         return false;
       }
 
-      downloadProgressNotifier.value = 0.01;
+      statusNotifier.value = ModelDownloadState.downloading;
+      progressNotifier.value = 0.01;
 
       _pollTimer?.cancel();
       _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (
@@ -68,11 +100,10 @@ class ModelDownloadService {
           final progress = (result['progress'] as num?)?.toDouble() ?? 0.0;
 
           if (status == 'RUNNING' || status == 'PENDING') {
-            downloadProgressNotifier.value = progress.clamp(0.0, 1.0);
+            progressNotifier.value = progress.clamp(0.0, 1.0);
           } else if (status == 'SUCCESS') {
-            downloadProgressNotifier.value = null;
-            _isDownloading = false;
             timer.cancel();
+            progressNotifier.value = 1.0;
 
             final downloadedModelFile = File(join(baseDir.path, _subPath));
             final isValid = await ModelVerifier.verifyModelIntegrity(
@@ -80,11 +111,14 @@ class ModelDownloadService {
             );
 
             if (isValid) {
-              onModelDownloaded?.call();
+              if (onModelDownloaded != null) {
+                await onModelDownloaded!();
+              }
+              statusNotifier.value = ModelDownloadState.ready;
+              showSuccessSnackBar('Smart Search is ready!');
             } else {
-              debugPrint(
-                'ModelDownloadService: Hash mismatch. Deleting model file...',
-              );
+              debugPrint('ModelDownloadService: Hash mismatch.');
+              statusNotifier.value = ModelDownloadState.idle;
               showErrorSnackBar(
                 'Downloaded model file was corrupt. Please download again.',
               );
@@ -115,9 +149,9 @@ class ModelDownloadService {
   static Future<void> cancelDownload() async {
     _pollTimer?.cancel();
     _pollTimer = null;
-    _isDownloading = false;
 
-    downloadProgressNotifier.value = null;
+    statusNotifier.value = ModelDownloadState.idle;
+    progressNotifier.value = 0.0;
 
     try {
       await _channel.invokeMethod('cancelDownload', {'subPath': _subPath});
@@ -128,7 +162,7 @@ class ModelDownloadService {
 /// Verifies local ONNX model file integrity against expected SHA-256 signatures.
 class ModelVerifier {
   static const String expectedModelSha256 =
-      'afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1';
+      '6c9c6101a956d62dfb5e7190c538226c0c5bb9cb27b651234b6df063ee7dbfe4';
 
   static Future<bool> verifyModelIntegrity(File modelFile) async {
     if (!modelFile.existsSync()) return false;

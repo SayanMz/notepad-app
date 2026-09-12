@@ -16,6 +16,10 @@ void main() {
 
     // Initial pump to build the UI
     await tester.pump();
+    // We must manually advance timers or clear them out so the test environment doesn't hang.
+    for (int i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
 
     expect(find.byType(HomeAppBar), findsOneWidget);
     expect(find.byType(NoteList), findsOneWidget);

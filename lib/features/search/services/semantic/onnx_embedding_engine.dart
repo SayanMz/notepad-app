@@ -10,10 +10,13 @@ import 'package:path_provider/path_provider.dart';
 import 'text_chunker.dart';
 import 'vector_math.dart';
 
-/// Manages C++ ONNX Runtime inference sessions, BERT WordPiece tokenization, and Float32 vector generation.
+/// Manages C++ ONNX Runtime inference sessions, BERT WordPiece tokenization, and BGE-small Float32 vector generation.
 class OnnxEmbeddingEngine {
-  static const String _modelFileName = 'all-minilm-l6-v2-int8.onnx';
+  static const String _modelFileName = 'bge-small-en-v1.5.onnx';
   static const String _vocabAssetPath = 'assets/models/vocab.txt';
+
+  /// Maximum sequence length fed into BGE-small (supports up to 512 tokens).
+  static const int _maxSequenceLength = 384;
 
   static OrtSession? _session;
   static BertTokenizer? _tokenizer;
@@ -46,7 +49,7 @@ class OnnxEmbeddingEngine {
     }
   }
 
-  /// Ensures model binary is extracted from assets to disk if available (for local dev).
+  /// Ensures model binary is extracted from bundled app assets to disk if available (for local dev/testing).
   static Future<bool> _extractModelAssetIfAvailable(File targetFile) async {
     try {
       await targetFile.parent.create(recursive: true);
@@ -61,8 +64,7 @@ class OnnxEmbeddingEngine {
       );
 
       return targetFile.existsSync();
-    } catch (e) {
-      debugPrint('OnnxEmbeddingEngine: Asset extraction check error: $e');
+    } catch (_) {
       return false;
     }
   }
@@ -95,7 +97,9 @@ class OnnxEmbeddingEngine {
       _tokenizer = BertTokenizer.fromStringContent(vocabData);
       _isInitialized = true;
     } catch (e) {
-      debugPrint('OnnxEmbeddingEngine: Initialization failed: $e');
+      if (kDebugMode && !kIsWeb && Platform.isAndroid) {
+        debugPrint('OnnxEmbeddingEngine: Initialization failed: $e');
+      }
     }
   }
 
@@ -113,10 +117,14 @@ class OnnxEmbeddingEngine {
 
     for (final chunk in chunks) {
       try {
-        // Convert text chunk into 128-token BERT input tensors (input_ids, attention_mask, token_type_ids).
-        final bertInput = _tokenizer!.prepareNerInput(chunk, 128);
-        final shape = [1, 128];
+        // Convert text chunk into BERT input tensors (input_ids, attention_mask, token_type_ids).
+        final bertInput = _tokenizer!.prepareNerInput(
+          chunk,
+          _maxSequenceLength,
+        );
+        final shape = [1, _maxSequenceLength];
 
+        // Allocate native C++ OrtValueTensors for ONNX model input execution.
         final inputOrt = OrtValueTensor.createTensorWithDataList(
           Int64List.fromList(bertInput.inputIds),
           shape,
@@ -147,21 +155,15 @@ class OnnxEmbeddingEngine {
 
         if (val is List && val.isNotEmpty) {
           final batchZero = val[0] as List;
-          final sequenceEmbeddings = <List<double>>[];
-          for (var tokenVector in batchZero) {
-            sequenceEmbeddings.add(
-              (tokenVector as List).map((e) => (e as num).toDouble()).toList(),
-            );
+          if (batchZero.isNotEmpty) {
+            // BGE models encode document-level semantic representations in the leading [CLS] token (index 0).
+            final clsRaw = batchZero[0] as List;
+            final clsVector = clsRaw.map((e) => (e as num).toDouble()).toList();
+            documentVectors.add(VectorMath.normalize(clsVector));
           }
-          // Mean pool active token vectors and normalize to 384-d Float32List unit vector.
-          final pooled = VectorMath.meanPool(
-            sequenceEmbeddings,
-            bertInput.inputMask,
-          );
-          documentVectors.add(VectorMath.normalize(pooled));
         }
 
-        // Explicitly release C++ OrtValueTensor memory allocations to prevent native leaks.
+        // Release C++ OrtValueTensor memory allocations
         inputOrt.release();
         maskOrt.release();
         typeOrt.release();

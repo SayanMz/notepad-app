@@ -1,8 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/vector_storage.dart';
+
 import 'onnx_embedding_engine.dart';
+import 'topic_discovery_service.dart';
 
 /// Coordinates background maintenance sweeps and asynchronous note vector indexing.
 class SemanticMaintenanceService {
@@ -27,6 +30,8 @@ class SemanticMaintenanceService {
 
       if (notesList != null && notesList.isNotEmpty) {
         final notesMap = {for (var n in notesList) n.id: n};
+        bool indexedAny = false;
+
         for (final id in missingIds) {
           final note = notesMap[id];
           if (note == null) continue;
@@ -37,13 +42,22 @@ class SemanticMaintenanceService {
             text,
           );
           if (vectors.isNotEmpty) {
-            final blobs = vectors.map((v) => v.buffer.asUint8List()).toList();
+            final blobs = vectors
+                .map(
+                  (v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes),
+                )
+                .toList();
             await VectorStorageService.to.upsertEmbeddings(
               id,
               blobs,
               note.updatedAt,
             );
+            indexedAny = true;
           }
+        }
+
+        if (indexedAny) {
+          TopicDiscoveryService.invalidateCache();
         }
       }
     } catch (e) {
@@ -56,16 +70,27 @@ class SemanticMaintenanceService {
   /// Fire-and-forget background indexing wrapper for newly saved or updated notes.
   static Future<void> embedNoteInBackground(NotesSection note) async {
     unawaited(() async {
-      final text = '${note.title}\n\n${note.content}';
-      final vectors = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
-        text,
-      );
-      if (vectors.isNotEmpty) {
-        final blobs = vectors.map((v) => v.buffer.asUint8List()).toList();
-        await VectorStorageService.to.upsertEmbeddings(
-          note.id,
-          blobs,
-          note.updatedAt,
+      try {
+        final text = '${note.title}\n\n${note.content}';
+        final vectors = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
+          text,
+        );
+        if (vectors.isNotEmpty) {
+          final blobs = vectors
+              .map(
+                (v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes),
+              )
+              .toList();
+          await VectorStorageService.to.upsertEmbeddings(
+            note.id,
+            blobs,
+            note.updatedAt,
+          );
+          TopicDiscoveryService.invalidateCache();
+        }
+      } catch (e) {
+        debugPrint(
+          'SemanticMaintenanceService: embedNoteInBackground error: $e',
         );
       }
     }());

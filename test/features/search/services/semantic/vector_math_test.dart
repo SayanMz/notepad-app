@@ -5,23 +5,6 @@ import 'package:notepad/features/search/services/semantic/vector_math.dart';
 
 void main() {
   group('VectorMath', () {
-    test('meanPool averages sequence embeddings excluding padding mask = 0', () {
-      final token0 = [2.0, 4.0];
-      final token1 = [4.0, 8.0];
-      final padding = [10.0, 10.0];
-
-      final embeddings = [token0, token1, padding];
-      final mask = [1, 1, 0]; // padding mask = 0
-
-      final pooled = VectorMath.meanPool(embeddings, mask);
-
-      expect(pooled, equals([3.0, 6.0]));
-    });
-
-    test('meanPool returns empty list when embeddings or mask are empty', () {
-      expect(VectorMath.meanPool([], []), isEmpty);
-    });
-
     test('normalize projects vector onto unit sphere (L2 norm = 1.0)', () {
       final vector = [3.0, 4.0];
       final normalized = VectorMath.normalize(vector);

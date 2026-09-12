@@ -8,7 +8,7 @@ import 'package:notepad/features/search/controllers/search_controller.dart'
 import 'package:notepad/features/search/models/search_date_selection.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/search_constants.dart';
-import 'package:notepad/features/search/services/model_download_service.dart.dart';
+import 'package:notepad/features/search/services/model_download_service.dart';
 
 /// Renders horizontal quick-date filter chips and ONNX AI semantic topic discovery chips.
 class SearchQuickChips extends StatelessWidget {
@@ -72,7 +72,7 @@ class SearchQuickChips extends StatelessWidget {
           title: const Text('✨ Enable Smart Search'),
           content: const Text(
             'Smart classification organizes your notes into instant topic chips by understanding their core themes.\n\n'
-            'We will download a lightweight AI model (~23MB) in the background so you can continue using the app uninterrupted.',
+            'We will download a lightweight AI model (~33MB) in the background so you can continue using the app uninterrupted.',
           ),
           actions: [
             TextButton(
@@ -83,8 +83,8 @@ class SearchQuickChips extends StatelessWidget {
               onPressed: () {
                 Navigator.pop(dialogContext);
 
-                ModelDownloadService.startBackgroundDownload().then((success) {
-                  if (!success && context.mounted) {
+                ModelDownloadService.startBackgroundDownload().then((didStart) {
+                  if (!didStart && context.mounted) {
                     showErrorSnackBar(
                       'Download failed to start. Please check your internet connection and try again.',
                     );
@@ -109,6 +109,7 @@ class SearchQuickChips extends StatelessWidget {
         final is30DaysActive = _isQuickChipActive(controller.filters, 30);
         final isAnyQuickChipActive =
             is1DayActive || is7DaysActive || is30DaysActive;
+        final topicsCount = controller.suggestedTopics.length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,19 +169,48 @@ class SearchQuickChips extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Header: Smart Search
+            // Header: Smart Search with Topic Count Badge
             Padding(
               padding: const EdgeInsets.only(
                 left: SearchConstants.chipLeftPadding,
+                right: SearchConstants.chipLeftPadding,
               ),
-              child: Text(
-                'Smart Search',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: context.colorScheme.secondary.withValues(alpha: 0.8),
-                  letterSpacing: 0.5,
-                ),
+              child: Row(
+                children: [
+                  Text(
+                    'Smart Search',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.colorScheme.secondary.withValues(
+                        alpha: 0.8,
+                      ),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  if (topicsCount > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.colorScheme.secondaryContainer
+                            .withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$topicsCount',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: context.colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 
@@ -211,70 +241,80 @@ class SearchQuickChips extends StatelessWidget {
                         padding: const EdgeInsets.only(
                           right: SearchConstants.chipLeftPadding,
                         ),
-                        child: ValueListenableBuilder<double?>(
-                          valueListenable:
-                              ModelDownloadService.downloadProgressNotifier,
-                          builder: (context, progress, _) {
-                            final isDownloading = progress != null;
-
-                            return Row(
-                              children: [
-                                if (isDownloading)
-                                  _buildActionChip(
-                                    label:
-                                        '✨ Downloading AI model ${(progress * 100).toInt()}%...',
-                                    isSelected: false,
-                                    onPressed: () {},
-                                    context: context,
-                                  )
-                                else if (controller.suggestedTopics.isNotEmpty)
-                                  ...controller.suggestedTopics.map((entry) {
-                                    final topic = entry.key;
-                                    final count = entry.value;
-
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        right: SearchConstants.chipGap,
-                                      ),
-                                      child: _buildActionChip(
-                                        label: '$topic ($count)',
-                                        isSelected:
-                                            controller.selectedTopic == topic,
-                                        onPressed: () {
-                                          HapticFeedback.lightImpact();
-                                          controller.selectTopic(topic);
-                                        },
-                                        context: context,
-                                        isAI: true,
-                                      ),
+                        child: ValueListenableBuilder<ModelDownloadState>(
+                          valueListenable: ModelDownloadService.statusNotifier,
+                          builder: (context, downloadState, _) {
+                            switch (downloadState) {
+                              case ModelDownloadState.downloading:
+                                return ValueListenableBuilder<double>(
+                                  valueListenable:
+                                      ModelDownloadService.progressNotifier,
+                                  builder: (context, progress, _) {
+                                    return _buildActionChip(
+                                      label:
+                                          '✨ Downloading AI model ${(progress * 100).toInt()}%...',
+                                      isSelected: false,
+                                      onPressed: () {},
+                                      context: context,
                                     );
-                                  })
-                                else if (controller.isAnalyzing)
-                                  _buildActionChip(
+                                  },
+                                );
+
+                              case ModelDownloadState.ready:
+                                if (controller.isAnalyzing) {
+                                  return _buildActionChip(
                                     label: '✨ Analyzing your notes... ',
                                     isSelected: false,
                                     onPressed: () {},
                                     context: context,
-                                  )
-                                else if (!controller.isModelAvailable)
-                                  _buildActionChip(
-                                    label: '✨ Enable Smart Search',
-                                    isSelected: false,
-                                    onPressed: () async {
-                                      HapticFeedback.mediumImpact();
-                                      if (context.mounted) {
-                                        _showDownloadDialog(context);
-                                      }
-                                    },
-                                    context: context,
-                                  )
-                                else
-                                  _buildStaticInfoChip(
-                                    label: 'No matching topics found',
-                                    context: context,
-                                  ),
-                              ],
-                            );
+                                  );
+                                }
+
+                                if (controller.suggestedTopics.isNotEmpty) {
+                                  return Row(
+                                    children: controller.suggestedTopics.map((
+                                      entry,
+                                    ) {
+                                      final topic = entry.key;
+                                      final count = entry.value;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: SearchConstants.chipGap,
+                                        ),
+                                        child: _buildActionChip(
+                                          label: '$topic ($count)',
+                                          isSelected:
+                                              controller.selectedTopic == topic,
+                                          onPressed: () {
+                                            HapticFeedback.lightImpact();
+                                            controller.selectTopic(topic);
+                                          },
+                                          context: context,
+                                          isAI: true,
+                                        ),
+                                      );
+                                    }).toList(),
+                                  );
+                                }
+
+                                return _buildStaticInfoChip(
+                                  label: 'No matching topics found',
+                                  context: context,
+                                );
+
+                              case ModelDownloadState.idle:
+                                return _buildActionChip(
+                                  label: '✨ Enable Smart Search',
+                                  isSelected: false,
+                                  onPressed: () async {
+                                    HapticFeedback.mediumImpact();
+                                    if (context.mounted) {
+                                      _showDownloadDialog(context);
+                                    }
+                                  },
+                                  context: context,
+                                );
+                            }
                           },
                         ),
                       ),

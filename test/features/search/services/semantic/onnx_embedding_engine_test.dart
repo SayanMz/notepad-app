@@ -55,7 +55,7 @@ void main() {
       () async {
         final file = await OnnxEmbeddingEngine.getLocalModelFile();
         expect(file, isA<File>());
-        expect(file.path.endsWith('all-minilm-l6-v2-int8.onnx'), isTrue);
+        expect(file.path.endsWith('bge-small-en-v1.5.onnx'), isTrue);
       },
     );
   });

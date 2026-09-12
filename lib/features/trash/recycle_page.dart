@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/theme/app_colors.dart';
@@ -35,7 +34,7 @@ class _RecyclePageState extends State<RecyclePage> {
   @override
   void initState() {
     super.initState();
-    _controller = RecycleController(noteRepository: noteRepository);
+    _controller = RecycleController();
     _controller.addListener(_handleRecycleStateChanged);
   }
 
