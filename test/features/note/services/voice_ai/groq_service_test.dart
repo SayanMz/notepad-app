@@ -46,7 +46,7 @@ void main() {
       GroqService.httpClient = fakeClient;
     });
 
-    test('parseVoiceCommand returns instructions on success', () async {
+    test('parse returns VoiceInstructions on success', () async {
       fakeClient.response = http.Response(
         jsonEncode({
           'choices': [
@@ -54,7 +54,7 @@ void main() {
               'message': {
                 'content': jsonEncode({
                   'instructions': [
-                    {'action': 'format', 'target': 'bold'}
+                    {'key': 'bold', 'value': true, 'target': 'selection', 'occurrence': 'all'}
                   ]
                 })
               }
@@ -64,14 +64,15 @@ void main() {
         200,
       );
 
-      final result = await GroqService.parseVoiceCommand('make it bold');
+      final result = await GroqService().parse('make it bold');
 
       expect(result, isNotNull);
-      expect(result!.first['action'], 'format');
+      expect(result!.first.key, 'bold');
+      expect(result.first.target, 'selection');
       expect(fakeClient.postCalled, isTrue);
     });
 
-    test('parseVoiceCommand throws GroqServiceException on error', () async {
+    test('parse throws GroqServiceException on error', () async {
       fakeClient.response = http.Response('Error', 500);
 
       // Temporarily silence debugPrint to keep logs clean for expected failures
@@ -80,7 +81,7 @@ void main() {
 
       try {
         await expectLater(
-          () => GroqService.parseVoiceCommand('hello'),
+          () => GroqService().parse('hello'),
           throwsA(isA<GroqServiceException>()),
         );
       } finally {

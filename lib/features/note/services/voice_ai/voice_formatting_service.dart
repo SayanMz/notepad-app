@@ -57,10 +57,16 @@ class VoiceFormattingService {
         int s = range['start']!;
         int l = range['len']!;
 
+        // Check if the target string is a structural position command
+        bool isPositionalTarget = target.startsWith('line:') ||
+            target.startsWith('sentence:') ||
+            target.startsWith('paragraph:');
+
         // Block Formatting: Surgical List Logic
         // Applies a list specifically when targeting a phrase (and not the global document).
-        // The ':' check ensures we don't accidentally surgical-list a specific time or ratio.
-        if (k == 'list' && !resolution.isGlobal && !target.contains(':')) {
+        // The ':' check ensures we don't accidentally surgical-list a specific time or ratio,
+        // while allowing structural targets like 'paragraph:last' through.
+        if (k == 'list' && !resolution.isGlobal && (!target.contains(':') || isPositionalTarget)) {
           _applySurgicalList(
             controller: controller,
             plainText: pt,

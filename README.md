@@ -29,7 +29,7 @@
 
 ## 📥 Download
 
-[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.5.0/app-release-2.5.apk)
+[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.5.0/app-release-2.6.apk)
 
 ---
 

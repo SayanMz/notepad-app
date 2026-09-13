@@ -8,9 +8,11 @@ import 'package:http/http.dart' as http;
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
 
+import 'local_parser/base_voice_parser.dart';
+
 /// Manages Groq Cloud API interactions to dynamically resolve active Qwen LLM models
 /// and parse spoken voice commands into structured document editing instructions.
-class GroqService {
+class GroqService implements BaseVoiceParser {
   static const String _endpoint =
       'https://api.groq.com/openai/v1/chat/completions';
   static const String _modelsEndpoint = 'https://api.groq.com/openai/v1/models';
@@ -130,7 +132,18 @@ class GroqService {
     );
   }
 
-  static Future<List<Map<String, dynamic>>?> parseVoiceCommand(
+  @override
+  FutureOr<List<VoiceInstruction>?> parse(String voiceText, [String currentEditorText = '']) async {
+    final instructionsMapList = await _parseVoiceCommand(voiceText);
+    if (instructionsMapList == null) return null;
+
+    return instructionsMapList
+        .map((map) => VoiceInstruction.fromMap(map))
+        .toList();
+  }
+
+  // Sends voice text to Groq API and decodes response maps.
+  Future<List<Map<String, dynamic>>?> _parseVoiceCommand(
     String voiceText,
   ) async {
     await _ensureEnvLoaded();
