@@ -29,7 +29,7 @@
 
 ## 📥 Download
 
-[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.5.0/app-release-2.5.apk)
+[📱 Download Latest APK](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/app-release-2.6.apk)
 
 ---
 
@@ -76,7 +76,7 @@ Notepad is built on a **Feature-First** architecture with a strict **Controller-
 
 ### 🎬 Application Walkthroughs
 
-[📝 Note Editor](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Note_Editor_demo.mp4) &nbsp;|&nbsp; [🤖 Groq AI Assistant](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Groq_Ai_demo.mp4) &nbsp;|&nbsp; [🏠 Home Screen](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Home_Page.mp4) &nbsp;|&nbsp; [🔍 Search Filter](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Search_Page.mp4) &nbsp;|&nbsp; [🗑️ Recycle Bin](https://github.com/SayanMz/notepad-app/releases/download/2.3.0/Recycle_Page.mp4)
+[📝 Note Editor](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Note_Editor_demo.mp4) &nbsp;|&nbsp; [🤖 Groq AI Assistant](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Groq_Ai_demo.mp4) &nbsp;|&nbsp; [🏠 Home Screen](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Home_Page.mp4) &nbsp;|&nbsp; [🔍 Search Filter](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Search_Page.mp4) &nbsp;|&nbsp; [🗑️ Recycle Bin](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Recycle_Page.mp4)
 
 ---
 

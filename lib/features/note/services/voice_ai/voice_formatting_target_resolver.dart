@@ -64,7 +64,19 @@ class VoiceFormattingTargetResolver {
     else if (isGlobal) {
       ranges.add({'start': 0, 'len': plainText.length});
     }
-    // Strategy 3: The user is targeting a structural position (e.g. "line:2" or "paragraph:first").
+    // Strategy 3: Target uses explicitly computed coordinates from the LocalVoiceParser 
+    // Format: 'literal:{start_index}:{length}'
+    else if (normalizedTarget.startsWith('literal:')) {
+      final parts = normalizedTarget.split(':');
+      if (parts.length >= 3) {
+        final startIdx = int.tryParse(parts[1]);
+        final length = int.tryParse(parts[2]);
+        if (startIdx != null && length != null) {
+          ranges.add({'start': startIdx, 'len': length});
+        }
+      }
+    }
+    // Strategy 4: The user is targeting a structural position (e.g. "line:2" or "paragraph:first").
     else if (_isPositionalTarget(normalizedTarget)) {
       final result = _resolvePositionalTarget(
         plainText: plainText,
@@ -74,7 +86,7 @@ class VoiceFormattingTargetResolver {
       ranges = result.ranges;
       skippedInlineOnEmpty = result.skippedInlineOnEmpty;
     }
-    // Strategy 4: The user is looking for a specific literal word or phrase (e.g., "bold 'apple'").
+    // Strategy 5: The user is looking for a specific literal word or phrase via Groq fallback (e.g., "bold 'apple'").
     else {
       ranges = _resolveLiteralPhraseTarget(
         plainText: plainText,
@@ -196,29 +208,32 @@ class VoiceFormattingTargetResolver {
     bool skipped = false;
 
     if (targetIdx >= 0 && targetIdx < segments.length) {
-      // Heuristic: If the exact requested line is completely empty but the next line isn't,
-      // assume the user meant the next valid line of text.
-      if (segments[targetIdx].trim().isEmpty &&
-          targetIdx + 1 < segments.length) {
+      // Heuristic: Skip over all consecutive empty lines to find the next valid line of text.
+      while (targetIdx < segments.length && segments[targetIdx].trim().isEmpty) {
         targetIdx++;
       }
 
-      // Calculate the absolute character offset in the entire document by summing previous segment lengths.
-      var startOffset = 0;
-      for (var i = 0; i < targetIdx; i++) {
-        startOffset += segments[i].length;
-      }
+      // Ensure we haven't skipped past the end of the document
+      if (targetIdx < segments.length) {
+        // Calculate the absolute character offset in the entire document by summing previous segment lengths.
+        var startOffset = 0;
+        for (var i = 0; i < targetIdx; i++) {
+          startOffset += segments[i].length;
+        }
 
-      final len = segments[targetIdx].length;
-      if (len > 0) {
-        // Valid segment found, add to ranges.
-        ranges.add({'start': startOffset, 'len': len});
-      } else if (['align', 'list'].contains(key)) {
-        // Edge case: Allow block-level formatting (lists/alignment) on an empty line.
-        ranges.add({'start': startOffset, 'len': 1});
+        final len = segments[targetIdx].length;
+        if (len > 0) {
+          // Valid segment found, add to ranges.
+          ranges.add({'start': startOffset, 'len': len});
+        } else if (['align', 'list'].contains(key)) {
+          // Edge case: Allow block-level formatting (lists/alignment) on an empty line.
+          ranges.add({'start': startOffset, 'len': 1});
+        } else {
+          // Inline formatting (bold/color) cannot be applied to an empty line.
+          skipped = true;
+        }
       } else {
-        // Inline formatting (bold/color) cannot be applied to an empty line.
-        skipped = true;
+        skipped = true; // All subsequent lines were empty
       }
     }
 

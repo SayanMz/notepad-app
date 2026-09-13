@@ -25,16 +25,15 @@ class SeedDataService {
       NotesSection(
         title: '🎙️ AI Voice Formatting: The Basics',
         content:
-            'Execute hands-free commands and dictate thoughts via high-speed Groq AI integration. Tap the floating circle icon to activate your Voice AI assistant.\n\n'
+            'Execute hands-free commands and dictate thoughts via our hybrid local and Groq AI integration. Tap the floating circle icon to activate your Voice AI assistant.\n\n'
             'Try highlighting some text and using these selection commands:\n'
-            '- "Make this bold"\n'
+            '- "Strike through current selection"\n'
             '- "Link this to google.com"\n'
-            '- "Make this small"\n\n'
+            '- "Decrease the size of this"\n\n'
             'You can also control the entire document at once:\n'
-            '- "Make everything red"\n'
+            '- "Make everything blue"\n'
             '- "Align the entire document to the center"\n'
             '- "Clear all formatting" (wipes all styles to reset your note)',
-        isPinned: true,
         cardColorValue: 0xFF6366F1, // Indigo AI Theme
       ),
 
@@ -42,18 +41,16 @@ class SeedDataService {
       NotesSection(
         title: '🪄 AI Voice Formatting: Advanced Targeting',
         content:
-            'Your AI understands document structure natively, allowing you to format text without lifting a finger.\n\n'
-            'Target specific lines and blocks:\n'
-            '- "Make the first line bold"\n'
-            '- "Underline the second sentence"\n'
-            '- "Center the last paragraph"\n'
-            '- "Make menu items a checklist"\n\n'
-            'Target exact words and phrases:\n'
-            '- "Make the word dog red"\n'
-            '- "Make the second instance of dog bold"\n'
-            '- "Make household 40 pixel"\n'
-            '- "Direct golden retriever to google.com"',
-        isPinned: true,
+            'Your AI understands document structure natively, allowing you to format text flexibly without lifting a finger.\n\n'
+            'Target specific lines and blocks naturally:\n'
+            '- "Make the 3rd line magenta"\n'
+            '- "Turn the final paragraph into an ordered list"\n'
+            '- "Underline the second sentence"\n\n'
+            'Target exact words and phrases with conversational freedom:\n'
+            '- "Underline [word]"\n'
+            '- "Make the 2nd [word] bold"\n'
+            '- "Make the last occurrence of [word] blue"\n'
+            '- "Direct [phrase] to google.com"',
         cardColorValue: 0xFF8B5CF6, // Purple AI Theme
       ),
     ];

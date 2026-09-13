@@ -28,7 +28,7 @@ class ModelDownloadService {
   static const String _subPath = 'models/bge-small-en-v1.5.onnx';
 
   static const String _modelUrl =
-      'https://github.com/SayanMz/notepad-app/releases/download/2.5.0/bge-small-en-v1.5.onnx';
+      'https://github.com/SayanMz/notepad-app/releases/download/2.6.0/bge-small-en-v1.5.onnx';
 
   static Future<void> init() async {
     final available = await SemanticSearchService.isModelAvailable();

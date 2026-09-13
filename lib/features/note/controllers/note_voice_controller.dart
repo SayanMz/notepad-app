@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
+import 'package:notepad/features/note/services/voice_ai/local_parser/voice_command_orchestrator.dart';
 import 'package:notepad/features/note/services/voice_ai/note_voice_feedback_service.dart';
 import 'package:notepad/features/note/services/voice_ai/voice_formatting_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -112,7 +112,11 @@ class NoteVoiceController {
     await Future.delayed(NoteConstants.aiProcessingDelay);
 
     try {
-      final instructions = await GroqService.parseVoiceCommand(commandText);
+      final currentEditorText = controller.document.toPlainText();
+      final instructions = await VoiceCommandOrchestrator().routeCommand(
+        commandText,
+        currentEditorText,
+      );
       String? feedback;
 
       if (instructions == null || instructions.isEmpty) {

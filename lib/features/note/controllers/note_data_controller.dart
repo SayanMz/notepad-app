@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/notes_repository.dart';
@@ -166,7 +167,11 @@ class NoteDataController {
       scrollOffset: scrollOffset,
       notify: true,
     );
-    unawaited(noteRepository.triggerDeferredEmbedding(noteId));
+    if (!_isDisposed) {
+      SchedulerBinding.instance.scheduleTask(() {
+        noteRepository.triggerDeferredEmbedding(noteId);
+      }, Priority.idle);
+    }
   }
 
   void dispose() {

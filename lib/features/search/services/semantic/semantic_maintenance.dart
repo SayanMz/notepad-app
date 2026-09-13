@@ -69,30 +69,24 @@ class SemanticMaintenanceService {
 
   /// Fire-and-forget background indexing wrapper for newly saved or updated notes.
   static Future<void> embedNoteInBackground(NotesSection note) async {
-    unawaited(() async {
-      try {
-        final text = '${note.title}\n\n${note.content}';
-        final vectors = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
-          text,
+    try {
+      final text = '${note.title}\n\n${note.content}';
+      final vectors = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
+        text,
+      );
+      if (vectors.isNotEmpty) {
+        final blobs = vectors
+            .map((v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes))
+            .toList();
+        await VectorStorageService.to.upsertEmbeddings(
+          note.id,
+          blobs,
+          note.updatedAt,
         );
-        if (vectors.isNotEmpty) {
-          final blobs = vectors
-              .map(
-                (v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes),
-              )
-              .toList();
-          await VectorStorageService.to.upsertEmbeddings(
-            note.id,
-            blobs,
-            note.updatedAt,
-          );
-          TopicDiscoveryService.invalidateCache();
-        }
-      } catch (e) {
-        debugPrint(
-          'SemanticMaintenanceService: embedNoteInBackground error: $e',
-        );
+        TopicDiscoveryService.invalidateCache();
       }
-    }());
+    } catch (e) {
+      debugPrint('SemanticMaintenanceService: embedNoteInBackground error: $e');
+    }
   }
 }
