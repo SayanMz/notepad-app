@@ -240,6 +240,8 @@ class _NotePageState extends State<NotePage>
 
   @override
   void dispose() {
+    final targetNoteId = _dataController.noteId;
+
     titleController.dispose();
     contentController.dispose();
 
@@ -253,6 +255,12 @@ class _NotePageState extends State<NotePage>
     _dataController.dispose();
     _voiceController.dispose();
     _uiController.dispose();
+
+    if (targetNoteId != null && targetNoteId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(noteRepository.triggerDeferredEmbedding(targetNoteId));
+      });
+    }
 
     super.dispose();
   }
