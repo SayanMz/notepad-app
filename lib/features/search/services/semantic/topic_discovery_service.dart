@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/vector_storage.dart';
 
 import 'onnx_embedding_engine.dart';
@@ -84,33 +85,6 @@ _DiscoveryComputationResult _evaluateTopics({
   );
 }
 
-/// Evaluates and sorts note candidates for a single topic vector synchronously.
-List<String> _filterAndSortTopicNotes({
-  required Float32List topicVector,
-  required List<Map<String, dynamic>> rawCandidates,
-  required double minSimilarity,
-}) {
-  final Map<String, double> noteBestScores = {};
-
-  for (final entry in rawCandidates) {
-    final noteId = entry['note_id'] as String;
-    final blob = entry['embedding'] as Uint8List;
-    final chunkVector = Uint8List.fromList(blob).buffer.asFloat32List();
-
-    final chunkScore = VectorMath.cosineSimilarity(topicVector, chunkVector);
-    if (chunkScore >= minSimilarity) {
-      final currentBestScore = noteBestScores[noteId] ?? 0.0;
-      if (chunkScore > currentBestScore) {
-        noteBestScores[noteId] = chunkScore;
-      }
-    }
-  }
-
-  final sorted = noteBestScores.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
-  return sorted.map((e) => e.key).toList();
-}
-
 /// Discovers candidate taxonomy topics and matches notes against topic vector embeddings using BGE v1.5 queries.
 class TopicDiscoveryService {
   static List<MapEntry<String, int>>? _discoveredTopicChips;
@@ -118,6 +92,8 @@ class TopicDiscoveryService {
 
   static final Map<String, String> _candidateTaxonomy =
       SemanticTaxonomy.topicDescriptions;
+
+  static final ValueNotifier<int> cacheRevision = ValueNotifier<int>(0);
 
   // BGE v1.5 official instruction prefix required to align asymmetric query/document vector spaces.
   static const String _bgeQueryPrefix =
@@ -127,6 +103,9 @@ class TopicDiscoveryService {
   static void invalidateCache() {
     _discoveredTopicChips = null;
     _topicMatchedNoteIds.clear();
+
+    //Trigger the Search UI to refresh its chips
+    cacheRevision.value++;
   }
 
   /// Computes a single topic vector using ONNX and writes it directly to SQLite.
@@ -177,7 +156,7 @@ class TopicDiscoveryService {
 
   /// Evaluates candidate topics against active note vector embeddings and returns top qualified topic matches.
   static Future<List<MapEntry<String, int>>> discoverSuggestedTopics({
-    required Set<String> activeNoteIds,
+    required List<String> activeNoteIds,
     int? maxTopics,
     double minSimilarity = 0.45,
   }) async {
@@ -227,49 +206,22 @@ class TopicDiscoveryService {
     }
   }
 
-  /// Retrieves note IDs matching a specific topic string, filtered by optional date boundaries.
+  /// Retrieves note IDs matching a specific topic
   static Future<List<String>> getNoteIdsForTopic(
     String topicTitle, {
-    DateTime? start,
-    DateTime? end,
     double minSimilarity = 0.45,
   }) async {
-    if (start == null && end == null) {
-      final cachedIds = _topicMatchedNoteIds[topicTitle];
-      if (cachedIds != null && cachedIds.isNotEmpty) return cachedIds;
-    }
-
-    if (!await OnnxEmbeddingEngine.isModelAvailable()) return [];
-    await OnnxEmbeddingEngine.init();
-
-    try {
-      final topicDescription = _candidateTaxonomy[topicTitle];
-      if (topicDescription == null) return [];
-
-      final topicVectors = await _loadTaxonomyVectorsFromDb();
-      final topicVector = topicVectors[topicTitle];
-      if (topicVector == null) return [];
-
-      final candidates = await VectorStorageService.to.fetchAllEmbeddings(
-        start: start,
-        end: end,
-      );
-      if (candidates.isEmpty) return [];
-
-      final resultIds = _filterAndSortTopicNotes(
-        topicVector: topicVector,
-        rawCandidates: candidates,
+    // 1. Force Winner-Take-All recalculation
+    if (_topicMatchedNoteIds.isEmpty) {
+      final activeIds = noteRepository.activeNotes.map((n) => n.id).toList();
+      await discoverSuggestedTopics(
+        activeNoteIds: activeIds,
         minSimilarity: minSimilarity,
       );
-
-      if (start == null && end == null && resultIds.isNotEmpty) {
-        _topicMatchedNoteIds[topicTitle] = resultIds;
-      }
-      return resultIds;
-    } catch (e) {
-      debugPrint('TopicDiscoveryService: getNoteIdsForTopic error: $e');
-      return [];
     }
+
+    // 2. Return winning IDs directly
+    return _topicMatchedNoteIds[topicTitle] ?? [];
   }
 
   /// Pre-computes and caches taxonomy embeddings in SQLite

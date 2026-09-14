@@ -58,5 +58,40 @@ void main() {
         expect(results.first.title, 'New Note');
       },
     );
+
+    test(
+      'searchAsync excludes soft-deleted notes during hydration',
+      () async {
+        final mockCache = <String, NotesSection>{};
+        final activeNote = NotesSection(
+          id: 'active-1',
+          title: 'Active Note',
+          isDeleted: false,
+          updatedAt: DateTime(2026, 1, 1),
+        );
+        final deletedNote = NotesSection(
+          id: 'deleted-1',
+          title: 'Deleted Note',
+          isDeleted: true,
+          updatedAt: DateTime(2026, 1, 1),
+        );
+        mockCache['active-1'] = activeNote;
+        mockCache['deleted-1'] = deletedNote;
+
+        await SqliteFtsService.insertOrUpdateBulk([activeNote, deletedNote]);
+
+        final state = const SearchState(
+          query: 'Note',
+          filters: SearchFilters(),
+        );
+
+        final results = await NoteSearchService.searchAsync(
+          state,
+          liveCacheMap: mockCache,
+        );
+
+        expect(results.any((n) => n.id == 'deleted-1'), isFalse);
+      },
+    );
   });
 }

@@ -10,9 +10,12 @@ class FakeNoteRepository extends NoteRepository {
 
   int saveCalls = 0;
   int deleteCalls = 0;
+  int toggleDeletedCalls = 0;
   String? lastSavedTitle;
   String? lastSavedContent;
   String? lastDeletedId;
+  String? lastToggledId;
+  bool? lastToggledStatus;
 
   @override
   Future<NotesSection?> saveNote({
@@ -40,6 +43,14 @@ class FakeNoteRepository extends NoteRepository {
   Future<void> deleteForever(String noteId) async {
     deleteCalls++;
     lastDeletedId = noteId;
+  }
+
+  @override
+  Future<bool> toggleDeletedStatus(String noteId, bool isDeleted) async {
+    toggleDeletedCalls++;
+    lastToggledId = noteId;
+    lastToggledStatus = isDeleted;
+    return true;
   }
 
   @override
@@ -97,7 +108,7 @@ void main() {
       expect(repository.saveCalls, 0);
     });
 
-    test('saveAndCleanupOnClose deletes empty drafts', () async {
+    test('saveAndCleanupOnClose soft-deletes empty drafts', () async {
       controller.noteId = 'draft-123';
       
       await controller.saveAndCleanupOnClose(
@@ -106,8 +117,9 @@ void main() {
         scrollOffset: 0,
       );
 
-      expect(repository.deleteCalls, 1);
-      expect(repository.lastDeletedId, 'draft-123');
+      expect(repository.toggleDeletedCalls, 1);
+      expect(repository.lastToggledId, 'draft-123');
+      expect(repository.lastToggledStatus, isTrue);
     });
 
     test('saveAndCleanupOnClose saves non-empty notes on close', () async {

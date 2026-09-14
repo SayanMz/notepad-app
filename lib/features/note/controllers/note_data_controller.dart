@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/notes_repository.dart';
@@ -155,9 +154,12 @@ class NoteDataController {
     final plainText = document.toPlainText().trim();
     final cleanTitle = title.trim();
 
+    // Soft-delete empty drafts on exit
     if ((cleanTitle.isEmpty || cleanTitle == 'Untitled note') &&
         plainText.isEmpty) {
-      if (noteId != null) await noteRepository.deleteForever(noteId!);
+      if (noteId != null) {
+        await noteRepository.toggleDeletedStatus(noteId!, true);
+      }
       return;
     }
 
@@ -167,11 +169,6 @@ class NoteDataController {
       scrollOffset: scrollOffset,
       notify: true,
     );
-    if (!_isDisposed) {
-      SchedulerBinding.instance.scheduleTask(() {
-        noteRepository.triggerDeferredEmbedding(noteId);
-      }, Priority.idle);
-    }
   }
 
   void dispose() {

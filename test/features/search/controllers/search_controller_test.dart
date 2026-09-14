@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart';
 import 'package:notepad/features/search/models/search_date_selection.dart';
 import 'package:notepad/features/search/models/search_filters.dart';
+import 'package:notepad/features/search/services/semantic_search.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -39,6 +40,16 @@ void main() {
     expect(controller.textController.text, '');
     expect(controller.filters.hasFilters, isFalse);
     expect(controller.hasAnyCriteria, isFalse);
+
+    controller.dispose();
+  });
+
+  test('SearchController handles cache invalidation gracefully', () async {
+    final controller = SearchController();
+
+    // Triggering cache revision invalidation should be handled by controller listener
+    SemanticSearchService.invalidateTopicCache();
+    await Future.delayed(Duration.zero);
 
     controller.dispose();
   });

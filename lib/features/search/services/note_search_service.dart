@@ -25,8 +25,6 @@ class NoteSearchService {
     if (searchState.hasTopic) {
       topicIds = await SemanticSearchService.getNoteIdsForTopic(
         searchState.selectedTopic!,
-        start: startDate,
-        end: endDate,
       );
     }
 
@@ -67,11 +65,21 @@ class NoteSearchService {
       return const [];
     }
 
-    // 4. O(M) Hydration via repository cache
+    // 4. O(M) Hydration + In-Memory Boundary & Trash Filtering
     return finalOrderedIds
         .map((id) => liveCacheMap[id])
         .whereType<NotesSection>()
-        .where((n) => !n.isDeleted)
+        .where((n) {
+          if (n.isDeleted) return false;
+
+          // Universal inclusive date filtering across FTS, Fuzzy, and Topic chips
+          if (startDate != null && endDate != null) {
+            return !n.updatedAt.isBefore(startDate) &&
+                !n.updatedAt.isAfter(endDate);
+          }
+
+          return true;
+        })
         .toList();
   }
 

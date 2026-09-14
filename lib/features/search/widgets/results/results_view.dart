@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/core/theme/app_colors.dart';
@@ -100,41 +101,65 @@ class ResultsViewState extends State<ResultsView> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        return AnimatedSwitcher(
-          duration: AnimationConstants.fast,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          child: _buildCurrentContent(),
+        final hasCriteria = widget.controller.hasAnyCriteria;
+        final results = widget.controller.results;
+        final query = widget.controller.query;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            _fadedState(
+              visible: !hasCriteria,
+              child: const Padding(
+                padding: EdgeInsets.only(top: kTotalFloatingHeaderHeight),
+                child: SearchInitialState(),
+              ),
+            ),
+            _fadedState(
+              visible: hasCriteria && results.isEmpty,
+              child: Padding(
+                padding: const EdgeInsets.only(top: kTotalFloatingHeaderHeight),
+                child: SearchEmptyState(query: query),
+              ),
+            ),
+            _fadedState(
+              visible: hasCriteria && results.isNotEmpty,
+              child: _buildResultsList(results, query),
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildCurrentContent() {
-    final results = widget.controller.results;
-    final query = widget.controller.query;
-    final hasCriteria = widget.controller.hasAnyCriteria;
+  Widget _fadedState({required bool visible, required Widget child}) {
+    final duration = visible
+        ? AnimationConstants.snappy
+        : AnimationConstants.quick;
+    final curve = visible ? Curves.easeOutCubic : Curves.easeInQuad;
 
-    if (!hasCriteria) {
-      return const Padding(
-        padding: EdgeInsets.only(top: kTotalFloatingHeaderHeight),
-        child: SearchInitialState(key: ValueKey('initial')),
-      );
-    }
-    if (results.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: kTotalFloatingHeaderHeight),
-        child: SearchEmptyState(key: const ValueKey('empty'), query: query),
-      );
-    }
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedScale(
+        scale: visible ? 1.0 : 0.98,
+        duration: duration,
+        curve: curve,
+        child: AnimatedOpacity(
+          opacity: visible ? 1.0 : 0.0,
+          duration: duration,
+          curve: curve,
+          child: child,
+        ),
+      ),
+    );
+  }
 
+  Widget _buildResultsList(List<NotesSection> results, String query) {
     return Stack(
       children: [
         ListView.builder(
           controller: widget.scrollController,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          key: const ValueKey('results_list'),
           padding: const EdgeInsets.only(
             top: kTotalFloatingHeaderHeight,
             left: SearchConstants.panelPadding + SearchConstants.chipGap,

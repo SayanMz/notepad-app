@@ -38,15 +38,28 @@ void main() {
     test('upsertEmbeddings stores and retrieves vector chunks', () async {
       final floatVec = Float32List.fromList([0.1, 0.2, 0.3, 0.4]);
       final blob = floatVec.buffer.asUint8List();
-      final now = DateTime(2026, 1, 15);
 
-      await VectorStorageService.upsertEmbeddings('vec-note-1', [blob], now);
+      await VectorStorageService.upsertEmbeddings('vec-note-1', [blob]);
 
       final results = await VectorStorageService.fetchAllEmbeddings();
       expect(results, isNotEmpty);
 
       final matched = results.firstWhere((r) => r['note_id'] == 'vec-note-1');
       expect(matched['note_id'], equals('vec-note-1'));
+    });
+
+    test('fetchAllEmbeddings filters correctly with List<String> noteIds', () async {
+      final floatVec = Float32List.fromList([0.1, 0.2, 0.3, 0.4]);
+      final blob = floatVec.buffer.asUint8List();
+
+      await VectorStorageService.upsertEmbeddings('vec-filter-1', [blob]);
+      await VectorStorageService.upsertEmbeddings('vec-filter-2', [blob]);
+
+      final filteredResults = await VectorStorageService.fetchAllEmbeddings(
+        noteIds: ['vec-filter-1'],
+      );
+      expect(filteredResults.length, equals(1));
+      expect(filteredResults.first['note_id'], equals('vec-filter-1'));
     });
 
     test('getNoteIdsMissingEmbeddings accurately identifies unindexed notes', () async {
@@ -61,8 +74,8 @@ void main() {
       final floatVec = Float32List.fromList([0.5, 0.6]);
       final blob = floatVec.buffer.asUint8List();
 
-      await VectorStorageService.upsertEmbeddings('vec-del-1', [blob], DateTime.now());
-      await VectorStorageService.upsertEmbeddings('vec-del-2', [blob], DateTime.now());
+      await VectorStorageService.upsertEmbeddings('vec-del-1', [blob]);
+      await VectorStorageService.upsertEmbeddings('vec-del-2', [blob]);
 
       await VectorStorageService.remove('vec-del-1');
       var results = await VectorStorageService.fetchAllEmbeddings();

@@ -68,13 +68,25 @@ void main() {
       );
     });
 
+    test('cacheRevision exposes topic discovery revision notifier', () {
+      expect(SemanticSearchService.cacheRevision, isNotNull);
+    });
+
     test(
       'discoverSuggestedTopics returns empty list if activeNoteIds is empty',
       () async {
         final topics = await SemanticSearchService.discoverSuggestedTopics(
-          activeNoteIds: {},
+          activeNoteIds: <String>[],
         );
         expect(topics, isEmpty);
+      },
+    );
+
+    test(
+      'getNoteIdsForTopic delegates call to TopicDiscoveryService',
+      () async {
+        final ids = await SemanticSearchService.getNoteIdsForTopic('Software & Tech');
+        expect(ids, isA<List<String>>());
       },
     );
   });

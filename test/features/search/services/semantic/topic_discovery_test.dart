@@ -38,15 +38,17 @@ void main() {
   });
 
   group('TopicDiscoveryService', () {
-    test('invalidateCache clears topic cache without throwing error', () {
-      expect(() => TopicDiscoveryService.invalidateCache(), returnsNormally);
+    test('invalidateCache clears topic cache and increments cacheRevision', () {
+      final initialRevision = TopicDiscoveryService.cacheRevision.value;
+      TopicDiscoveryService.invalidateCache();
+      expect(TopicDiscoveryService.cacheRevision.value, equals(initialRevision + 1));
     });
 
     test(
       'discoverSuggestedTopics returns empty list when AI model is missing',
       () async {
         final topics = await TopicDiscoveryService.discoverSuggestedTopics(
-          activeNoteIds: {'topic-note-1', 'topic-note-2'},
+          activeNoteIds: ['topic-note-1', 'topic-note-2'],
         );
         expect(topics, isEmpty);
       },
@@ -56,7 +58,7 @@ void main() {
       'discoverSuggestedTopics returns empty list when activeNoteIds is empty',
       () async {
         final topics = await TopicDiscoveryService.discoverSuggestedTopics(
-          activeNoteIds: {},
+          activeNoteIds: <String>[],
         );
         expect(topics, isEmpty);
       },

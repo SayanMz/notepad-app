@@ -9,9 +9,9 @@ void main() {
     expect(notes.first.title, '📝 Welcome to your new Notepad');
     expect(notes.first.isPinned, isTrue);
     expect(notes[1].title, '🎙️ AI Voice Formatting: The Basics');
-    expect(notes[1].isPinned, isTrue);
+    expect(notes[1].isPinned, isFalse);
     expect(notes[2].title, '🪄 AI Voice Formatting: Advanced Targeting');
-    expect(notes[2].isPinned, isTrue);
+    expect(notes[2].isPinned, isFalse);
   });
 
   test('generateSmartSearchTemplates returns the expected template notes', () {

@@ -7,15 +7,9 @@ import 'package:sqflite/sqflite.dart';
 
 abstract class VectorStorageServiceApi {
   Future<Database> get database;
-  Future<void> upsertEmbeddings(
-    String noteId,
-    List<Uint8List> embeddings,
-    DateTime updatedAt,
-  );
+  Future<void> upsertEmbeddings(String noteId, List<Uint8List> embeddings);
   Future<List<Map<String, dynamic>>> fetchAllEmbeddings({
-    Set<String>? noteIds,
-    DateTime? start,
-    DateTime? end,
+    List<String>? noteIds,
   });
   Future<void> remove(String noteId);
   Future<void> removeBulk(Set<String> noteIds);
@@ -34,14 +28,11 @@ class VectorStorageService {
   static Future<void> upsertEmbeddings(
     String noteId,
     List<Uint8List> embeddings,
-    DateTime updatedAt,
-  ) => to.upsertEmbeddings(noteId, embeddings, updatedAt);
+  ) => to.upsertEmbeddings(noteId, embeddings);
 
   static Future<List<Map<String, dynamic>>> fetchAllEmbeddings({
-    Set<String>? noteIds,
-    DateTime? start,
-    DateTime? end,
-  }) => to.fetchAllEmbeddings(noteIds: noteIds, start: start, end: end);
+    List<String>? noteIds,
+  }) => to.fetchAllEmbeddings(noteIds: noteIds);
 
   static Future<void> remove(String noteId) => to.remove(noteId);
 
@@ -118,15 +109,11 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
       CREATE TABLE IF NOT EXISTS $_embeddingTable (
         chunk_id INTEGER PRIMARY KEY AUTOINCREMENT,
         note_id TEXT NOT NULL,
-        embedding BLOB NOT NULL,
-        updated_at INTEGER NOT NULL
+        embedding BLOB NOT NULL
       )
     ''');
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_note_embeddings_note_id ON $_embeddingTable(note_id)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_note_embeddings_updated_at ON $_embeddingTable(updated_at)',
     );
   }
 
@@ -144,26 +131,21 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
   Future<void> upsertEmbeddings(
     String noteId,
     List<Uint8List> embeddings,
-    DateTime updatedAt,
   ) async {
     try {
       final db = await database;
       await db.transaction((txn) async {
-        // 1. Delete all existing chunks for this note to prevent stale or orphaned chunks when note length shrinks.
         await txn.delete(
           _embeddingTable,
           where: 'note_id = ?',
           whereArgs: [noteId],
         );
-        // 2. Batch insert new Float32 Uint8List embedding chunks with epoch millisecond timestamps.
         final batch = txn.batch();
-        final updatedAtMs = updatedAt.millisecondsSinceEpoch;
 
         for (final embedding in embeddings) {
           batch.insert(_embeddingTable, {
             'note_id': noteId,
             'embedding': embedding,
-            'updated_at': updatedAtMs,
           });
         }
         await batch.commit(noResult: true);
@@ -175,47 +157,23 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
 
   @override
   Future<List<Map<String, dynamic>>> fetchAllEmbeddings({
-    Set<String>? noteIds,
-    DateTime? start,
-    DateTime? end,
+    List<String>? noteIds,
   }) async {
     try {
       final db = await database;
-      final List<String> whereConditions = [];
-      final List<dynamic> whereArgs = [];
 
-      // Filter note IDs directly via SQLite index
       if (noteIds != null) {
         if (noteIds.isEmpty) return [];
         final placeholders = List.filled(noteIds.length, '?').join(',');
-        whereConditions.add('note_id IN ($placeholders)');
-        whereArgs.addAll(noteIds);
+        return await db.query(
+          _embeddingTable,
+          columns: ['note_id', 'embedding'],
+          where: 'note_id IN ($placeholders)',
+          whereArgs: noteIds,
+        );
       }
 
-      final startMs = start?.millisecondsSinceEpoch;
-      final endMs = end?.millisecondsSinceEpoch;
-
-      if (startMs != null && endMs != null) {
-        whereConditions.add('updated_at BETWEEN ? AND ?');
-        whereArgs.addAll([startMs, endMs]);
-      } else if (startMs != null) {
-        whereConditions.add('updated_at >= ?');
-        whereArgs.add(startMs);
-      } else if (endMs != null) {
-        whereConditions.add('updated_at <= ?');
-        whereArgs.add(endMs);
-      }
-
-      final whereClause = whereConditions.isNotEmpty
-          ? whereConditions.join(' AND ')
-          : null;
-
-      return await db.query(
-        _embeddingTable,
-        columns: ['note_id', 'embedding'],
-        where: whereClause,
-        whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
-      );
+      return await db.query(_embeddingTable, columns: ['note_id', 'embedding']);
     } catch (e) {
       debugPrint('Embedding Fetch Error: $e');
       return [];

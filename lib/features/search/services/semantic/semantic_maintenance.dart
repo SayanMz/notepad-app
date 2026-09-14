@@ -47,11 +47,7 @@ class SemanticMaintenanceService {
                   (v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes),
                 )
                 .toList();
-            await VectorStorageService.to.upsertEmbeddings(
-              id,
-              blobs,
-              note.updatedAt,
-            );
+            await VectorStorageService.to.upsertEmbeddings(id, blobs);
             indexedAny = true;
           }
         }
@@ -78,11 +74,7 @@ class SemanticMaintenanceService {
         final blobs = vectors
             .map((v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes))
             .toList();
-        await VectorStorageService.to.upsertEmbeddings(
-          note.id,
-          blobs,
-          note.updatedAt,
-        );
+        await VectorStorageService.to.upsertEmbeddings(note.id, blobs);
         TopicDiscoveryService.invalidateCache();
       }
     } catch (e) {

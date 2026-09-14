@@ -17,6 +17,7 @@ class SearchController extends ChangeNotifier {
   SearchController() {
     _initModelStatus();
     ModelDownloadService.statusNotifier.addListener(_onModelStatusChanged);
+    SemanticSearchService.cacheRevision.addListener(_onCacheInvalidated);
   }
 
   // --- Public UI Controllers & Notifiers ---
@@ -83,7 +84,6 @@ class SearchController extends ChangeNotifier {
 
   void refresh() {
     _recompute();
-    _loadSuggestedTopics();
   }
 
   // --- Scroll Visibility & Physics Logic ---
@@ -184,6 +184,13 @@ class SearchController extends ChangeNotifier {
     }
   }
 
+  Future<void> _onCacheInvalidated() async {
+    if (!_isDisposed) {
+      await _loadSuggestedTopics();
+      _recompute();
+    }
+  }
+
   Future<void> _loadSuggestedTopics() async {
     if (_isDisposed) return;
 
@@ -191,7 +198,7 @@ class SearchController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final activeIds = noteRepository.activeNotes.map((n) => n.id).toSet();
+      final activeIds = noteRepository.activeNotes.map((n) => n.id).toList();
       _suggestedTopics = await SemanticSearchService.discoverSuggestedTopics(
         activeNoteIds: activeIds,
       );
@@ -212,6 +219,7 @@ class SearchController extends ChangeNotifier {
     textController.dispose();
     showTopBars.dispose();
     ModelDownloadService.statusNotifier.removeListener(_onModelStatusChanged);
+    SemanticSearchService.cacheRevision.removeListener(_onCacheInvalidated);
     super.dispose();
   }
 }
