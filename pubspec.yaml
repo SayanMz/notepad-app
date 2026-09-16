@@ -51,6 +51,7 @@ dependencies:
   share_plus: ^12.0.2
   url_launcher: ^6.3.2
   path_provider: ^2.1.6
+  package_info_plus: ^9.0.1
 
   # Utilities, Networking & Environment
   http: ^1.6.0

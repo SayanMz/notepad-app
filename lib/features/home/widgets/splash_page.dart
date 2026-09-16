@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/home_page.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 // Startup splash that waits for initialization and animation before entering home.
 class SplashPage extends StatefulWidget {
@@ -19,11 +20,21 @@ class _SplashPageState extends State<SplashPage>
 
   bool _animationFinished = false;
   bool _isLoaded = false;
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(vsync: this);
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() {
+      _version = 'v${packageInfo.version}';
+    });
   }
 
   @override
@@ -58,49 +69,75 @@ class _SplashPageState extends State<SplashPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
-      body: Center(
+      body: SafeArea(
         child: AnimatedOpacity(
           opacity: _isLoaded ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 250),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Shift Lottie 20px left to center the notepad body relative to the text
-              Transform.translate(
-                offset: const Offset(20.0, 0.0),
-                child: Lottie.asset(
-                  'assets/lotties/Notepad_Splash.json',
-                  controller: _animationController,
-                  width: 280,
-                  height: 280,
-                  fit: BoxFit.contain,
-                  onLoaded: (composition) {
-                    _animationController.duration = composition.duration;
-                    _animationController.value = 0.08;
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Shift Lottie 20px left to center the notepad body relative to the text
+                      Transform.translate(
+                        offset: const Offset(20.0, 0.0),
+                        child: Lottie.asset(
+                          'assets/lotties/Notepad_Splash.json',
+                          controller: _animationController,
+                          width: 280,
+                          height: 280,
+                          fit: BoxFit.contain,
+                          onLoaded: (composition) {
+                            _animationController.duration =
+                                composition.duration;
+                            _animationController.value = 0.08;
 
-                    setState(() {
-                      _isLoaded = true;
-                    });
+                            setState(() {
+                              _isLoaded = true;
+                            });
 
-                    _animationController.animateTo(0.82).then((_) {
-                      _animationFinished = true;
-                      _checkAndNavigate();
-                    });
-                  },
-                ),
-              ),
-              Transform.translate(
-                offset: const Offset(5.0, -28.0),
-                child: Text(
-                  'Notepad',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: context.colorScheme.onSurface.withValues(alpha: 0.9),
+                            _animationController.animateTo(0.82).then((_) {
+                              _animationFinished = true;
+                              _checkAndNavigate();
+                            });
+                          },
+                        ),
+                      ),
+                      Transform.translate(
+                        offset: const Offset(5.0, -28.0),
+                        child: Text(
+                          'Notepad',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                            color: context.colorScheme.onSurface.withValues(
+                              alpha: 0.9,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              if (_version.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Text(
+                    _version,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                      color: context.colorScheme.onSurface.withValues(
+                        alpha: 0.4,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
