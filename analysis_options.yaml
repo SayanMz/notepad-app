@@ -13,6 +13,7 @@ analyzer:
     - android/build/**
     - windows/flutter/ephemeral/**
     - .pub-cache/**
+    - android/**
 
 linter:
   rules:

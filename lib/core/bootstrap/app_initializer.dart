@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/storage_service.dart';

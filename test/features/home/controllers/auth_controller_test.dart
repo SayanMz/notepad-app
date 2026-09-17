@@ -24,9 +24,8 @@ class FakeGoogleDriveService extends GoogleDriveService {
   }
 
   @override
-  Future<bool> attemptSilentSignIn() async {
+  Future<void> attemptSilentSignIn() async {
     silentSignInCalled = true;
-    return true;
   }
 
   @override

@@ -27,7 +27,6 @@ subprojects {
         val android = project.extensions.findByName("android")
         if (android is BaseExtension) {
             android.compileSdkVersion(36)
-            android.defaultConfig.targetSdkVersion(36)
         }
     }
 

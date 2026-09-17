@@ -8,7 +8,7 @@ part of 'app_data.dart';
 
 class NotesSectionAdapter extends TypeAdapter<NotesSection> {
   @override
-  final int typeId = 0;
+  final typeId = 0;
 
   @override
   NotesSection read(BinaryReader reader) {
@@ -19,14 +19,16 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
     return NotesSection(
       id: fields[0] as String?,
       title: fields[1] as String,
-      positionIndex: fields[8] as int,
+      positionIndex: fields[8] == null ? 0 : (fields[8] as num).toInt(),
       updatedAt: fields[4] as DateTime?,
-      content: fields[2] as String,
-      richContent: fields[3] as String,
-      isDeleted: fields[5] as bool,
-      isPinned: fields[6] as bool,
-      cardColorValue: fields[7] as int,
-    )..scrollOffset = fields[9] as double;
+      content: fields[2] == null ? '' : fields[2] as String,
+      richContent: fields[3] == null ? '' : fields[3] as String,
+      isDeleted: fields[5] == null ? false : fields[5] as bool,
+      isPinned: fields[6] == null ? false : fields[6] as bool,
+      cardColorValue: fields[7] == null
+          ? 0xFFFFFFFF
+          : (fields[7] as num).toInt(),
+    )..scrollOffset = (fields[9] as num).toDouble();
   }
 
   @override
@@ -68,7 +70,7 @@ class NotesSectionAdapter extends TypeAdapter<NotesSection> {
 
 class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   @override
-  final int typeId = 1;
+  final typeId = 1;
 
   @override
   AppSettings read(BinaryReader reader) {
@@ -77,12 +79,22 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return AppSettings(
-      isDarkMode: fields[0] as bool,
+      isDarkMode: fields[0] == null ? false : fields[0] as bool,
       userName: fields[1] as String?,
       userEmail: fields[2] as String?,
-      seedVersion: fields[4] as int,
+      seedVersion: fields[4] == null ? 0 : (fields[4] as num).toInt(),
       lastMaintenanceDate: fields[5] as DateTime?,
-      recentColorValues: (fields[3] as List).cast<int>(),
+      recentColorValues: fields[3] == null
+          ? const [
+              0xFFFFF59D,
+              0xFFFFCC80,
+              0xFFEF9A9A,
+              0xFFCE93D8,
+              0xFF90CAF9,
+              0xFFA5D6A7,
+              0xFFE0E0E0,
+            ]
+          : (fields[3] as List).cast<int>(),
     );
   }
 

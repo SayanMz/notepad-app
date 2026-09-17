@@ -3,7 +3,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 
 /// Stores the encryption key outside the app sandbox so Hive can reopen securely.
 class SecureKeyVaultService {

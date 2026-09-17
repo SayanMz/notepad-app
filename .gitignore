@@ -54,3 +54,6 @@ app.*.map.json
 android/key.properties
 ios/Flutter/Release.xcconfig
 /windows/
+
+# Model files
+*.onnx

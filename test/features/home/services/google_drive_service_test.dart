@@ -45,6 +45,8 @@ class FakeGoogleSignIn extends Fake implements GoogleSignIn {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() async {
     dotenv.loadFromString(envString: 'GOOGLE_CLIENT_ID=test_id\nGOOGLE_SERVER_CLIENT_ID=test_server_id');
   });
@@ -77,6 +79,12 @@ void main() {
       await service.signIn();
       final result = await service.ensureAuthenticated();
       expect(result, isTrue);
+    });
+
+    test('attemptSilentSignIn attempts lightweight auth', () async {
+      fakeSignIn.authenticated = true;
+      await service.attemptSilentSignIn();
+      expect(service.currentUser, isNotNull);
     });
   });
 }

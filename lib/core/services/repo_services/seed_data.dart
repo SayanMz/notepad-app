@@ -6,7 +6,7 @@ class SeedDataService {
 
   static List<NotesSection> generateWelcomeNotes() {
     return [
-      // --- NOTE 1: ENGAGING ONBOARDING ---
+      // --- NOTE 1 ---
       NotesSection(
         title: '📝 Welcome to your new Notepad',
         content:
@@ -21,7 +21,7 @@ class SeedDataService {
         cardColorValue: 0xFF14B8A6, // Teal Branding
       ),
 
-      // --- NOTE 2: AI COMMANDS (BASICS & SELECTION) ---
+      // --- NOTE 2 ---
       NotesSection(
         title: '🎙️ AI Voice Formatting: The Basics',
         content:
@@ -37,13 +37,13 @@ class SeedDataService {
         cardColorValue: 0xFF6366F1, // Indigo AI Theme
       ),
 
-      // --- NOTE 3: AI COMMANDS (ADVANCED TARGETING) ---
+      // --- NOTE 3 ---
       NotesSection(
         title: '🪄 AI Voice Formatting: Advanced Targeting',
         content:
             'Your AI understands document structure natively, allowing you to format text flexibly without lifting a finger.\n\n'
             'Target specific lines and blocks naturally:\n'
-            '- "Make the 3rd line magenta"\n'
+            '- "Make the 3rd line blue"\n'
             '- "Turn the final paragraph into an ordered list"\n'
             '- "Underline the second sentence"\n\n'
             'Target exact words and phrases with conversational freedom:\n'
@@ -121,8 +121,7 @@ class SeedDataService {
       count,
       (index) => NotesSection(
         title: 'Performance Benchmark #$index',
-        content:
-            'Automated stress test entry for evaluating database indexing and scroll physics.',
+        content: 'Automated stress test entry for evaluating database indexing and scroll physics.',
       ),
     );
   }

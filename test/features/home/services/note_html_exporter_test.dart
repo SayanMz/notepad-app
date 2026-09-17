@@ -26,4 +26,39 @@ void main() {
     expect(html, contains('<title>Untitled note</title>'));
     expect(html, contains('<h1 style="text-align: center;">Untitled note</h1>'));
   });
+
+  test('buildHtmlDocument handles headers, lists, blockquotes and code blocks', () {
+    final html = NoteHtmlExporter.buildHtmlDocument(
+      title: 'Rich Note',
+      richContent: [
+        {
+          'insert': 'Header 1\n',
+          'attributes': {'header': 1},
+        },
+        {
+          'insert': 'Bullet item\n',
+          'attributes': {'list': 'bullet'},
+        },
+        {
+          'insert': 'Quote line\n',
+          'attributes': {'blockquote': true},
+        },
+        {
+          'insert': 'Code line\n',
+          'attributes': {'code-block': true},
+        },
+        {
+          'insert': 'Linked text\n',
+          'attributes': {'link': 'example.com'},
+        },
+      ],
+    );
+
+    expect(html, contains('<h2>Header 1</h2>'));
+    expect(html, contains('<ul>'));
+    expect(html, contains('<li>Bullet item</li>'));
+    expect(html, contains('<blockquote'));
+    expect(html, contains('<pre'));
+    expect(html, contains('<a href="https://example.com"'));
+  });
 }

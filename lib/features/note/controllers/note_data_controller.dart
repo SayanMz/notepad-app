@@ -93,7 +93,7 @@ class NoteDataController {
     required Document document,
     double scrollOffset = 0.0,
     bool isScrollUpdate = false,
-    final bool notify = false,
+    bool notify = false,
   }) async {
     _autosaveDebounce?.cancel();
     final plainText = document.toPlainText().trim();

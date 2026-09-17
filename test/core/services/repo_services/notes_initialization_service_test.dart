@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/sqlite_fts.dart';

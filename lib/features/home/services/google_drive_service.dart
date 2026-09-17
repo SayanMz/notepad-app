@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 
 // Google Drive sync boundary that keeps backup and restore concerns out of the UI.
 class GoogleDriveService {
@@ -14,8 +15,8 @@ class GoogleDriveService {
   factory GoogleDriveService() => _instance;
 
   @visibleForTesting
-  GoogleDriveService.internalForTesting({GoogleSignIn? googleSignIn}) 
-      : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+  GoogleDriveService.internalForTesting({GoogleSignIn? googleSignIn})
+    : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
 
   final GoogleSignIn _googleSignIn;
   GoogleSignInAccount? _user;
@@ -26,6 +27,24 @@ class GoogleDriveService {
 
   bool _initialized = false;
   Future<void>? _initializing;
+
+  static Future<bool> _hasActiveInternet() async {
+    try {
+      final addresses = await InternetAddress.lookup('accounts.google.com')
+          .timeout(const Duration(seconds: 2));
+      if (addresses.isEmpty || addresses.first.rawAddress.isEmpty) return false;
+
+      final socket = await Socket.connect(
+        addresses.first,
+        443,
+        timeout: const Duration(seconds: 2),
+      );
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
@@ -54,6 +73,13 @@ class GoogleDriveService {
       throw Exception('Missing GOOGLE_CLIENT_ID in .env');
     }
 
+    if (!await _hasActiveInternet()) {
+      showErrorSnackBar(
+        'You appear to be offline. Connect to internet to sign in.',
+      );
+      return false;
+    }
+
     try {
       await _ensureInitialized();
       _user = await _googleSignIn.authenticate();
@@ -61,11 +87,16 @@ class GoogleDriveService {
     } catch (e) {
       _user = null;
       debugPrint('Sign in failed: $e');
+      showErrorSnackBar('Sign in failed. Please try again.');
       return false;
     }
   }
 
-  Future<bool> attemptSilentSignIn() async {
+  Future<void> attemptSilentSignIn() async {
+    if (!await _hasActiveInternet()) {
+      return;
+    }
+
     try {
       await _ensureInitialized();
       final result = _googleSignIn.attemptLightweightAuthentication();
@@ -74,10 +105,8 @@ class GoogleDriveService {
       } else {
         _user = result;
       }
-      return _user != null;
     } catch (e) {
       debugPrint('Silent sign-in skipped or failed: $e');
-      return false;
     }
   }
 

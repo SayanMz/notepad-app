@@ -86,13 +86,14 @@ class NotePdfExporter {
       ).save(),
     );
 
-    return FilePicker.saveFile(
+    final uri = await FilePicker.saveFile(
       dialogTitle: 'Save note as PDF',
       fileName: '${doc_delta.safeFileTitle(title)}.pdf',
       type: FileType.custom,
       allowedExtensions: const ['pdf'],
       bytes: bytes,
     );
+    return uri?.path;
   }
 
   static Future<ShareResult> shareSingleNoteAsPdf({

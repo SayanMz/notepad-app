@@ -21,4 +21,36 @@ void main() {
 
     expect(bytes, isNotEmpty);
   });
+
+  test('buildPdfDocument handles lists, headers, links and formatting', () async {
+    final pdf = NotePdfExporter.buildPdfDocument(
+      title: 'Structured PDF',
+      richContent: [
+        {
+          'insert': 'Heading 1\n',
+          'attributes': {'header': 1},
+        },
+        {
+          'insert': 'Checklist item\n',
+          'attributes': {'list': 'checked'},
+        },
+        {
+          'insert': 'Bold & Italic link\n',
+          'attributes': {
+            'bold': true,
+            'italic': true,
+            'link': 'https://example.com',
+          },
+        },
+      ],
+      fontReg: pw.Font.helvetica(),
+      fontBold: pw.Font.helveticaBold(),
+      fontItalic: pw.Font.helveticaOblique(),
+      fontBoldItalic: pw.Font.helveticaBoldOblique(),
+      emojiFont: null,
+    );
+
+    final bytes = await pdf.save();
+    expect(bytes.length, greaterThan(100));
+  });
 }

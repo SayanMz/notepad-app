@@ -1,8 +1,8 @@
 // Defines the core Hive data models for note persistence and global application configuration.
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:notepad/core/services/note_preview_util.dart';
+import 'package:hive_ce/hive.dart';
 import 'package:ulid/ulid.dart';
+import 'package:notepad/core/services/note_preview_util.dart';
 
 part 'app_data.g.dart';
 

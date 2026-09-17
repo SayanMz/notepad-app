@@ -148,7 +148,7 @@ class NoteRepository {
     List<NotesSection> zoneList,
     int oldIndex,
     int newIndex,
-    final bool pinnedZone,
+    bool pinnedZone,
   ) async {
     if (oldIndex < 0 || oldIndex >= zoneList.length || oldIndex == newIndex) {
       return;
@@ -207,7 +207,7 @@ class NoteRepository {
     required String title,
     required String content,
     String richContent = '',
-    final bool notify = false,
+    bool notify = false,
     double scrollOffset = 0.0,
   }) async {
     final existingNote = noteId == null ? null : findById(noteId);

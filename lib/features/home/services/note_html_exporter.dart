@@ -49,20 +49,21 @@ class NoteHtmlExporter {
   static Future<String?> saveNoteAsHtml({
     required String title,
     required List<Map<String, dynamic>> richContent,
-  }) {
+  }) async {
     // Encode generated HTML string into standard UTF-8 byte streams
     final bytes = Uint8List.fromList(
       utf8.encode(buildHtmlDocument(title: title, richContent: richContent)),
     );
 
     // Invoke native file picker save dialog with predefined extensions
-    return FilePicker.saveFile(
+    final uri = await FilePicker.saveFile(
       dialogTitle: 'Save note as HTML',
       fileName: '${doc_delta.safeFileTitle(title)}.html',
       type: FileType.custom,
       allowedExtensions: const ['html', 'htm'],
       bytes: bytes,
     );
+    return uri?.path;
   }
 
   /// Saves a single HTML document to a temporary file location and invokes
