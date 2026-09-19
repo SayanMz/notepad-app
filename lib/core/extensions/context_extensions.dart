@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Shared `BuildContext` helpers used throughout the UI layer.
 extension ContextExtensions on BuildContext {
@@ -10,4 +11,13 @@ extension ContextExtensions on BuildContext {
   Size get screenSize => mediaQuery.size;
   double get viewInsetsBottom => mediaQuery.viewInsets.bottom;
   double get topPadding => mediaQuery.padding.top;
+}
+
+Future<void> closeKeyboard() async {
+  if (FocusManager.instance.primaryFocus?.hasFocus ?? false) {
+    SystemChannels.textInput.invokeMethod('TextInput.hide');
+    await Future.delayed(const Duration(milliseconds: 50));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future.delayed(const Duration(milliseconds: 250));
+  }
 }

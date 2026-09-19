@@ -3,28 +3,25 @@
 /// while the short key is displayed in the UI to prevent vector cannibalization.
 class SemanticTaxonomy {
   static const Map<String, String> topicDescriptions = {
-    'Software & Tech':
-        'Software engineering, source code, app development, IT systems, tech hardware, and programming.',
+    'Software & Tech': 'Software engineering, source code, app development, IT systems, tech hardware, and programming.',
 
-    'Entertainment':
-        'Video games, movies, television shows, anime, streaming, music, cinema, novels, and books.',
+    'Entertainment': 'Video games, movies, television shows, anime, streaming, music, cinema, novels, and books.',
 
-    'Work & Study':
-        'Work tasks, business strategy, project planning, meetings, roadmaps, sprint reviews, school homework, studying exams, mathematics, academics, and education.',
+    'Work & Study': 'Work tasks, business strategy, project planning, meetings, roadmaps, sprint reviews, school homework, studying exams, mathematics, academics, and education.',
 
-    'Finance & Shopping':
-        'Personal finance, money management, budgets, utility bills, taxes, legal documents, investments, shopping lists, and purchases.',
+    'Finance & Shopping': 'Personal finance, money management, budgets, utility bills, taxes, legal documents, investments, shopping lists, and purchases.',
 
-    'Health & Fitness':
-        'Health, fitness, workouts, gym exercises, strength training, wellness, nutrition, and medical information.',
+    'Health & Fitness': 'Health, fitness, workouts, gym exercises, strength training, wellness, nutrition, and medical information.',
 
-    'Food & Cooking':
-        'Food recipes, culinary ingredients, kitchen preparation, baking, cooking, culinary dishes, and cooking methods.',
+    'Food & Cooking': 'Food recipes, culinary ingredients, kitchen preparation, baking, cooking, culinary dishes, and cooking methods.',
 
-    'Travel & Transport':
-        'Travel itineraries, vacations, tourism, transit, vehicles, flights, commuting, and road trips.',
+    'Travel & Transport': 'Travel itineraries, vacations, tourism, transit, vehicles, flights, commuting, and road trips.',
 
-    'Personal & Social':
-        'Personal journal entries, diary reflections, feelings, nostalgia, friends, family, pets, hobbies, household chores, social gatherings, hangouts, and life memories.',
+    'Personal & Social': 'Personal journal entries, diary reflections, feelings, nostalgia, friends, family, pets, hobbies, household chores, social gatherings, hangouts, and life memories.',
+  };
+
+  // The hidden trap for non-semantic noise
+  static const Map<String, String> internalAnchors = {
+    '__GIBBERISH__': 'Random keyboard smash, typos, test text, placeholder, meaningless letters, asdf, qwer, zxcv, qwerty, junk.',
   };
 }

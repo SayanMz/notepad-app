@@ -76,6 +76,10 @@ _DiscoveryComputationResult _evaluateTopics({
     }
   }
 
+  // Strip out the internal gibberish trap so it never becomes a UI chip
+  qualifiedTopics.removeWhere((entry) => entry.key == '__GIBBERISH__');
+  topicNoteIds.remove('__GIBBERISH__');
+
   qualifiedTopics.sort((a, b) => b.value.compareTo(a.value));
   return _DiscoveryComputationResult(
     qualifiedTopics: maxTopics != null
@@ -90,8 +94,10 @@ class TopicDiscoveryService {
   static List<MapEntry<String, int>>? _discoveredTopicChips;
   static final Map<String, List<String>> _topicMatchedNoteIds = {};
 
-  static final Map<String, String> _candidateTaxonomy =
-      SemanticTaxonomy.topicDescriptions;
+  static final Map<String, String> _candidateTaxonomy = {
+    ...SemanticTaxonomy.topicDescriptions,
+    ...SemanticTaxonomy.internalAnchors,
+  };
 
   static final ValueNotifier<int> cacheRevision = ValueNotifier<int>(0);
 

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
+import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/features/note/services/link_handlers/link_detector_service.dart';
 import 'package:notepad/features/note/widgets/status/save_indicator.dart';
@@ -13,7 +14,10 @@ class NoteDataController {
   final NoteRepository noteRepository;
   String? noteId;
 
-  NoteDataController({required this.noteRepository, this.noteId});
+  NoteDataController({NoteRepository? noteRepository, this.noteId})
+    : noteRepository = noteRepository ?? NoteRepository();
+
+  Map<String, NotesSection> get cacheMap => noteRepository.cacheMap;
 
   Timer? _autosaveDebounce;
   Timer? _detectionDebounce;

@@ -1,13 +1,10 @@
 import 'dart:async';
 
-// ignore_for_file: experimental_member_use
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/constants/ui_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/controllers/note_data_controller.dart';
@@ -20,9 +17,9 @@ import 'package:notepad/features/note/services/document_delta_parser.dart'
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/controls/note_toolbar.dart';
 import 'package:notepad/features/note/widgets/controls/voice_assistant_button.dart';
-import 'package:notepad/features/note/widgets/note_app_bar.dart';
 import 'package:notepad/features/note/widgets/editor/note_editor.dart';
 import 'package:notepad/features/note/widgets/editor/note_title_bar.dart';
+import 'package:notepad/features/note/widgets/note_app_bar.dart';
 
 // The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.
 class NotePage extends StatefulWidget {
@@ -88,7 +85,7 @@ class _NotePageState extends State<NotePage>
 
           final note = widget.noteId == null
               ? null
-              : noteRepository.findById(widget.noteId!);
+              : _dataController.cacheMap[widget.noteId];
 
           if (note != null &&
               _editorScrollController.hasClients &&
@@ -129,18 +126,15 @@ class _NotePageState extends State<NotePage>
 
   /// Centralizes the instantiation of all feature, UI, and text editing controllers.
   void _initializeControllers() {
-    final note = widget.noteId == null
-        ? null
-        : noteRepository.findById(widget.noteId!);
-
     // Feature Controllers
-    _dataController = NoteDataController(
-      noteRepository: noteRepository,
-      noteId: widget.noteId,
-    );
+    _dataController = NoteDataController(noteId: widget.noteId);
     _voiceController = NoteVoiceController();
     _uiController = NoteUIController();
     _toolbarController = NoteToolbarController();
+
+    final note = widget.noteId == null
+        ? null
+        : _dataController.cacheMap[widget.noteId];
 
     // Editor & Animation Controllers
     titleController = TextEditingController(text: note?.title ?? widget.title);
@@ -214,10 +208,7 @@ class _NotePageState extends State<NotePage>
     _voiceController.stopHardwareListening();
     _toolbarController.closeAllMenus();
 
-    SystemChannels.textInput.invokeMethod('TextInput.hide');
-    await Future.delayed(const Duration(milliseconds: 50));
-    FocusManager.instance.primaryFocus?.unfocus();
-    await Future.delayed(const Duration(milliseconds: 250));
+    await closeKeyboard();
 
     unawaited(
       _dataController
@@ -258,7 +249,9 @@ class _NotePageState extends State<NotePage>
 
     if (targetNoteId != null && targetNoteId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(noteRepository.triggerDeferredEmbedding(targetNoteId));
+        unawaited(
+          _dataController.noteRepository.triggerDeferredEmbedding(targetNoteId),
+        );
       });
     }
 
@@ -285,8 +278,11 @@ class _NotePageState extends State<NotePage>
     );
 
     if (result == true && widget.noteId != null) {
-      await noteRepository.toggleDeletedStatus(widget.noteId!, false);
-      final note = noteRepository.findById(widget.noteId!);
+      await _dataController.noteRepository.toggleDeletedStatus(
+        widget.noteId!,
+        false,
+      );
+      final note = _dataController.cacheMap[widget.noteId];
       // Restored notes re-enter editable mode immediately so the user can continue typing.
       setState(() {
         _isReadOnly = false;
@@ -377,9 +373,9 @@ class _NotePageState extends State<NotePage>
                             listenable: _editorScrollController,
                             builder: (context, child) {
                               // Checking if the keyboard is open using the direct view insets
-                              final double keyboardHeight = View.of(
-                                context,
-                              ).viewInsets.bottom;
+                              final double keyboardHeight = View.of(context)
+                                  .viewInsets
+                                  .bottom;
                               final bool isKeyboardOpen = keyboardHeight > 0;
 
                               final double currentOffset =
@@ -435,9 +431,9 @@ class _NotePageState extends State<NotePage>
                                       Builder(
                                         builder: (context) {
                                           final bool isKeyboardOpen =
-                                              View.of(
-                                                context,
-                                              ).viewInsets.bottom >
+                                              View.of(context)
+                                                  .viewInsets
+                                                  .bottom >
                                               0;
 
                                           return SizedBox(

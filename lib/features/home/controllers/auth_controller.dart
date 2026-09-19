@@ -1,8 +1,8 @@
-// Auth state bridges local profile data with the live Google Drive session.
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
 
+// Auth state bridges local profile data with the live Google Drive session.
 class AuthController extends ChangeNotifier {
   AuthController({
     GoogleDriveService? driveService,

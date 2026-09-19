@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
@@ -8,28 +12,58 @@ import 'package:notepad/features/home/controllers/selection_controller.dart';
 import 'package:notepad/features/home/services/note_html_exporter.dart';
 
 // Coordinates home note actions such as selection, sharing, and deletion.
-class HomeController {
+class HomeController extends ChangeNotifier {
+  final SelectionController selectionController;
+  final AnimationControllerState animationController;
+  final ScrollController _scrollController;
+  final NoteRepository noteRepository;
+
   HomeController({
     required this.selectionController,
     required this.animationController,
+    ScrollController? scrollController,
     NoteRepository? noteRepository,
-  }) : _noteRepository = noteRepository ?? NoteRepository();
+  }) : _scrollController = scrollController ?? ScrollController(),
+       noteRepository = noteRepository ?? NoteRepository() {
+    this.noteRepository.activeRevision.addListener(_proxyListener);
+    this.noteRepository.activeRevision.addListener(_handleEmptyState);
+    _runMaintenance();
+  }
 
-  final SelectionController selectionController;
-  final AnimationControllerState animationController;
-  final NoteRepository _noteRepository;
+  void _runMaintenance() {
+    // Skip deferred maintenance in widget tests to avoid dangling timers.
+    if (!(!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST'))) {
+      // Defer maintenance until the home page is completely idle
+      SchedulerBinding.instance.scheduleTask(() {
+        noteRepository.runPostStartupMaintenance();
+      }, Priority.idle);
+    }
+  }
+
+  // When all notes are bulk-deleted and user is stuck halfway down the notes list
+  void _handleEmptyState() {
+    if (!hasActiveNotes && _scrollController.hasClients) {
+      if (_scrollController.offset > 0) {
+        _scrollController.jumpTo(0.0);
+      }
+    }
+  }
+
+  void _proxyListener() {
+    notifyListeners();
+  }
 
   final ValueNotifier<int> colorChangeNotifier = ValueNotifier<int>(0);
 
   Set<String> get selectedIds => selectionController.selectedIds;
-  List<NotesSection> get activeNotes => _noteRepository.activeNotes;
+  List<NotesSection> get activeNotes => noteRepository.activeNotes;
   List<NotesSection> get selectedNotes =>
       activeNotes.where((note) => selectedIds.contains(note.id)).toList();
-  List<NotesSection> get pinnedNotes => _noteRepository.pinnedNotes;
-  List<NotesSection> get unpinnedNotes => _noteRepository.unpinnedNotes;
+  List<NotesSection> get pinnedNotes => noteRepository.pinnedNotes;
+  List<NotesSection> get unpinnedNotes => noteRepository.unpinnedNotes;
 
   bool get showPinAction => selectedNotes.any((n) => !n.isPinned);
-  bool get hasActiveNotes => _noteRepository.activeNotes.isNotEmpty;
+  bool get hasActiveNotes => noteRepository.activeNotes.isNotEmpty;
 
   void toggleSelectAll(bool? value) {
     final bool newValue = value ?? false;
@@ -48,33 +82,30 @@ class HomeController {
     await onNavigate(noteId);
   }
 
-  Future<void> togglePin(String noteId) {
-    return _noteRepository.togglePinStatus(noteId);
-  }
+  Future<void> togglePin(String noteId) =>
+      noteRepository.togglePinStatus(noteId);
 
-  Future<void> togglePinBulk() {
-    return _noteRepository.togglePinBulk(
-      selectedNotes.map((n) => n.id).toSet(),
-      showPinAction,
-    );
-  }
+  Future<void> togglePinBulk() => noteRepository.togglePinBulk(
+    selectedNotes.map((n) => n.id).toSet(),
+    showPinAction,
+  );
 
   void updateSelectedColors(Color color) {
-    _noteRepository.applyColorToSelection(selectedIds, color);
+    noteRepository.applyColorToSelection(selectedIds, color);
     colorChangeNotifier.value++;
   }
 
   Map<String, Color> getSelectedColorsSnapshot() {
     return {
       for (final id in selectedIds)
-        if (_noteRepository.findById(id) case final note?) id: note.cardColor,
+        if (noteRepository.findById(id) case final note?) id: note.cardColor,
     };
   }
 
-  void saveColors() => _noteRepository.saveColorsBulk(selectedIds);
+  void saveColors() => noteRepository.saveColorsBulk(selectedIds);
 
   void restoreColors(Map<String, Color> originalColors) {
-    _noteRepository.restoreColors(originalColors);
+    noteRepository.restoreColors(originalColors);
     colorChangeNotifier.value++;
   }
 
@@ -85,7 +116,7 @@ class HomeController {
     final int selectedCount = movedNoteIds.length;
 
     await animationController.triggerVaporizeAnimation(movedNoteIds);
-    await _noteRepository.toggleDeletedStatusBulk(movedNoteIds, true);
+    await noteRepository.toggleDeletedStatusBulk(movedNoteIds, true);
 
     selectionController.exitSelectionMode();
     HapticFeedback.heavyImpact();
@@ -95,22 +126,22 @@ class HomeController {
       message:
           '$selectedCount ${selectedCount == 1 ? 'note' : 'notes'} moved to recycle bin',
       onUndo: () async {
-        await _noteRepository.toggleDeletedStatusBulk(movedNoteIds, false);
+        await noteRepository.toggleDeletedStatusBulk(movedNoteIds, false);
       },
     );
   }
 
   Future<void> executeSingleDelete(String noteId) async {
-    final note = _noteRepository.findById(noteId);
+    final note = noteRepository.findById(noteId);
     if (note == null) return;
 
-    await _noteRepository.toggleDeletedStatus(noteId, true);
+    await noteRepository.toggleDeletedStatus(noteId, true);
     showRestorationSnackBar(
       undoLabel: 'Restore',
       message:
           '${note.title.isEmpty ? "Note" : note.title} moved to recycle bin',
       onUndo: () async {
-        await _noteRepository.toggleDeletedStatus(noteId, false);
+        await noteRepository.toggleDeletedStatus(noteId, false);
       },
     );
   }
@@ -131,15 +162,17 @@ class HomeController {
     }
   }
 
-  void handlePinnedReorder(int oldIndex, int newIndex) {
-    _noteRepository.reorderPinnedNotes(oldIndex, newIndex);
-  }
+  void handlePinnedReorder(int oldIndex, int newIndex) =>
+      noteRepository.reorderPinnedNotes(oldIndex, newIndex);
 
-  void handleUnpinnedReorder(int oldIndex, int newIndex) {
-    _noteRepository.reorderUnpinnedNotes(oldIndex, newIndex);
-  }
+  void handleUnpinnedReorder(int oldIndex, int newIndex) =>
+      noteRepository.reorderUnpinnedNotes(oldIndex, newIndex);
 
+  @override
   void dispose() {
     colorChangeNotifier.dispose();
+    noteRepository.activeRevision.removeListener(_proxyListener);
+    noteRepository.activeRevision.removeListener(_handleEmptyState);
+    super.dispose();
   }
 }

@@ -33,8 +33,7 @@ class _NoteAppBarState extends State<NoteAppBar> {
   bool get isDark => context.isDark;
   ColorScheme get colorScheme => context.colorScheme;
   late final ValueNotifier<bool> isSavingNotifier;
-  Color get iconColor =>
-      isDark ? Colors.white : colorScheme.onSurfaceVariant;
+  Color get iconColor => isDark ? Colors.white : colorScheme.onSurfaceVariant;
 
   @override
   void initState() {
@@ -142,11 +141,10 @@ class _NoteAppBarState extends State<NoteAppBar> {
               ),
               _buildPdfMenuItem(
                 label: 'Share Note',
-                action: (title, data) =>
-                    NotePdfExporter.shareSingleNoteAsPdf(
-                      title: title,
-                      richContent: data,
-                    ),
+                action: (title, data) => NotePdfExporter.shareSingleNoteAsPdf(
+                  title: title,
+                  richContent: data,
+                ),
               ),
             ],
           ),

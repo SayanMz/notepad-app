@@ -1,11 +1,6 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide SelectionOverlay;
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/auth_controller.dart';
@@ -46,7 +41,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   ScrollPhysics get _scrollPhysics {
-    if (noteRepository.activeNotes.isEmpty) {
+    if (!_controller.hasActiveNotes) {
       return const NeverScrollableScrollPhysics();
     }
     if (_selectionController.isSelectionMode) {
@@ -67,20 +62,9 @@ class _HomePageState extends State<HomePage> {
     _controller = HomeController(
       selectionController: _selectionController,
       animationController: _animationController,
+      scrollController: _scrollController,
     );
     _authController.initialize();
-    noteRepository.activeRevision.addListener(_handleNotesChanged);
-
-    // Defer maintenance until the home page is completely idle
-    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
-       // Skip deferred maintenance in widget tests to avoid dangling timers.
-    } else {
-      SchedulerBinding.instance.scheduleTask(() {
-        if (mounted) {
-          noteRepository.runPostStartupMaintenance();
-        }
-      }, Priority.idle);
-    }
   }
 
   @override
@@ -91,16 +75,7 @@ class _HomePageState extends State<HomePage> {
     _selectionController.dispose();
     _animationController.dispose();
     _scrollController.dispose();
-    noteRepository.activeRevision.removeListener(_handleNotesChanged);
     super.dispose();
-  }
-
-  void _handleNotesChanged() {
-    if (_controller.activeNotes.isEmpty && _scrollController.hasClients) {
-      if (_scrollController.offset > 0) {
-        _scrollController.jumpTo(0.0);
-      }
-    }
   }
 
   @override
@@ -120,7 +95,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 SafeArea(
                   child: ListenableBuilder(
-                    listenable: noteRepository.activeRevision,
+                    listenable: _controller,
                     builder: (context, child) {
                       return CustomScrollView(
                         controller: _scrollController,

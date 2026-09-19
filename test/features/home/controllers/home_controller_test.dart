@@ -67,4 +67,19 @@ void main() {
 
     controller.dispose();
   });
+
+  test('HomeController acts as ChangeNotifier and notifies on repository revision', () {
+    final controller = _buildController();
+    var notified = false;
+
+    controller.addListener(() {
+      notified = true;
+    });
+
+    controller.noteRepository.activeRevision.value++;
+
+    expect(notified, isTrue);
+
+    controller.dispose();
+  });
 }

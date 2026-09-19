@@ -79,6 +79,10 @@ void main() {
       expect(controller.noteId, isNull);
     });
 
+    test('cacheMap exposes repository cache map', () {
+      expect(controller.cacheMap, isA<Map<String, NotesSection>>());
+    });
+
     test('saveNote persists non-empty content and updates noteId', () async {
       final document = Document()..insert(0, 'Hello world');
 
