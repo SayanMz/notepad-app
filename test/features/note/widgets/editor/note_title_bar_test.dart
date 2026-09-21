@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/note/widgets/editor/note_title_bar.dart';
+import 'package:notepad/features/note/widgets/editor/title_bar.dart';
 
 void main() {
-  testWidgets('NoteTitleBar allows editing and triggers toggle', (tester) async {
+  testWidgets('NoteTitleBar allows editing and triggers toggle', (
+    tester,
+  ) async {
     final titleController = TextEditingController(text: 'Initial Title');
     bool toggleCalled = false;
 

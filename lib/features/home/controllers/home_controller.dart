@@ -9,7 +9,7 @@ import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
-import 'package:notepad/features/home/services/note_html_exporter.dart';
+import 'package:notepad/features/home/services/html_exporter.dart';
 
 // Coordinates home note actions such as selection, sharing, and deletion.
 class HomeController extends ChangeNotifier {
@@ -82,13 +82,18 @@ class HomeController extends ChangeNotifier {
     await onNavigate(noteId);
   }
 
-  Future<void> togglePin(String noteId) =>
-      noteRepository.togglePinStatus(noteId);
+  Future<void> togglePin(String noteId) async {
+    await noteRepository.togglePinStatus(noteId);
+    selectionController.triggerRebuild();
+  }
 
-  Future<void> togglePinBulk() => noteRepository.togglePinBulk(
-    selectedNotes.map((n) => n.id).toSet(),
-    showPinAction,
-  );
+  Future<void> togglePinBulk() async {
+    await noteRepository.togglePinBulk(
+      selectedNotes.map((n) => n.id).toSet(),
+      showPinAction,
+    );
+    selectionController.triggerRebuild();
+  }
 
   void updateSelectedColors(Color color) {
     noteRepository.applyColorToSelection(selectedIds, color);
@@ -153,7 +158,7 @@ class HomeController extends ChangeNotifier {
     if (selectedNotes.isEmpty) return;
 
     try {
-      await NoteHtmlExporter.shareNotesAsHTML(
+      await HtmlExporter.shareNotesAsHTML(
         selectedNotes,
         text: 'Sharing ${selectedNotes.length} Notes',
       );

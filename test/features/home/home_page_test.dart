@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/home/home_page.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';
-import 'package:notepad/features/home/widgets/note_list.dart';
+import 'package:notepad/features/home/widgets/home_note_list.dart';
 
 void main() {
   testWidgets('HomePage renders essential components', (tester) async {
@@ -22,7 +22,7 @@ void main() {
     }
 
     expect(find.byType(HomeAppBar), findsOneWidget);
-    expect(find.byType(NoteList), findsOneWidget);
+    expect(find.byType(HomeNoteList), findsOneWidget);
     expect(find.byType(HomeFab), findsOneWidget);
   });
 

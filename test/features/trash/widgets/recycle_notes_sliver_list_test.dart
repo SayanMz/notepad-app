@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
-import 'package:notepad/features/trash/controller/recycle_controller.dart';
+import 'package:notepad/features/trash/controllers/recycle_controller.dart';
 import 'package:notepad/features/trash/widgets/recycle_notes_sliver_list.dart';
-import 'package:notepad/features/trash/widgets/swippeable_restore_item.dart';
+import 'package:notepad/features/trash/widgets/swipeable_restore_item.dart';
 
 class FakeRecycleRepository extends NoteRepository {
   FakeRecycleRepository() : super.internalForTesting();

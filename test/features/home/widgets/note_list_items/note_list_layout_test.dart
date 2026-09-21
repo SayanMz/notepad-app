@@ -6,7 +6,7 @@ import 'package:notepad/features/home/controllers/animation_controller.dart';
 import 'package:notepad/features/home/controllers/home_controller.dart';
 import 'package:notepad/features/home/controllers/home_fab_controller.dart';
 import 'package:notepad/features/home/controllers/selection_controller.dart';
-import 'package:notepad/features/home/widgets/note_list.dart';
+import 'package:notepad/features/home/widgets/home_note_list.dart';
 
 class MockNoteRepository extends NoteRepository {
   MockNoteRepository() : super.internalForTesting();
@@ -19,7 +19,7 @@ class MockNoteRepository extends NoteRepository {
 }
 
 void main() {
-  testWidgets('NoteList adapts maxPreviewLines based on screen width', (
+  testWidgets('HomeNoteList adapts maxPreviewLines based on screen width', (
     tester,
   ) async {
     final repo = MockNoteRepository();
@@ -39,7 +39,7 @@ void main() {
         home: Scaffold(
           body: CustomScrollView(
             slivers: [
-              NoteList(controller: controller, fabController: fabController),
+              HomeNoteList(controller: controller, fabController: fabController),
             ],
           ),
         ),

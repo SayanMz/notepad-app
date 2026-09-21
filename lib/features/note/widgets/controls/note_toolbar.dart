@@ -9,7 +9,7 @@ import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/note/controllers/note_toolbar_controller.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/features/note/services/link_handlers/hyperlink_handler.dart';
+import 'package:notepad/features/note/services/links/hyperlink_handler.dart';
 import 'package:notepad/features/note/widgets/controls/toolbar_items/alignment_menu.dart';
 import 'package:notepad/features/note/widgets/controls/toolbar_items/color_menu.dart';
 import 'package:notepad/features/note/widgets/controls/toolbar_items/list_menu.dart';
@@ -211,8 +211,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
         color: isSelected
             ? AppColors.toolbarActiveIcon
             : (context.isDark
-                ? AppColors.noteToolbarTextDark
-                : AppColors.noteToolbarTextLight),
+                  ? AppColors.noteToolbarTextDark
+                  : AppColors.noteToolbarTextLight),
       ),
       onPressed: () {
         widget.focusNode.requestFocus();
@@ -230,8 +230,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
         color: isSelected
             ? AppColors.toolbarActiveIcon
             : (context.isDark
-                ? AppColors.noteToolbarTextDark
-                : AppColors.noteToolbarTextLight),
+                  ? AppColors.noteToolbarTextDark
+                  : AppColors.noteToolbarTextLight),
       ),
       onPressed: () {
         widget.controller.formatSelection(
@@ -250,8 +250,8 @@ class _NoteToolbarState extends State<NoteToolbar> {
         color: isLink
             ? AppColors.toolbarActiveLink
             : (context.isDark
-                ? AppColors.noteToolbarTextDark
-                : AppColors.noteToolbarTextLight),
+                  ? AppColors.noteToolbarTextDark
+                  : AppColors.noteToolbarTextLight),
       ),
       onPressed: () => HyperlinkHandler.convertToHyperlink(
         context: context,

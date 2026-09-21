@@ -8,7 +8,7 @@ import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.
 import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/trash/widgets/scroll_to_top_fab.dart';
 import 'package:notepad/features/home/home_constants.dart';
-import 'package:notepad/features/trash/controller/recycle_controller.dart';
+import 'package:notepad/features/trash/controllers/recycle_controller.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 import 'package:notepad/features/trash/widgets/recycle_empty_state.dart';
 import 'package:notepad/features/trash/widgets/recycle_header_delegate.dart';
@@ -214,7 +214,7 @@ class _RecyclePageState extends State<RecyclePage> {
                       builder: (context, constraints) {
                         return SliverPersistentHeader(
                           pinned: true,
-                          delegate: SmoothHeaderDelegate(
+                          delegate: RecycleHeaderDelegate(
                             title: 'Recycle Bin',
                             forceCentered: isEmpty,
                             onEmptyBin: _handleEmptyRecycleBin,

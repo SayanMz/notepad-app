@@ -8,13 +8,13 @@ import 'package:notepad/features/trash/recycle_constants.dart';
 /// 1. Anchor: Hero title remains centered for the initial scroll window.
 /// 2. Dissolve: Hero title fades out horizontally in-place.
 /// 3. Bloom: Navigation title fades in at its fixed top-left position.
-class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
+class RecycleHeaderDelegate extends SliverPersistentHeaderDelegate {
   final String title;
   final bool forceCentered;
   final VoidCallback onEmptyBin;
   final double scrollOffset;
 
-  SmoothHeaderDelegate({
+  RecycleHeaderDelegate({
     required this.title,
     required this.forceCentered,
     required this.onEmptyBin,
@@ -140,7 +140,7 @@ class SmoothHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(covariant SmoothHeaderDelegate oldDelegate) {
+  bool shouldRebuild(covariant RecycleHeaderDelegate oldDelegate) {
     return oldDelegate.scrollOffset != scrollOffset ||
            oldDelegate.forceCentered != forceCentered ||
            oldDelegate.title != title;

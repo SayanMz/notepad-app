@@ -6,7 +6,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
-import 'package:notepad/features/note/services/link_handlers/link_detector_service.dart';
+import 'package:notepad/features/note/services/links/link_detector.dart';
 import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
 /// Handles note persistence, autosave, scroll state, and link detection triggers.

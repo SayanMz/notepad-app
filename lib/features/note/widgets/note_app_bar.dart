@@ -4,7 +4,7 @@ import 'package:notepad/core/constants/animation_constants.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
-import 'package:notepad/features/note/services/note_pdf_exporter.dart';
+import 'package:notepad/features/note/services/pdf_exporter.dart';
 import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
 // App bar performs note editor actions such as undo/redo, and PDF export/share.
@@ -134,14 +134,14 @@ class _NoteAppBarState extends State<NoteAppBar> {
             menuChildren: [
               _buildPdfMenuItem(
                 label: 'Save as PDF',
-                action: (title, data) => NotePdfExporter.saveNoteAsPdf(
+                action: (title, data) => PdfExporter.saveNoteAsPdf(
                   title: title,
                   richContent: data,
                 ),
               ),
               _buildPdfMenuItem(
                 label: 'Share Note',
-                action: (title, data) => NotePdfExporter.shareSingleNoteAsPdf(
+                action: (title, data) => PdfExporter.shareSingleNoteAsPdf(
                   title: title,
                   richContent: data,
                 ),

@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/note/services/voice_ai/voice_formatting_service.dart';
+import 'package:notepad/features/note/services/voice_ai/formatting_service.dart';
 
 /// This test suite allows for rapid regression testing of voice commands.
 /// To add a new command that was previously "rejected", simply add a new entry to the [cases] list.

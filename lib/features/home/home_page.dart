@@ -11,7 +11,7 @@ import 'package:notepad/features/home/controllers/sync_controller.dart';
 import 'package:notepad/features/home/widgets/home_app_bar.dart';
 import 'package:notepad/features/home/widgets/home_drawer.dart';
 import 'package:notepad/features/home/widgets/home_fab.dart';
-import 'package:notepad/features/home/widgets/note_list.dart';
+import 'package:notepad/features/home/widgets/home_note_list.dart';
 import 'package:notepad/features/home/widgets/selection_overlay.dart';
 
 // Home page shell that coordinates note browsing, actions, and list state.
@@ -108,7 +108,7 @@ class _HomePageState extends State<HomePage> {
                             onOpenDrawer: () =>
                                 Scaffold.of(context).openEndDrawer(),
                           ),
-                          NoteList(
+                          HomeNoteList(
                             controller: _controller,
                             fabController: _fabController,
                           ),

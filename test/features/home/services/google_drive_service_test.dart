@@ -58,6 +58,7 @@ void main() {
     setUp(() {
       fakeSignIn = FakeGoogleSignIn();
       service = GoogleDriveService.internalForTesting(googleSignIn: fakeSignIn);
+      GoogleDriveService.instance = service;
     });
 
     test('signIn updates currentUser', () async {
@@ -85,6 +86,15 @@ void main() {
       fakeSignIn.authenticated = true;
       await service.attemptSilentSignIn();
       expect(service.currentUser, isNotNull);
+    });
+
+    test('signIn returns false when offline', () async {
+      final offlineService = GoogleDriveService.internalForTesting(
+        googleSignIn: fakeSignIn,
+        internetCheck: () async => false,
+      );
+      final result = await offlineService.signIn();
+      expect(result, isFalse);
     });
   });
 }

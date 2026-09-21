@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/features/note/controllers/note_data_controller.dart';
-import 'package:notepad/features/note/widgets/editor/note_editor.dart';
+import 'package:notepad/features/note/widgets/editor/editor.dart';
 import 'package:notepad/features/note/widgets/status/save_indicator.dart';
 
 class FakeNoteRepository extends NoteRepository {
@@ -23,13 +23,15 @@ class FakeNoteRepository extends NoteRepository {
     saveCount++;
     return NotesSection(title: title, id: 'saved-1');
   }
-  
+
   @override
   NotesSection? findById(String id) => null;
 }
 
 void main() {
-  testWidgets('Typing in editor triggers autosave after debounce', (tester) async {
+  testWidgets('Typing in editor triggers autosave after debounce', (
+    tester,
+  ) async {
     final repository = FakeNoteRepository();
     final dataController = NoteDataController(noteRepository: repository);
     final quillController = QuillController.basic();
@@ -68,13 +70,13 @@ void main() {
 
     // 3. Trigger the debounce (3 seconds in production)
     await tester.pump(const Duration(seconds: 4));
-    
+
     // Repository should have been called once
     expect(repository.saveCount, 1);
 
     // 4. Wait for the "Saved" status feedback timers to finish (0.5s + 3s)
     await tester.pump(const Duration(seconds: 5));
-    
+
     dataController.dispose();
   });
 }

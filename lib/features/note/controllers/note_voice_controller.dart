@@ -6,14 +6,14 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/note/services/voice_ai/local_parser/voice_command_orchestrator.dart';
-import 'package:notepad/features/note/services/voice_ai/note_voice_feedback_service.dart';
-import 'package:notepad/features/note/services/voice_ai/voice_formatting_service.dart';
+import 'package:notepad/features/note/services/voice_ai/feedback_service.dart';
+import 'package:notepad/features/note/services/voice_ai/formatting_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// Manages speech input, voice command parsing, and AI response feedback.
 class NoteVoiceController {
   final stt.SpeechToText _speech = stt.SpeechToText();
-  final NoteVoiceFeedbackService _voiceFeedback = NoteVoiceFeedbackService();
+  final VoiceFeedbackService _voiceFeedback = VoiceFeedbackService();
 
   Future<void>? _initTask;
   Timer? _speechTimer;

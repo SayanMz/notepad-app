@@ -22,6 +22,6 @@ class SemanticTaxonomy {
 
   // The hidden trap for non-semantic noise
   static const Map<String, String> internalAnchors = {
-    '__GIBBERISH__': 'Random keyboard smash, typos, test text, placeholder, meaningless letters, asdf, qwer, zxcv, qwerty, junk.',
+    '__GIBBERISH__': 'Random keyboard smash, typos, test text, placeholder, meaningless letters, asdf, qwer, zxcv, qwerty, junk, www, http, com, website URLs, web links, phone numbers, digits, email addresses, dates, numeric codes.',
   };
 }

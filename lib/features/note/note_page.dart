@@ -17,8 +17,8 @@ import 'package:notepad/features/note/services/document_delta_parser.dart'
 import 'package:notepad/features/note/services/voice_ai/groq_service.dart';
 import 'package:notepad/features/note/widgets/controls/note_toolbar.dart';
 import 'package:notepad/features/note/widgets/controls/voice_assistant_button.dart';
-import 'package:notepad/features/note/widgets/editor/note_editor.dart';
-import 'package:notepad/features/note/widgets/editor/note_title_bar.dart';
+import 'package:notepad/features/note/widgets/editor/editor.dart';
+import 'package:notepad/features/note/widgets/editor/title_bar.dart';
 import 'package:notepad/features/note/widgets/note_app_bar.dart';
 
 // The note page owns editor lifecycle, autosave, restore, and AI warmup behavior.

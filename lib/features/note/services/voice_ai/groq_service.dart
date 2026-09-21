@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:notepad/core/constants/animation_constants.dart';
-import 'package:notepad/features/note/services/voice_ai/voice_ai_prompt.dart';
+import 'package:notepad/features/note/services/voice_ai/ai_prompt.dart';
 
 import 'local_parser/base_voice_parser.dart';
 
@@ -133,7 +133,10 @@ class GroqService implements BaseVoiceParser {
   }
 
   @override
-  FutureOr<List<VoiceInstruction>?> parse(String voiceText, [String currentEditorText = '']) async {
+  FutureOr<List<VoiceInstruction>?> parse(
+    String voiceText, [
+    String currentEditorText = '',
+  ]) async {
     final instructionsMapList = await _parseVoiceCommand(voiceText);
     if (instructionsMapList == null) return null;
 

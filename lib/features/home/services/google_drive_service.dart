@@ -10,15 +10,28 @@ import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.
 
 // Google Drive sync boundary that keeps backup and restore concerns out of the UI.
 class GoogleDriveService {
-  GoogleDriveService._internal() : _googleSignIn = GoogleSignIn.instance;
-  static final GoogleDriveService _instance = GoogleDriveService._internal();
+  GoogleDriveService._internal()
+      : _googleSignIn = GoogleSignIn.instance,
+        _internetCheck = _hasActiveInternet;
+  static GoogleDriveService _instance = GoogleDriveService._internal();
   factory GoogleDriveService() => _instance;
 
+  static GoogleDriveService get instance => _instance;
+
   @visibleForTesting
-  GoogleDriveService.internalForTesting({GoogleSignIn? googleSignIn})
-    : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
+  static set instance(GoogleDriveService service) {
+    _instance = service;
+  }
+
+  @visibleForTesting
+  GoogleDriveService.internalForTesting({
+    GoogleSignIn? googleSignIn,
+    Future<bool> Function()? internetCheck,
+  })  : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+        _internetCheck = internetCheck ?? (() async => true);
 
   final GoogleSignIn _googleSignIn;
+  final Future<bool> Function() _internetCheck;
   GoogleSignInAccount? _user;
   GoogleSignInAccount? get currentUser => _user;
 
@@ -73,7 +86,7 @@ class GoogleDriveService {
       throw Exception('Missing GOOGLE_CLIENT_ID in .env');
     }
 
-    if (!await _hasActiveInternet()) {
+    if (!await _internetCheck()) {
       showErrorSnackBar(
         'You appear to be offline. Connect to internet to sign in.',
       );
@@ -93,7 +106,7 @@ class GoogleDriveService {
   }
 
   Future<void> attemptSilentSignIn() async {
-    if (!await _hasActiveInternet()) {
+    if (!await _internetCheck()) {
       return;
     }
 

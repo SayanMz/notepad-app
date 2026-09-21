@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/features/trash/widgets/recycle_header_delegate.dart';
 
 void main() {
-  group('SmoothHeaderDelegate', () {
+  group('RecycleHeaderDelegate', () {
     const double screenHeight = 800.0;
     const String titleText = 'Recycle Bin';
 
@@ -24,7 +24,7 @@ void main() {
             slivers: [
               SliverPersistentHeader(
                 pinned: true,
-                delegate: SmoothHeaderDelegate(
+                delegate: RecycleHeaderDelegate(
                   title: titleText,
                   forceCentered: forceCentered,
                   onEmptyBin: () {},
@@ -130,7 +130,7 @@ void main() {
             body: CustomScrollView(
               slivers: [
                 SliverPersistentHeader(
-                  delegate: SmoothHeaderDelegate(
+                  delegate: RecycleHeaderDelegate(
                     title: titleText,
                     forceCentered: false,
                     onEmptyBin: () => emptyBinCalled = true,

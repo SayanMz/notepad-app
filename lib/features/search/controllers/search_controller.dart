@@ -8,7 +8,7 @@ import 'package:notepad/features/search/models/search_filters.dart';
 import 'package:notepad/features/search/models/search_state.dart';
 import 'package:notepad/features/search/search_constants.dart';
 import 'package:notepad/features/search/services/model_download_service.dart';
-import 'package:notepad/features/search/services/note_search_service.dart';
+import 'package:notepad/features/search/services/search_service.dart';
 import 'package:notepad/features/search/services/semantic_search.dart';
 
 /// Coordinates search query debouncing, filter criteria, ONNX semantic topic discovery,
@@ -153,7 +153,7 @@ class SearchController extends ChangeNotifier {
   // --- Query Recomputation & AI Lifecycle ---
   void _recompute() async {
     final searchState = _state;
-    final newResults = await NoteSearchService.searchAsync(
+    final newResults = await SearchService.searchAsync(
       searchState,
       liveCacheMap: cacheMap,
     );

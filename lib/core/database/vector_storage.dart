@@ -59,7 +59,7 @@ class _VectorStorageServiceImpl implements VectorStorageServiceApi {
   static const String _taxonomyTable = 'taxonomy_vectors';
 
   Database? _db;
-  final _dbVersion = 3;
+  final _dbVersion = 2;
 
   @override
   Future<Database> get database async {

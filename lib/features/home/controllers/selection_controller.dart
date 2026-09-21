@@ -25,6 +25,10 @@ class SelectionController extends ChangeNotifier {
     }
   }
 
+  void triggerRebuild() {
+    notifyListeners();
+  }
+
   void exitSelectionMode() {
     _isSelectionMode = false;
     _selectedIds.clear();

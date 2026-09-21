@@ -1,13 +1,13 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notepad/features/note/services/voice_ai/voice_formatting_service.dart';
+import 'package:notepad/features/note/services/voice_ai/formatting_service.dart';
 
 /// MASTER COMMAND-BASED TEST SUITE
-/// 
-/// This file serves as the ground truth for all supported voice commands 
+///
+/// This file serves as the ground truth for all supported voice commands
 /// defined in the functional documentation.
-/// 
+///
 /// SCALABILITY: To add new commands, simply add to the [_allTestCases] list.
 void main() {
   group('Voice AI Master Command Suite', () {
@@ -63,19 +63,28 @@ final List<VoiceTestCase> _allTestCases = [
     description: '1.1 Clear all formatting',
     initialText: 'This is a bold and red text.',
     mockAiInstructions: [
-      {'target': 'all', 'key': 'unformat_all', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'all',
+        'key': 'unformat_all',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       expect(status, 'Formatting applied!');
       final styles = ctrl.document.collectStyle(0, ctrl.document.length - 1);
-      expect(styles.attributes, isEmpty, reason: 'Nuke it command should wipe all attributes');
+      expect(
+        styles.attributes,
+        isEmpty,
+        reason: 'Nuke it command should wipe all attributes',
+      );
     },
   ),
   VoiceTestCase(
     description: '1.2 Make everything italic',
     initialText: 'Whole document goes italic.',
     mockAiInstructions: [
-      {'target': 'all', 'key': 'italic', 'value': true, 'occurrence': 'all'}
+      {'target': 'all', 'key': 'italic', 'value': true, 'occurrence': 'all'},
     ],
     verify: (ctrl, status) {
       expect(status, 'Formatting applied!');
@@ -91,7 +100,12 @@ final List<VoiceTestCase> _allTestCases = [
     initialText: 'Select this word.',
     selection: const TextSelection(baseOffset: 7, extentOffset: 11), // "this"
     mockAiInstructions: [
-      {'target': 'selection', 'key': 'bold', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'selection',
+        'key': 'bold',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       expect(ctrl.document.collectStyle(7, 1).attributes['bold'], isNotNull);
@@ -99,11 +113,17 @@ final List<VoiceTestCase> _allTestCases = [
     },
   ),
   VoiceTestCase(
-    description: '2.2 Link this to google.com (protocol prepending - Selection)',
+    description:
+        '2.2 Link this to google.com (protocol prepending - Selection)',
     initialText: 'Check this link.',
     selection: const TextSelection(baseOffset: 6, extentOffset: 10), // "this"
     mockAiInstructions: [
-      {'target': 'selection', 'key': 'link', 'value': 'google.com', 'occurrence': 'all'}
+      {
+        'target': 'selection',
+        'key': 'link',
+        'value': 'google.com',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       final style = ctrl.document.collectStyle(6, 1);
@@ -119,7 +139,12 @@ final List<VoiceTestCase> _allTestCases = [
     description: '3.1 Make the first line bold',
     initialText: 'Line one\nLine two',
     mockAiInstructions: [
-      {'target': 'line:first', 'key': 'bold', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'line:first',
+        'key': 'bold',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       expect(ctrl.document.collectStyle(0, 5).attributes['bold'], isNotNull);
@@ -130,11 +155,19 @@ final List<VoiceTestCase> _allTestCases = [
     description: '3.2 Strike through the last sentence',
     initialText: 'First sentence. Last sentence.',
     mockAiInstructions: [
-      {'target': 'line:last', 'key': 'strike', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'line:last',
+        'key': 'strike',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       // Last sentence starts at 16
-      expect(ctrl.document.collectStyle(16, 10).attributes['strike'], isNotNull);
+      expect(
+        ctrl.document.collectStyle(16, 10).attributes['strike'],
+        isNotNull,
+      );
       expect(ctrl.document.collectStyle(0, 5).attributes['strike'], isNull);
     },
   ),
@@ -142,10 +175,18 @@ final List<VoiceTestCase> _allTestCases = [
     description: '3.3 Align the first paragraph to the center',
     initialText: 'Paragraph One\n\nParagraph Two',
     mockAiInstructions: [
-      {'target': 'paragraph:first', 'key': 'align', 'value': 'center', 'occurrence': 'all'}
+      {
+        'target': 'paragraph:first',
+        'key': 'align',
+        'value': 'center',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
-      expect(ctrl.document.collectStyle(0, 1).attributes['align']?.value, 'center');
+      expect(
+        ctrl.document.collectStyle(0, 1).attributes['align']?.value,
+        'center',
+      );
       expect(ctrl.document.collectStyle(15, 1).attributes['align'], isNull);
     },
   ),
@@ -153,12 +194,20 @@ final List<VoiceTestCase> _allTestCases = [
     description: '3.4 Sentence Targeting - "Underline the second sentence"',
     initialText: 'Sentence one. Sentence two. Sentence three.',
     mockAiInstructions: [
-      {'target': 'line:second', 'key': 'underline', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'line:second',
+        'key': 'underline',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       // Sentence 1 ends at index 13 (including period and space)
       // Sentence 2 is "Sentence two." (13 chars)
-      expect(ctrl.document.collectStyle(14, 10).attributes['underline'], isNotNull);
+      expect(
+        ctrl.document.collectStyle(14, 10).attributes['underline'],
+        isNotNull,
+      );
     },
   ),
 
@@ -169,17 +218,25 @@ final List<VoiceTestCase> _allTestCases = [
     description: '4.1 Underline golden retriever (phrase isolation)',
     initialText: 'My golden retriever is golden.',
     mockAiInstructions: [
-      {'target': 'golden retriever', 'key': 'underline', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'golden retriever',
+        'key': 'underline',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
-      expect(ctrl.document.collectStyle(3, 16).attributes['underline'], isNotNull);
+      expect(
+        ctrl.document.collectStyle(3, 16).attributes['underline'],
+        isNotNull,
+      );
     },
   ),
   VoiceTestCase(
     description: '4.2 Make the second instance of dog bold (nth match)',
     initialText: 'dog one, dog two, dog three',
     mockAiInstructions: [
-      {'target': 'dog', 'key': 'bold', 'value': true, 'occurrence': 'second'}
+      {'target': 'dog', 'key': 'bold', 'value': true, 'occurrence': 'second'},
     ],
     verify: (ctrl, status) {
       expect(ctrl.document.collectStyle(0, 3).attributes['bold'], isNull);
@@ -191,7 +248,12 @@ final List<VoiceTestCase> _allTestCases = [
     description: '4.3 Descriptive junk word stripping - "bold the word hello"',
     initialText: 'hello world',
     mockAiInstructions: [
-      {'target': 'word hello', 'key': 'bold', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'word hello',
+        'key': 'bold',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       // The resolver should strip "word " and find "hello"
@@ -203,16 +265,25 @@ final List<VoiceTestCase> _allTestCases = [
   // 5. RICH TEXT FEATURES (LISTS, SIZING, COLORS)
   // ===========================================================================
   VoiceTestCase(
-    description: '5.1 Surgical List Replacement - "Make menu items a checklist"',
+    description:
+        '5.1 Surgical List Replacement - "Make menu items a checklist"',
     initialText: 'Menu items:\nPizza\nBurger\nSoda',
     mockAiInstructions: [
-      {'target': 'menu items', 'key': 'list', 'value': 'unchecked', 'occurrence': 'all'}
+      {
+        'target': 'menu items',
+        'key': 'list',
+        'value': 'unchecked',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       // Header remains untouched
       expect(ctrl.document.collectStyle(0, 10).attributes['list'], isNull);
       // Items below become checklist
-      expect(ctrl.document.collectStyle(12, 5).attributes['list']?.value, 'unchecked');
+      expect(
+        ctrl.document.collectStyle(12, 5).attributes['list']?.value,
+        'unchecked',
+      );
     },
   ),
   VoiceTestCase(
@@ -220,7 +291,12 @@ final List<VoiceTestCase> _allTestCases = [
     initialText: 'Shrink this text.',
     selection: const TextSelection(baseOffset: 0, extentOffset: 16),
     mockAiInstructions: [
-      {'target': 'selection', 'key': 'size_change', 'value': -5, 'occurrence': 'all'}
+      {
+        'target': 'selection',
+        'key': 'size_change',
+        'value': -5,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       // Default 16 - 5 = 11
@@ -231,7 +307,12 @@ final List<VoiceTestCase> _allTestCases = [
     description: '5.3 Exact Sizing - "Make household 40 pixel"',
     initialText: 'The household is large.',
     mockAiInstructions: [
-      {'target': 'household', 'key': 'size', 'value': '40', 'occurrence': 'all'}
+      {
+        'target': 'household',
+        'key': 'size',
+        'value': '40',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       expect(ctrl.document.collectStyle(4, 9).attributes['size']?.value, 40.0);
@@ -242,27 +323,48 @@ final List<VoiceTestCase> _allTestCases = [
     initialText: 'Red alert.',
     selection: const TextSelection(baseOffset: 0, extentOffset: 3),
     mockAiInstructions: [
-      {'target': 'selection', 'key': 'color', 'value': '#FF0000', 'occurrence': 'all'}
+      {
+        'target': 'selection',
+        'key': 'color',
+        'value': '#FF0000',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
-      expect(ctrl.document.collectStyle(0, 1).attributes['color']?.value, '#FF0000');
+      expect(
+        ctrl.document.collectStyle(0, 1).attributes['color']?.value,
+        '#FF0000',
+      );
     },
   ),
   VoiceTestCase(
     description: '5.5 Block Alignment - "Push the second line to the right"',
     initialText: 'Line 1\nLine 2',
     mockAiInstructions: [
-      {'target': 'line:second', 'key': 'align', 'value': 'right', 'occurrence': 'all'}
+      {
+        'target': 'line:second',
+        'key': 'align',
+        'value': 'right',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
-      expect(ctrl.document.collectStyle(7, 1).attributes['align']?.value, 'right');
+      expect(
+        ctrl.document.collectStyle(7, 1).attributes['align']?.value,
+        'right',
+      );
     },
   ),
   VoiceTestCase(
     description: '5.6 Link with automatic styling (Non-selection)',
     initialText: 'Check google.com for info.',
     mockAiInstructions: [
-      {'target': 'google.com', 'key': 'link', 'value': 'google.com', 'occurrence': 'all'}
+      {
+        'target': 'google.com',
+        'key': 'link',
+        'value': 'google.com',
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       final style = ctrl.document.collectStyle(6, 1);
@@ -279,13 +381,26 @@ final List<VoiceTestCase> _allTestCases = [
     description: '6.1 Multi-Attribute Rejection (Purity Rule)',
     initialText: 'Pure bold text.',
     mockAiInstructions: [
-      {'target': 'line:first', 'key': 'bold', 'value': true, 'occurrence': 'all'}
+      {
+        'target': 'line:first',
+        'key': 'bold',
+        'value': true,
+        'occurrence': 'all',
+      },
     ],
     verify: (ctrl, status) {
       final style = ctrl.document.collectStyle(0, 4);
       expect(style.attributes['bold'], isNotNull);
-      expect(style.attributes['color'], isNull, reason: 'Should not hallucinate colors');
-      expect(style.attributes['size'], isNull, reason: 'Should not hallucinate sizes');
+      expect(
+        style.attributes['color'],
+        isNull,
+        reason: 'Should not hallucinate colors',
+      );
+      expect(
+        style.attributes['size'],
+        isNull,
+        reason: 'Should not hallucinate sizes',
+      );
     },
   ),
 ];

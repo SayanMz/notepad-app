@@ -4,7 +4,7 @@ import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/note/note_constants.dart';
 import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
-import 'package:notepad/features/search/services/smooth_slide_fade.dart';
+import 'package:notepad/features/search/widgets/smooth_slide_fade.dart';
 import 'package:notepad/features/search/widgets/header/search_collapsible_header.dart';
 import 'package:notepad/features/search/widgets/results/results_view.dart';
 

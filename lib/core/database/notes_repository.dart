@@ -364,9 +364,7 @@ class NoteRepository {
     if (note == null) return;
 
     PinOperationsService.togglePinState(note);
-
     _sortAndRebuildCache();
-    activeRevision.value++;
 
     unawaited(_storageService.saveNote(note));
   }
@@ -382,8 +380,6 @@ class NoteRepository {
     );
 
     _sortAndRebuildCache();
-    activeRevision.value++;
-
     await _storageService.saveNotesBulk(dbUpdates);
   }
 

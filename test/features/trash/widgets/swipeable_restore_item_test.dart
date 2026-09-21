@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/features/trash/widgets/swippeable_restore_item.dart';
+import 'package:notepad/features/trash/widgets/swipeable_restore_item.dart';
 
 void main() {
   testWidgets('SwipeableRestoreItem displays note info and days left', (tester) async {

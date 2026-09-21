@@ -9,7 +9,7 @@ import 'package:notepad/features/search/controllers/search_controller.dart'
     as search_ctrl;
 import 'package:notepad/features/search/search_constants.dart';
 import 'package:notepad/features/search/widgets/results/drag_handle.dart';
-import 'package:notepad/features/search/widgets/results/empty_states.dart';
+import 'package:notepad/features/search/widgets/results/search_empty_state.dart';
 import 'package:notepad/features/search/widgets/results/result_card.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
