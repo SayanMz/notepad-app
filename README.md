@@ -58,10 +58,25 @@
 Notepad is built on a **Feature-First** architecture with a strict **Controller-Service-Repository** pattern, ensuring the app is highly optimized, testable, and production-ready.
 
 - **Decoupled Logic**: Separation into distinct layers (UI → Controller → Service → Repository) for maximum modularity.
-- **Robust Test Coverage**: Supported by a comprehensive suite of **250+ automated tests** utilizing Dependency Injection to ensure 100% logic reliability.
 - **Polyglot Data Layer**: High-speed **Hive (NoSQL)** for live document state, in-memory **SQLite FTS5** for zero-latency text indexing, and dedicated persistent on-device **Vector Storage** for semantic embeddings.
 - **Data Integrity**: Uses **ULID-based identifiers** for consistent lexicographical ordering and reliable local-to-cloud synchronization.
 - **Semantic Theming**: Unified `Tokens` engine and `context_extensions` for instant, type-safe UI consistency across the entire app.
+
+### 📊 Health & Metrics
+
+| Automated Tests | Total Code Coverage | Codebase Volume |
+| :-: | :-: | :-: |
+| 🧪 `300+ Tests` | 📈 `69.7%` | 📂 `30,000+ LOC` |
+
+<br/>
+
+<details>
+<summary><b>🔍 View Detailed LCOV Coverage Report</b></summary>
+<br/>
+
+![Code Coverage Dashboard](web/screenshots/coverage_metrics.png)
+
+</details>
 
 #### 📐 Key Architectural Trade-offs
 
