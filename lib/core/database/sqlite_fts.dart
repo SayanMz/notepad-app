@@ -6,22 +6,12 @@ import 'package:sqflite/sqflite.dart';
 
 abstract class SqliteFtsServiceApi {
   Future<Database> get database;
+  Future<List<String>> searchIds(String query);
   Future<void> insertOrUpdate(NotesSection note);
   Future<void> insertOrUpdateBulk(List<NotesSection> notes);
   Future<void> remove(String id);
   Future<void> removeBulk(Set<String> ids);
   Future<void> reindexAllNotes(List<NotesSection> allNotes);
-
-  /// Searches for note IDs using FTS5 MATCH with BM25 ranking.
-  /// Returns a List to preserve relevance ordering.
-  Future<List<String>> searchIds(String query);
-  Future<List<String>> searchIdsWithDateRange(
-    String query,
-    DateTime start,
-    DateTime end,
-  );
-  Future<List<String>> searchIdsByDateRange(DateTime start, DateTime end);
-
   Future<void> close();
 }
 
@@ -31,6 +21,7 @@ class SqliteFtsService {
   static SqliteFtsServiceApi to = _SqliteFtsServiceImpl();
 
   static Future<Database> get database => to.database;
+  static Future<List<String>> searchIds(String query) => to.searchIds(query);
   static Future<void> insertOrUpdate(NotesSection note) =>
       to.insertOrUpdate(note);
   static Future<void> insertOrUpdateBulk(List<NotesSection> notes) =>
@@ -39,16 +30,6 @@ class SqliteFtsService {
   static Future<void> removeBulk(Set<String> ids) => to.removeBulk(ids);
   static Future<void> reindexAllNotes(List<NotesSection> allNotes) =>
       to.reindexAllNotes(allNotes);
-  static Future<List<String>> searchIds(String query) => to.searchIds(query);
-  static Future<List<String>> searchIdsWithDateRange(
-    String query,
-    DateTime start,
-    DateTime end,
-  ) => to.searchIdsWithDateRange(query, start, end);
-  static Future<List<String>> searchIdsByDateRange(
-    DateTime start,
-    DateTime end,
-  ) => to.searchIdsByDateRange(start, end);
   static Future<void> close() => to.close();
 }
 
@@ -81,15 +62,15 @@ class _SqliteFtsServiceImpl implements SqliteFtsServiceApi {
         title,
         content,
         updated_at UNINDEXED,
-        tokenize = "unicode61 remove_diacritics 1 tokenchars '-'"
+        tokenize = "unicode61 remove_diacritics 1 tokenchars '-'",
+        prefix = '2 3'
       )
     ''');
   }
 
   String _sanitizeFtsQuery(String input) {
-    // Replace all non-alphanumeric characters with spaces to prevent
-    // phrase/wildcard conflicts (fixes hyphens, dots, and symbols in search).
-    final clean = input.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), ' ').trim();
+    // Preserves the hyphen (-) so tokenchars works correctly.
+    final clean = input.replaceAll(RegExp(r'[^a-zA-Z0-9\s\-]'), ' ').trim();
     if (clean.isEmpty) return '';
 
     // Convert "AES-256" -> '"AES"* "256"*' for high-performance wildcard matching
@@ -116,53 +97,6 @@ class _SqliteFtsServiceImpl implements SqliteFtsServiceApi {
       return results.map((row) => row['id'] as String).toList();
     } catch (e) {
       debugPrint('FTS Search Error: $e');
-      return [];
-    }
-  }
-
-  @override
-  Future<List<String>> searchIdsWithDateRange(
-    String query,
-    DateTime start,
-    DateTime end,
-  ) async {
-    final ftsQuery = _sanitizeFtsQuery(query);
-    if (ftsQuery.isEmpty) return [];
-
-    try {
-      final db = await database;
-      final List<Map<String, dynamic>> results = await db.query(
-        _tableName,
-        columns: ['id'],
-        where: '$_tableName MATCH ? AND updated_at BETWEEN ? AND ?',
-        whereArgs: [ftsQuery, start.toIso8601String(), end.toIso8601String()],
-        orderBy: 'bm25($_tableName, 0.0, 5.0, 1.0, 0.0) ASC',
-      );
-
-      return results.map((row) => row['id'] as String).toList();
-    } catch (e) {
-      debugPrint('FTS Range Search Error: $e');
-      return [];
-    }
-  }
-
-  @override
-  Future<List<String>> searchIdsByDateRange(
-    DateTime start,
-    DateTime end,
-  ) async {
-    try {
-      final db = await database;
-      final List<Map<String, dynamic>> results = await db.query(
-        _tableName,
-        columns: ['id'],
-        where: 'updated_at BETWEEN ? AND ?',
-        whereArgs: [start.toIso8601String(), end.toIso8601String()],
-        orderBy: 'updated_at DESC',
-      );
-      return results.map((row) => row['id'] as String).toList();
-    } catch (e) {
-      debugPrint('FTS Date-Only Search Error: $e');
       return [];
     }
   }

@@ -17,7 +17,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ResultCard(note: note, query: 'latte', onTap: () {}),
+          body: ResultCard(
+            note: note,
+            query: 'latte',
+            onTap: () {},
+          ),
         ),
       ),
     );

@@ -23,7 +23,7 @@ void main() {
       const content = 'First line\nSecond line\nTarget word\nFourth line\nFifth line\nAnother match';
       // Query words are far apart
       final blocks = extractMultiSearchSnippets(content, 'First Another');
-      
+
       expect(blocks.length, greaterThan(1));
       expect(blocks[0], contains('First line'));
       expect(blocks[blocks.length - 1], contains('Another match'));

@@ -37,29 +37,18 @@ void main() {
       expect(results, isNot(contains('fts-note-2')));
     });
 
-    test('searchIdsWithDateRange filters results by date boundaries', () async {
-      final note1 = NotesSection(
-        id: 'range-1',
-        title: 'Project Update',
-        content: 'Detailed discussion on release strategy.',
-        updatedAt: DateTime(2026, 1, 10),
-      );
-      final note2 = NotesSection(
-        id: 'range-2',
-        title: 'Project Review',
-        content: 'Post-mortem discussion on release deployment.',
-        updatedAt: DateTime(2026, 5, 10),
+    test('searchIds handles hyphenated terms like AES-256', () async {
+      final note = NotesSection(
+        id: 'fts-hyphen-1',
+        title: 'Security Spec',
+        content: 'Uses AES-256 encryption standard.',
+        updatedAt: DateTime(2026, 1, 1),
       );
 
-      await SqliteFtsService.insertOrUpdateBulk([note1, note2]);
+      await SqliteFtsService.insertOrUpdate(note);
 
-      final results = await SqliteFtsService.searchIdsWithDateRange(
-        'Project',
-        DateTime(2026, 1, 1),
-        DateTime(2026, 2, 1),
-      );
-
-      expect(results, equals(['range-1']));
+      final results = await SqliteFtsService.searchIds('AES-256');
+      expect(results, contains('fts-hyphen-1'));
     });
 
     test('remove and removeBulk deletes items from the search index', () async {

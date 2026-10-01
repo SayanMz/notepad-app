@@ -125,13 +125,6 @@ class RecordingSqliteFtsService extends Fake implements SqliteFtsServiceApi {
 
   @override
   Future<List<String>> searchIds(String query) async => [];
-
-  @override
-  Future<List<String>> searchIdsWithDateRange(
-    String query,
-    DateTime start,
-    DateTime end,
-  ) async => [];
 }
 
 void main() {

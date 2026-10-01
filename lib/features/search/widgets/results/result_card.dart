@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:notepad/core/database/app_data.dart';
-import 'package:notepad/core/theme/app_colors.dart';
-import 'package:notepad/core/services/note_preview_util.dart';
 import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/extensions/timestamp_formatter.dart';
+import 'package:notepad/core/services/note_preview_util.dart';
+import 'package:notepad/core/theme/app_colors.dart';
 import 'package:notepad/features/search/search_constants.dart';
 
 // Search result card highlights matches, snippets, and note metadata in one tile.
@@ -12,7 +12,6 @@ class ResultCard extends StatefulWidget {
     required this.note,
     required this.query,
     required this.onTap,
-
     super.key,
   });
 
@@ -48,14 +47,11 @@ class _ResultCardState extends State<ResultCard> {
   }) {
     // Return early if nothing that affects rendering has changed
     final isCacheValid =
-        _titleSpans != null &&
-        _blockSpans != null &&
-        _cachedContent == widget.note.content &&
-        _cachedQuery == widget.query;
+        _cachedContent == widget.note.content && _cachedQuery == widget.query;
 
     if (isCacheValid) return;
 
-    // 1. Extract raw blocks
+    // 1. Extract raw multi-block context snippets
     final blocks = extractMultiSearchSnippets(
       widget.note.content,
       widget.query,
@@ -178,7 +174,7 @@ class _ResultCardState extends State<ResultCard> {
                       children: [
                         if (blockIndex > 0)
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
                             child: Row(
                               children: [
                                 const SizedBox(width: 4),

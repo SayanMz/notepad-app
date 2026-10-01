@@ -39,8 +39,7 @@ List<PreviewLine> extractPreviewLines(String content, {int? maxLines}) {
         // Condition A: Segment boundaries specified via an explicit newline block operation.
         if (text == '\n') {
           final String lineText = currentLineBuffer.toString().trim();
-          currentLineBuffer
-              .clear(); // Reset builder buffer immediately for upcoming sentences.
+          currentLineBuffer.clear(); // Reset builder buffer immediately for upcoming sentences.
 
           if (attrs != null) {
             // Check structural listing types (bullet lists vs ordered item counters).
@@ -375,10 +374,8 @@ List<TextSpan> buildHighlightedTextSpans({
 /// Data container tracking a line's text, structural type, and decoration markers.
 class PreviewLine {
   final String text; // The filtered content string.
-  final bool
-  isList; // Tracks if the row corresponds to a structured checklist/listing category.
-  final String?
-  listMarker; // String glyph representing bullet style types ('•', '1.', etc.)
+  final bool isList; // Tracks if the row corresponds to a structured checklist/listing category.
+  final String? listMarker; // String glyph representing bullet style types ('•', '1.', etc.)
 
   PreviewLine(this.text, {this.isList = false, this.listMarker});
 }

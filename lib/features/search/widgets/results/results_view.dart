@@ -185,6 +185,7 @@ class ResultsViewState extends State<ResultsView> {
                 );
                 if (context.mounted) {
                   widget.controller.refresh();
+                  closeKeyboard();
                 }
               },
             );

@@ -32,55 +32,52 @@ class SearchService {
     List<String>? queryIds;
     if (searchState.hasQuery) {
       final query = searchState.normalizedQuery;
-      if (startDate != null && endDate != null) {
-        queryIds = await SqliteFtsService.searchIdsWithDateRange(
-          query,
-          startDate,
-          endDate,
-        );
-      } else {
-        queryIds = await SqliteFtsService.searchIds(query);
-      }
+      queryIds = await SqliteFtsService.searchIds(query);
 
-      // Typo tolerance fallback when FTS5 misses:
+      // Typo tolerance fallback
       if (queryIds.isEmpty) {
         queryIds = FuzzySearchService.findMatches(query).toList();
       }
+
+      // Emoji fallback
+      if (queryIds.isEmpty) {
+        queryIds = liveCacheMap.values
+            .where((n) => n.title.contains(query) || n.content.contains(query))
+            .map((n) => n.id)
+            .toList();
+      }
     }
 
-    // 3. Resolve Final IDs (Text, Topic, or Date-Only)
-    List<String> finalOrderedIds;
+    // 3. Resolve Candidate IDs (Text, Topic, or Date-Only)
+    List<String> candidateIds;
 
     if (queryIds != null && topicIds != null) {
       final topicSet = topicIds.toSet();
-      finalOrderedIds = queryIds.where((id) => topicSet.contains(id)).toList();
+      candidateIds = queryIds.where((id) => topicSet.contains(id)).toList();
     } else if (queryIds != null || topicIds != null) {
-      finalOrderedIds = queryIds ?? topicIds!;
+      candidateIds = queryIds ?? topicIds!;
     } else if (startDate != null && endDate != null) {
-      finalOrderedIds = await SqliteFtsService.searchIdsByDateRange(
-        startDate,
-        endDate,
-      );
+      // all active notes are sorted chronologically for ordered feed in UI
+      final sortedNotes = liveCacheMap.values.toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+      candidateIds = sortedNotes.map((n) => n.id).toList();
     } else {
       return const [];
     }
 
-    // 4. O(M) Hydration + In-Memory Boundary & Trash Filtering
-    return finalOrderedIds
-        .map((id) => liveCacheMap[id])
-        .whereType<NotesSection>()
-        .where((n) {
-          if (n.isDeleted) return false;
+    // 4. O(M) Hydration + Boundary Filter
+    return candidateIds.map((id) => liveCacheMap[id]).nonNulls.where((n) {
+      if (n.isDeleted) return false;
 
-          // Universal inclusive date filtering across FTS, Fuzzy, and Topic chips
-          if (startDate != null && endDate != null) {
-            return !n.updatedAt.isBefore(startDate) &&
-                !n.updatedAt.isAfter(endDate);
-          }
+      // Universal inclusive date filtering across FTS, Fuzzy, and Topic chips
+      if (startDate != null && endDate != null) {
+        return !n.updatedAt.isBefore(startDate) &&
+            !n.updatedAt.isAfter(endDate);
+      }
 
-          return true;
-        })
-        .toList();
+      return true;
+    }).toList();
   }
 
   static DateTime? _buildBoundary(
