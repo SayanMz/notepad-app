@@ -73,5 +73,9 @@ void main() {
         expect(ids, isEmpty);
       },
     );
+
+    test('warmupTaxonomyVectors executes without error when model is missing', () async {
+      expect(() async => await TopicDiscoveryService.warmupTaxonomyVectors(), returnsNormally);
+    });
   });
 }

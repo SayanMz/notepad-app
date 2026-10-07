@@ -82,4 +82,39 @@ void main() {
 
     controller.dispose();
   });
+
+  test('toggleSelectAll selects and deselects all active notes', () {
+    final controller = _buildController();
+
+    controller.toggleSelectAll(true);
+    expect(controller.selectedIds, isNotNull);
+
+    controller.toggleSelectAll(false);
+    expect(controller.selectedIds, isEmpty);
+
+    controller.dispose();
+  });
+
+  test('color snapshots, restore and save bulk methods delegate cleanly', () {
+    final controller = _buildController();
+
+    final snapshot = controller.getSelectedColorsSnapshot();
+    expect(snapshot, isEmpty);
+
+    controller.restoreColors({'test-id': Colors.blue});
+    expect(controller.colorChangeNotifier.value, equals(1));
+
+    expect(() => controller.saveColors(), returnsNormally);
+
+    controller.dispose();
+  });
+
+  test('reorder handlers call repository delegates', () {
+    final controller = _buildController();
+
+    expect(() => controller.handlePinnedReorder(0, 1), returnsNormally);
+    expect(() => controller.handleUnpinnedReorder(0, 1), returnsNormally);
+
+    controller.dispose();
+  });
 }

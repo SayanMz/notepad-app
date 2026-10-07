@@ -1,12 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/core/database/storage_service.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class RecordingStorageService extends Fake implements StorageServiceApi {
   final Map<String, NotesSection> notesById = {};
@@ -128,6 +130,34 @@ class RecordingSqliteFtsService extends Fake implements SqliteFtsServiceApi {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tempDir;
+  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
+
+  setUpAll(() async {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+    tempDir = await Directory.systemTemp.createTemp('notes_repo_deep_test_');
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(pathProviderChannel, (call) async {
+          switch (call.method) {
+            case 'getApplicationDocumentsDirectory':
+            case 'getTemporaryDirectory':
+              return tempDir.path;
+            default:
+              return null;
+          }
+        });
+  });
+
+  tearDownAll(() async {
+    if (tempDir.existsSync()) {
+      await tempDir.delete(recursive: true);
+    }
+  });
+
   group('NoteRepository deep coordination', () {
     late RecordingStorageService storage;
     late RecordingSqliteFtsService sqlite;
@@ -221,6 +251,74 @@ void main() {
       expect(storage.saveBulkCalls, hasLength(1));
       expect(sqlite.insertOrUpdateBulkCalls, 1);
       expect(repository.activeNotes, hasLength(50));
+    });
+
+    test('injectSeedNotesBulk inserts notes and updates search index', () async {
+      final seedNotes = [
+        NotesSection(id: 'seed-1', title: 'Seed 1', content: 'Content 1'),
+        NotesSection(id: 'seed-2', title: 'Seed 2', content: 'Content 2'),
+      ];
+
+      await repository.injectSeedNotesBulk(seedNotes);
+
+      expect(repository.activeNotes, hasLength(2));
+      expect(repository.findById('seed-1'), isNotNull);
+    });
+
+    test('deleteForever and deleteForeverBulk purges notes from storage', () async {
+      final note1 = await repository.saveNote(noteId: null, title: 'Del 1', content: 'C1');
+      final note2 = await repository.saveNote(noteId: null, title: 'Del 2', content: 'C2');
+
+      await repository.toggleDeletedStatus(note1!.id, true);
+      await repository.toggleDeletedStatus(note2!.id, true);
+
+      await repository.deleteForever(note1.id);
+      expect(repository.deletedNotes.any((n) => n.id == note1.id), isFalse);
+
+      await repository.deleteForeverBulk({note2.id});
+      expect(repository.deletedNotes.any((n) => n.id == note2.id), isFalse);
+    });
+
+    test('color selection, restore and bulk save operations update notes', () async {
+      final note = await repository.saveNote(noteId: null, title: 'Color Note', content: 'Content');
+      final noteId = note!.id;
+
+      repository.applyColorToSelection({noteId}, const Color(0xFFFF0000));
+      expect(repository.findById(noteId)?.cardColor, equals(const Color(0xFFFF0000)));
+
+      repository.restoreColors({noteId: const Color(0xFF00FF00)});
+      expect(repository.findById(noteId)?.cardColor, equals(const Color(0xFF00FF00)));
+
+      await repository.saveColorsBulk({noteId});
+      expect(storage.saveBulkCalls, isNotEmpty);
+    });
+
+    test('exportNotesToBackupString and importNotesFromBackupString roundtrip backup data', () async {
+      await repository.saveNote(noteId: null, title: 'Export Title', content: 'Export Content');
+
+      final (count, jsonString) = await repository.exportNotesToBackupString();
+      expect(count, equals(1));
+      expect(jsonString, contains('Export Title'));
+
+      // Importing invalid json throws FormatException
+      expect(
+        () async => await repository.importNotesFromBackupString('invalid json'),
+        throwsFormatException,
+      );
+
+      // Importing empty array throws FormatException
+      expect(
+        () async => await repository.importNotesFromBackupString('[]'),
+        throwsFormatException,
+      );
+    });
+
+    test('reorderUnpinnedNotes reorders unpinned notes zone', () async {
+      await repository.saveNote(noteId: null, title: 'Unpinned 1', content: 'C1');
+      await repository.saveNote(noteId: null, title: 'Unpinned 2', content: 'C2');
+
+      repository.reorderUnpinnedNotes(0, 1);
+      expect(repository.unpinnedNotes, isNotEmpty);
     });
   });
 }

@@ -53,4 +53,21 @@ void main() {
 
     controller.dispose();
   });
+
+  test('SearchController topic selection and header visibility actions update state', () {
+    final controller = SearchController();
+
+    controller.selectTopic('Software & Tech');
+    expect(controller.selectedTopic, equals('Software & Tech'));
+
+    // Selecting same topic toggles it off
+    controller.selectTopic('Software & Tech');
+    expect(controller.selectedTopic, isNull);
+
+    controller.showHeaders();
+    controller.hideHeaders();
+    controller.refresh();
+
+    controller.dispose();
+  });
 }

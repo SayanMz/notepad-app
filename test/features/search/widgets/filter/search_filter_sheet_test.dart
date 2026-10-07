@@ -29,5 +29,11 @@ void main() {
     // Now it should show START/END sections
     expect(find.text('START DATE'), findsOneWidget);
     expect(find.text('END DATE'), findsOneWidget);
+
+    // Tap Clear
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Get Search Results'), findsOneWidget);
   });
 }

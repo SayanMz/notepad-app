@@ -58,5 +58,13 @@ void main() {
         expect(file.path.endsWith('bge-small-en-v1.5.onnx'), isTrue);
       },
     );
+
+    test(
+      'generateDocumentEmbeddings returns empty list when model is uninitialized or missing',
+      () async {
+        final vecs = await OnnxEmbeddingEngine.generateDocumentEmbeddings('Sample document text');
+        expect(vecs, isEmpty);
+      },
+    );
   });
 }

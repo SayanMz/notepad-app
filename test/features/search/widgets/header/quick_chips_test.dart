@@ -70,6 +70,12 @@ void main() {
     expect(controller.filters.hasFilters, isTrue);
     expect(controller.filters.isRangeSearch, isTrue);
 
+    await tester.tap(find.text('Yesterday'));
+    await tester.pump();
+
+    expect(controller.filters.hasFilters, isTrue);
+    expect(controller.filters.isRangeSearch, isFalse);
+
     controller.dispose();
   });
 }

@@ -46,4 +46,29 @@ void main() {
     scrollController.dispose();
     controller.dispose();
   });
+
+  testWidgets('ResultsView renders search empty state when query provided but no matches found', (tester) async {
+    final controller = search_ctrl.SearchController();
+    controller.textController.text = 'unmatched_query_x_123';
+    controller.onQueryChanged('unmatched_query_x_123');
+
+    final scrollController = ScrollController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ResultsView(
+            controller: controller,
+            scrollController: scrollController,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SearchEmptyState), findsOneWidget);
+
+    scrollController.dispose();
+    controller.dispose();
+  });
 }

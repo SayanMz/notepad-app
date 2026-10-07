@@ -64,9 +64,9 @@ Notepad is built on a **Feature-First** architecture with a strict **Controller-
 
 ### 📊 Health & Metrics
 
-| Automated Tests | Total Code Coverage | Codebase Volume |
-| :-: | :-: | :-: |
-| 🧪 `300+ Tests` | 📈 `~70%` | 📂 `30,000+ LOC` |
+| Automated Tests | Total Code Coverage |   Codebase Volume   |
+|:---------------:|:-------------------:|:-------------------:|
+| 🧪 `340+ Tests` |      📈 `73%`       |  📂 `18k+ App LOC`  |
 
 <br/>
 

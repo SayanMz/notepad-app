@@ -56,4 +56,42 @@ void main() {
       expect(bytes.length, greaterThan(100));
     },
   );
+
+  test('buildPdfDocument handles ordered lists, blockquotes, code-blocks and text alignment', () async {
+    final pdf = PdfExporter.buildPdfDocument(
+      title: 'Advanced Formatting',
+      richContent: [
+        {
+          'insert': 'First ordered item\n',
+          'attributes': {'list': 'ordered'},
+        },
+        {
+          'insert': 'Blockquote text\n',
+          'attributes': {'blockquote': true},
+        },
+        {
+          'insert': 'Code snippet\n',
+          'attributes': {'code-block': true, 'align': 'center'},
+        },
+        {
+          'insert': 'Custom styled run\n',
+          'attributes': {
+            'underline': true,
+            'strike': true,
+            'color': '#FF0000',
+            'background': '#FFFF00',
+            'size': '20',
+          },
+        },
+      ],
+      fontReg: pw.Font.helvetica(),
+      fontBold: pw.Font.helveticaBold(),
+      fontItalic: pw.Font.helveticaOblique(),
+      fontBoldItalic: pw.Font.helveticaBoldOblique(),
+      emojiFont: null,
+    );
+
+    final bytes = await pdf.save();
+    expect(bytes, isNotEmpty);
+  });
 }

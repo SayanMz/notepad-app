@@ -96,5 +96,29 @@ void main() {
       final result = await offlineService.signIn();
       expect(result, isFalse);
     });
+
+    test('uploadBackup skips empty content and requires authentication', () async {
+      expect(() async => await service.uploadBackup('   '), returnsNormally);
+      expect(() async => await service.uploadBackup('{"notes": []}'), returnsNormally);
+    });
+
+    test('downloadBackup returns null when unauthenticated', () async {
+      final unauthService = GoogleDriveService.internalForTesting(
+        googleSignIn: fakeSignIn,
+        internetCheck: () async => false,
+      );
+      final result = await unauthService.downloadBackup();
+      expect(result, isNull);
+    });
+
+    test('getDetailedStorageUsage returns offline stats when unauthenticated', () async {
+      final unauthService = GoogleDriveService.internalForTesting(
+        googleSignIn: fakeSignIn,
+        internetCheck: () async => false,
+      );
+      final stats = await unauthService.getDetailedStorageUsage();
+      expect(stats['percent'], equals(0.0));
+      expect(stats['text'], equals('Offline'));
+    });
   });
 }

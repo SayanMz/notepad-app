@@ -45,5 +45,10 @@ void main() {
       expect(ModelDownloadService.progressNotifier.value, 0.0);
       expect(ModelDownloadService.statusNotifier.value, ModelDownloadState.idle);
     });
+
+    test('init updates statusNotifier based on model availability', () async {
+      await ModelDownloadService.init();
+      expect(ModelDownloadService.statusNotifier.value, isNotNull);
+    });
   });
 }

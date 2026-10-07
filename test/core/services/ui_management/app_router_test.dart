@@ -34,5 +34,16 @@ void main() {
       expect(pageRoute.transitionDuration, AnimationConstants.medium);
       expect(pageRoute.reverseTransitionDuration, AnimationConstants.sharedAxisReverseDuration);
     });
+
+    test('route transition builders render animated widgets and respect animateReverse', () {
+      final slideRoute = AppRouter.slide(const Text('Slide Page'), animateReverse: false) as PageRouteBuilder;
+      final fadeRoute = AppRouter.fade(const Text('Fade Page')) as PageRouteBuilder;
+      final sharedAxisRoute = AppRouter.sharedAxis(const Text('SharedAxis Page')) as PageRouteBuilder;
+
+      expect(slideRoute.reverseTransitionDuration, equals(Duration.zero));
+      expect(slideRoute.pageBuilder, isNotNull);
+      expect(fadeRoute.pageBuilder, isNotNull);
+      expect(sharedAxisRoute.pageBuilder, isNotNull);
+    });
   });
 }

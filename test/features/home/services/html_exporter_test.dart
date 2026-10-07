@@ -70,4 +70,53 @@ void main() {
       expect(html, contains('<a href="https://example.com"'));
     },
   );
+
+  test('buildHtmlDocument renders ordered lists, checklists, subheaders, and text styles', () {
+    final html = HtmlExporter.buildHtmlDocument(
+      title: 'Full Style Note',
+      richContent: [
+        {
+          'insert': 'Header 2\n',
+          'attributes': {'header': 2},
+        },
+        {
+          'insert': 'Header 3\n',
+          'attributes': {'header': 3},
+        },
+        {
+          'insert': 'Ordered step\n',
+          'attributes': {'list': 'ordered'},
+        },
+        {
+          'insert': 'Done task\n',
+          'attributes': {'list': 'checked'},
+        },
+        {
+          'insert': 'Pending task\n',
+          'attributes': {'list': 'unchecked'},
+        },
+        {
+          'insert': 'Formatted run\n',
+          'attributes': {
+            'bold': true,
+            'italic': true,
+            'underline': true,
+            'strike': true,
+            'color': '#123456',
+            'background': '#FFEE00',
+            'size': 18,
+            'align': 'center',
+          },
+        },
+      ],
+    );
+
+    expect(html, contains('<h3>Header 2</h3>'));
+    expect(html, contains('<h4>Header 3</h4>'));
+    expect(html, contains('<ol>'));
+    expect(html, contains('[x]'));
+    expect(html, contains('[ ]'));
+    expect(html, contains('<em><strong>Formatted run</strong></em>'));
+    expect(html, contains('font-size: 18px'));
+  });
 }

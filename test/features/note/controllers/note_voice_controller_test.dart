@@ -46,5 +46,17 @@ void main() {
       
       controller.dispose();
     });
+
+    test('stopHardwareListening resets processing state', () async {
+      final controller = NoteVoiceController();
+      await controller.initSpeech();
+
+      controller.stopHardwareListening();
+
+      expect(controller.isListening.value, isFalse);
+      expect(controller.isProcessingVoice.value, isFalse);
+
+      controller.dispose();
+    });
   });
 }
