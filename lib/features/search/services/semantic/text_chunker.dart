@@ -5,7 +5,7 @@ class TextChunker {
   static List<String> chunkText(
     String text, {
     int maxChunkChars = 1500,
-    int minChunkChars = 30,
+    int minChunkChars = 3,
     int overlapChars = 150, // preserves wider semantic continuity
   }) {
     final normalized = text.toLowerCase().trim();

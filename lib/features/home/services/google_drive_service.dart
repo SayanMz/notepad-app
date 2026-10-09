@@ -11,8 +11,8 @@ import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.
 // Google Drive sync boundary that keeps backup and restore concerns out of the UI.
 class GoogleDriveService {
   GoogleDriveService._internal()
-      : _googleSignIn = GoogleSignIn.instance,
-        _internetCheck = _hasActiveInternet;
+    : _googleSignIn = GoogleSignIn.instance,
+      _internetCheck = _hasActiveInternet;
   static GoogleDriveService _instance = GoogleDriveService._internal();
   factory GoogleDriveService() => _instance;
 
@@ -27,8 +27,8 @@ class GoogleDriveService {
   GoogleDriveService.internalForTesting({
     GoogleSignIn? googleSignIn,
     Future<bool> Function()? internetCheck,
-  })  : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
-        _internetCheck = internetCheck ?? (() async => true);
+  }) : _googleSignIn = googleSignIn ?? GoogleSignIn.instance,
+       _internetCheck = internetCheck ?? (() async => true);
 
   final GoogleSignIn _googleSignIn;
   final Future<bool> Function() _internetCheck;
@@ -105,9 +105,9 @@ class GoogleDriveService {
     }
   }
 
-  Future<void> attemptSilentSignIn() async {
+  Future<bool> attemptSilentSignIn() async {
     if (!await _internetCheck()) {
-      return;
+      return false;
     }
 
     try {
@@ -118,8 +118,10 @@ class GoogleDriveService {
       } else {
         _user = result;
       }
+      return _user != null;
     } catch (e) {
       debugPrint('Silent sign-in skipped or failed: $e');
+      return false;
     }
   }
 

@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/features/home/services/google_drive_service.dart';
 
@@ -34,16 +36,38 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> login() async {
-    final success = await _driveService.signIn();
-    if (!success) return;
+    final settings = _settingsRepository.settings;
+
+    // 1. If any user info is cached, try silent sign-in first
+    if (settings.userEmail != null || settings.userAvatarBytes != null) {
+      if (await _driveService.attemptSilentSignIn()) {
+        await fetchFreshStorageStats();
+        notifyListeners();
+        return;
+      }
+    }
+
+    // 2. Normal interactive sign-in as fallback
+    if (!await _driveService.signIn()) return;
 
     final user = _driveService.currentUser;
+    Uint8List? avatarBytes;
 
-    // Persist the current profile locally so the drawer can render it without another sign-in.
+    if (user?.photoUrl != null) {
+      try {
+        final request = await HttpClient().getUrl(Uri.parse(user!.photoUrl!));
+        final response = await request.close();
+        avatarBytes = await consolidateHttpClientResponseBytes(response);
+      } catch (e) {
+        debugPrint('Failed to fetch avatar bytes: $e');
+      }
+    }
+
     await _settingsRepository.update(
       _settingsRepository.settings.copyWith(
         userName: user?.displayName,
         userEmail: user?.email,
+        userAvatarBytes: avatarBytes,
       ),
     );
 

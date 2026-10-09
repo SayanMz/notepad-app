@@ -6,6 +6,7 @@ import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/core/services/ui_management/app_router.dart';
 import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 import 'package:notepad/core/services/ui_management/theme_fader.dart';
+import 'package:notepad/features/home/controllers/auth_controller.dart';
 import 'package:notepad/features/home/home_constants.dart';
 import 'package:notepad/features/search/search_page.dart';
 import 'package:notepad/features/trash/recycle_page.dart';
@@ -75,10 +76,7 @@ class HomeAppBar extends StatelessWidget {
                               },
                             );
                           },
-                          icon: Icon(
-                            Icons.light,
-                            color: colorScheme.onSurface,
-                          ),
+                          icon: Icon(Icons.light, color: colorScheme.onSurface),
                         ),
                         const SizedBox(width: UIConstants.paddingSM),
                         Text(
@@ -118,10 +116,35 @@ class HomeAppBar extends StatelessWidget {
                             );
                           },
                         ),
-                        Builder(
-                          builder: (context) {
+                        ListenableBuilder(
+                          listenable: authController,
+                          builder: (context, _) {
+                            final avatarBytes =
+                                appSettingsRepository.settings.userAvatarBytes;
+
                             return IconButton(
-                              icon: const Icon(Icons.sort),
+                              icon: avatarBytes != null
+                                  ? Container(
+                                      padding: const EdgeInsets.all(
+                                        1.5,
+                                      ), // Ring thickness
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: colorScheme.outlineVariant
+                                              .withValues(alpha: 0.6),
+                                          width: 1.2,
+                                        ),
+                                      ),
+                                      child: CircleAvatar(
+                                        backgroundImage: MemoryImage(
+                                          avatarBytes,
+                                        ),
+                                        radius: 13,
+                                        backgroundColor: Colors.transparent,
+                                      ),
+                                    )
+                                  : const Icon(Icons.account_circle_outlined),
                               color: colorScheme.onSurfaceVariant,
                               onPressed: onOpenDrawer,
                             );

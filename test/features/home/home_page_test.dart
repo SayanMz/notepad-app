@@ -36,7 +36,7 @@ void main() {
 
     final menuButton = find.descendant(
       of: appBar,
-      matching: find.byIcon(Icons.sort),
+      matching: find.byIcon(Icons.account_circle_outlined),
     );
 
     await tester.tap(menuButton);

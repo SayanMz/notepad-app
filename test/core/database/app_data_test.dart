@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
 
@@ -36,4 +38,14 @@ void main() {
       expect(updated.lastMaintenanceDate, DateTime(2024, 1, 5));
     },
   );
+
+  test('AppSettings copyWith preserves or updates userAvatarBytes', () {
+    final avatarBytes = Uint8List.fromList([1, 2, 3, 4]);
+    final settings = AppSettings(userAvatarBytes: avatarBytes);
+
+    expect(settings.userAvatarBytes, equals(avatarBytes));
+
+    final cleared = settings.copyWith(clearUser: true);
+    expect(cleared.userAvatarBytes, isNull);
+  });
 }

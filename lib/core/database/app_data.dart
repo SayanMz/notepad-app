@@ -4,6 +4,8 @@ import 'package:hive_ce/hive.dart';
 import 'package:ulid/ulid.dart';
 import 'package:notepad/core/services/note_preview_util.dart';
 
+import 'dart:typed_data';
+
 part 'app_data.g.dart';
 
 String generateNoteId() => 'note_${Ulid().toString().toLowerCase()}';
@@ -133,12 +135,16 @@ class AppSettings {
   @HiveField(5)
   final DateTime? lastMaintenanceDate;
 
+  @HiveField(6)
+  final Uint8List? userAvatarBytes;
+
   const AppSettings({
     this.isDarkMode = false,
     this.userName,
     this.userEmail,
     this.seedVersion = 0,
     this.lastMaintenanceDate,
+    this.userAvatarBytes,
     this.recentColorValues = const [
       0xFFFFF59D,
       0xFFFFCC80,
@@ -154,7 +160,7 @@ class AppSettings {
     bool? isDarkMode,
     String? userName,
     String? userEmail,
-    String? userAvatarUrl,
+    Uint8List? userAvatarBytes,
     List<int>? recentColorValues,
     bool clearUser = false,
     int? seedVersion,
@@ -164,6 +170,9 @@ class AppSettings {
       isDarkMode: isDarkMode ?? this.isDarkMode,
       userName: clearUser ? null : (userName ?? this.userName),
       userEmail: clearUser ? null : (userEmail ?? this.userEmail),
+      userAvatarBytes: clearUser
+          ? null
+          : (userAvatarBytes ?? this.userAvatarBytes),
       recentColorValues: recentColorValues ?? this.recentColorValues,
       seedVersion: seedVersion ?? this.seedVersion,
       lastMaintenanceDate: lastMaintenanceDate ?? this.lastMaintenanceDate,

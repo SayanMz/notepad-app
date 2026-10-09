@@ -24,10 +24,10 @@ void main() {
     // Find icons
     expect(find.byIcon(Icons.search), findsOneWidget);
     expect(find.byIcon(Icons.restore_from_trash), findsOneWidget);
-    expect(find.byIcon(Icons.sort), findsOneWidget);
+    expect(find.byIcon(Icons.account_circle_outlined), findsOneWidget);
 
     // Test drawer callback
-    await tester.tap(find.byIcon(Icons.sort));
+    await tester.tap(find.byIcon(Icons.account_circle_outlined));
     expect(drawerOpened, isTrue);
   });
 }

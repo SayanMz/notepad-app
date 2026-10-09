@@ -84,6 +84,7 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       userEmail: fields[2] as String?,
       seedVersion: fields[4] == null ? 0 : (fields[4] as num).toInt(),
       lastMaintenanceDate: fields[5] as DateTime?,
+      userAvatarBytes: fields[6] as Uint8List?,
       recentColorValues: fields[3] == null
           ? const [
               0xFFFFF59D,
@@ -101,7 +102,7 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
   @override
   void write(BinaryWriter writer, AppSettings obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.isDarkMode)
       ..writeByte(1)
@@ -113,7 +114,9 @@ class AppSettingsAdapter extends TypeAdapter<AppSettings> {
       ..writeByte(4)
       ..write(obj.seedVersion)
       ..writeByte(5)
-      ..write(obj.lastMaintenanceDate);
+      ..write(obj.lastMaintenanceDate)
+      ..writeByte(6)
+      ..write(obj.userAvatarBytes);
   }
 
   @override

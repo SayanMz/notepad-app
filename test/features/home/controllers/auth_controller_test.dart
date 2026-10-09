@@ -24,8 +24,9 @@ class FakeGoogleDriveService extends GoogleDriveService {
   }
 
   @override
-  Future<void> attemptSilentSignIn() async {
+  Future<bool> attemptSilentSignIn() async {
     silentSignInCalled = true;
+    return true;
   }
 
   @override
@@ -91,6 +92,12 @@ void main() {
 
       expect(driveService.fetchUsageCalled, isTrue);
       expect(controller.storageStats['text'], '50% used');
+    });
+
+    test('login attempts silent sign-in if cached email exists', () async {
+      settingsRepo.mockSettings = const AppSettings(userEmail: 'test@example.com');
+      await controller.login();
+      expect(driveService.silentSignInCalled, isTrue);
     });
   });
 }

@@ -16,7 +16,21 @@ class _DiscoveryComputationResult {
   });
 }
 
-/// Evaluates topic scores and applies winner-take-all filtering synchronously.
+class _EvaluateTopicsArgs {
+  final Map<String, Float32List> topicVectors;
+  final List<Map<String, dynamic>> parsedEntries;
+  final double minSimilarity;
+  final int? maxTopics;
+
+  _EvaluateTopicsArgs({
+    required this.topicVectors,
+    required this.parsedEntries,
+    required this.minSimilarity,
+    required this.maxTopics,
+  });
+}
+
+/// Evaluates topic scores and applies winner-take-all filtering.
 _DiscoveryComputationResult _evaluateTopics({
   required Map<String, Float32List> topicVectors,
   required List<Map<String, dynamic>> parsedEntries,
@@ -89,6 +103,15 @@ _DiscoveryComputationResult _evaluateTopics({
   );
 }
 
+_DiscoveryComputationResult _evaluateTopicsTask(_EvaluateTopicsArgs args) {
+  return _evaluateTopics(
+    topicVectors: args.topicVectors,
+    parsedEntries: args.parsedEntries,
+    minSimilarity: args.minSimilarity,
+    maxTopics: args.maxTopics,
+  );
+}
+
 /// Discovers candidate taxonomy topics and matches notes against topic vector embeddings using BGE v1.5 queries.
 class TopicDiscoveryService {
   static List<MapEntry<String, int>>? _discoveredTopicChips;
@@ -119,6 +142,7 @@ class TopicDiscoveryService {
     String topicTitle,
     String description,
   ) async {
+    // Standard BGE v1.5 Specification: Prepend query instruction prefix to Taxonomy Target Query
     final queryText = '$_bgeQueryPrefix$description';
     final vecs = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
       queryText,
@@ -192,12 +216,15 @@ class TopicDiscoveryService {
       // 2. Load taxonomy vectors from SQLite
       final topicVectors = await _loadTaxonomyVectorsFromDb();
 
-      // 3. Perform vector dot-product scoring and winner-take-all evaluation synchronously
-      final result = _evaluateTopics(
-        topicVectors: topicVectors,
-        parsedEntries: parsedEntries,
-        minSimilarity: minSimilarity,
-        maxTopics: maxTopics,
+      // 3. Perform vector dot-product scoring and winner-take-all evaluation off main thread
+      final result = await compute(
+        _evaluateTopicsTask,
+        _EvaluateTopicsArgs(
+          topicVectors: topicVectors,
+          parsedEntries: parsedEntries,
+          minSimilarity: minSimilarity,
+          maxTopics: maxTopics,
+        ),
       );
 
       _topicMatchedNoteIds
