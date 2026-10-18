@@ -8,6 +8,8 @@ import 'package:notepad/core/database/notes_repository.dart';
 import 'package:notepad/core/database/storage_service.dart';
 import 'package:notepad/core/services/repo_services/notes_initialization.dart';
 import 'package:notepad/core/services/repo_services/seed_data.dart';
+import 'package:notepad/core/services/search_indexer.dart';
+import 'package:notepad/features/search/services/composite_search_indexer.dart';
 import 'package:notepad/features/search/services/model_download_service.dart';
 import 'package:notepad/features/search/services/semantic_search.dart';
 
@@ -46,6 +48,7 @@ class AppInitializer {
 
   Future<void> initialize() async {
     if (_bootstrapFuture != null) return _bootstrapFuture!;
+    SearchIndexerApi.instance = const CompositeSearchIndexer();
     _setupBackgroundBridges();
 
     try {

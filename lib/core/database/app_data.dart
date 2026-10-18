@@ -89,6 +89,7 @@ class NotesSection {
     'isDeleted': isDeleted,
     'isPinned': isPinned,
     'cardColorValue': cardColorValue,
+    'scrollOffset': scrollOffset,
   };
 
   factory NotesSection.fromJson(Map<String, dynamic> json) => NotesSection(
@@ -100,7 +101,7 @@ class NotesSection {
     isDeleted: json['isDeleted'] ?? false,
     isPinned: json['isPinned'] ?? false,
     cardColorValue: json['cardColorValue'] as int? ?? 0xFFFFFFFF,
-  );
+  )..scrollOffset = (json['scrollOffset'] as num?)?.toDouble() ?? 0.0;
 }
 
 DateTime? _parseDateTime(Object? value) {

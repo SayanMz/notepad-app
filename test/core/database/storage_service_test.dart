@@ -143,7 +143,10 @@ void main() {
       expect(decoded, hasLength(201));
       expect(decoded.first.id, 'note-0');
       expect(decoded.last.id, 'note-200');
-      expect(jsonDecode(encoded), hasLength(201));
+      final envelope = jsonDecode(encoded) as Map<String, dynamic>;
+      expect(envelope['schemaVersion'], 1);
+      expect(envelope['createdAt'], isA<String>());
+      expect(envelope['notes'], hasLength(201));
     });
 
     test('importNotesFromJSON throws a FormatException for invalid JSON',

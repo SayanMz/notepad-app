@@ -20,10 +20,12 @@ void main() {
     final notes = List.generate(250, _note);
 
     final encoded = await StorageService.exportNotesToJSON(notes);
-    final decodedJson = jsonDecode(encoded) as List<dynamic>;
+    final decodedJson = jsonDecode(encoded) as Map<String, dynamic>;
     final restored = await StorageService.importNotesFromJSON(encoded);
 
-    expect(decodedJson, hasLength(250));
+    expect(decodedJson['schemaVersion'], 1);
+    expect(decodedJson['createdAt'], isA<String>());
+    expect(decodedJson['notes'], hasLength(250));
     expect(restored, hasLength(250));
     expect(restored.first.id, 'note-0');
     expect(restored.last.id, 'note-249');

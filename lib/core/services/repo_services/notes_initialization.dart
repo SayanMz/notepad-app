@@ -6,8 +6,9 @@ import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/database/app_settings_repository.dart';
 import 'package:notepad/core/database/sqlite_fts.dart';
 import 'package:notepad/core/database/storage_service.dart';
+import 'package:notepad/core/database/vector_storage.dart';
 import 'package:notepad/core/services/repo_services/seed_data.dart';
-import 'package:notepad/features/search/services/semantic_search.dart';
+import 'package:notepad/core/services/search_indexer.dart';
 
 /// Result of the repository initialization process.
 class InitializationResult {
@@ -32,11 +33,17 @@ class NotesInitializationService {
     final List<NotesSection> activeNotes = [];
     final List<NotesSection> deletedNotes = [];
     final Map<String, NotesSection> cacheMap = {};
+    final existingNotes = StorageService.loadAllNotes();
 
-    if (installedSeedVersion != currentSeedVersion) {
-      await _handleMigration(activeNotes, cacheMap, currentSeedVersion);
+    if (installedSeedVersion == 0 && existingNotes.isEmpty) {
+      await _handleFirstInstall(activeNotes, cacheMap, currentSeedVersion);
     } else {
-      await _handleStandardLoad(activeNotes, deletedNotes, cacheMap);
+      await _handleStandardLoad(
+        activeNotes,
+        deletedNotes,
+        cacheMap,
+        existingNotes,
+      );
     }
 
     return InitializationResult(
@@ -46,15 +53,13 @@ class NotesInitializationService {
     );
   }
 
-  /// Wipes stale data and populates the database with fresh welcome notes.
-  static Future<void> _handleMigration(
+  /// Populates the database with fresh welcome notes on initial install.
+  static Future<void> _handleFirstInstall(
     List<NotesSection> activeNotes,
     Map<String, NotesSection> cacheMap,
     int currentSeedVersion,
   ) async {
-    debugPrint('Migration: Resetting stale data...');
-    await StorageService.clearAllNotes();
-
+    debugPrint('First Install: Seeding welcome notes...');
     activeNotes.addAll(SeedDataService.generateWelcomeNotes());
 
     for (var (i, note) in activeNotes.indexed) {
@@ -72,8 +77,8 @@ class NotesInitializationService {
     List<NotesSection> activeNotes,
     List<NotesSection> deletedNotes,
     Map<String, NotesSection> cacheMap,
+    List<NotesSection> allNotes,
   ) async {
-    final allNotes = StorageService.loadAllNotes();
     final Set<String> expiredNoteIds = {};
 
     for (final note in allNotes) {
@@ -91,10 +96,35 @@ class NotesInitializationService {
         'Auto-Purge: Wiping ${expiredNoteIds.length} expired trash notes permanently.',
       );
       await StorageService.deleteNotesBulk(expiredNoteIds);
+      await VectorStorageService.to.removeBulk(expiredNoteIds);
     }
 
     // Always reseed the RAM-backed in-memory FTS database on startup
     await SqliteFtsService.reindexAllNotes(activeNotes);
+
+    // Maintenance check: clean up any orphaned vectors whose note_id is neither active nor in trash
+    await _runOrphanVectorCleanup(cacheMap.keys.toSet());
+  }
+
+  static Future<void> _runOrphanVectorCleanup(Set<String> validNoteIds) async {
+    try {
+      final allEmbeddings = await VectorStorageService.to.fetchAllEmbeddings();
+      final orphanIds = <String>{};
+      for (final row in allEmbeddings) {
+        final id = row['note_id'] as String?;
+        if (id != null && !validNoteIds.contains(id)) {
+          orphanIds.add(id);
+        }
+      }
+      if (orphanIds.isNotEmpty) {
+        debugPrint(
+          'Orphan Vector Cleanup: Purging ${orphanIds.length} orphaned vector entries.',
+        );
+        await VectorStorageService.to.removeBulk(orphanIds);
+      }
+    } catch (e) {
+      debugPrint('Orphan Vector Cleanup Error: $e');
+    }
   }
 
   /// Runs periodic database maintenance tasks (e.g. Hive compaction).
@@ -117,9 +147,10 @@ class NotesInitializationService {
 
   /// Triggers semantic search initialization and missing embedding sweep.
   static Future<void> runSemanticSearchMaintenance(
-    List<NotesSection> activeNotes,
-  ) async {
-    await SemanticSearchService.init();
-    await SemanticSearchService.runMaintenanceSweep(activeNotes);
+    List<NotesSection> activeNotes, [
+    SearchIndexerApi? searchIndexer,
+  ]) async {
+    final indexer = searchIndexer ?? SearchIndexerApi.instance;
+    await indexer.runMaintenanceSweep(activeNotes);
   }
 }

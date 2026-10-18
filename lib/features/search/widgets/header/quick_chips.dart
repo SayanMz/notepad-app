@@ -25,6 +25,12 @@ class SearchQuickChips extends StatelessWidget {
   }
 
   void _applyQuickFilter(int daysBack) {
+    // If already active, toggle off by clearing the filters
+    if (_isQuickChipActive(controller.filters, daysBack)) {
+      controller.clearFilter();
+      return;
+    }
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final start = today.subtract(Duration(days: daysBack));

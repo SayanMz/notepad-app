@@ -11,8 +11,8 @@ import 'package:notepad/core/services/repo_services/notes_initialization.dart';
 import 'package:notepad/core/services/repo_services/notes_sort.dart';
 import 'package:notepad/core/services/repo_services/pin_operations.dart';
 import 'package:notepad/core/services/repo_services/recycle_operations.dart';
-import 'package:notepad/features/search/services/fuzzy_search.dart';
-import 'package:notepad/features/search/services/semantic_search.dart';
+import 'package:notepad/core/services/search_indexer.dart';
+import 'package:notepad/core/services/ui_management/scaffold_messenger_notifier.dart';
 
 // Manages the core note data lifecycle, ensuring atomic state synchronization
 // across memory, Hive storage, and SQLite search indices.
@@ -21,10 +21,12 @@ class NoteRepository {
     StorageServiceApi? storageService,
     SqliteFtsServiceApi? sqliteFtsService,
     AppSettingsRepository? settingsRepository,
+    SearchIndexerApi? searchIndexer,
   }) {
     if (storageService == null &&
         sqliteFtsService == null &&
-        settingsRepository == null) {
+        settingsRepository == null &&
+        searchIndexer == null) {
       return _instance;
     }
 
@@ -32,6 +34,7 @@ class NoteRepository {
       storageService: storageService,
       sqliteFtsService: sqliteFtsService,
       settingsRepository: settingsRepository,
+      searchIndexer: searchIndexer,
     );
   }
 
@@ -39,9 +42,11 @@ class NoteRepository {
     StorageServiceApi? storageService,
     SqliteFtsServiceApi? sqliteFtsService,
     AppSettingsRepository? settingsRepository,
+    SearchIndexerApi? searchIndexer,
   }) : _storageService = storageService ?? StorageService.to,
        _sqliteFtsService = sqliteFtsService ?? SqliteFtsService.to,
-       _appSettingsRepository = settingsRepository ?? appSettingsRepository;
+       _appSettingsRepository = settingsRepository ?? appSettingsRepository,
+       _searchIndexerOverride = searchIndexer;
 
   static final NoteRepository _instance = NoteRepository._internal();
 
@@ -50,15 +55,20 @@ class NoteRepository {
     StorageServiceApi? storageService,
     SqliteFtsServiceApi? sqliteFtsService,
     AppSettingsRepository? settingsRepository,
+    SearchIndexerApi? searchIndexer,
   }) : this._internal(
          storageService: storageService,
          sqliteFtsService: sqliteFtsService,
          settingsRepository: settingsRepository,
+         searchIndexer: searchIndexer,
        );
 
   final StorageServiceApi _storageService;
   final SqliteFtsServiceApi _sqliteFtsService;
   final AppSettingsRepository _appSettingsRepository;
+  final SearchIndexerApi? _searchIndexerOverride;
+  SearchIndexerApi get _searchIndexer =>
+      _searchIndexerOverride ?? SearchIndexerApi.instance;
 
   final List<NotesSection> _activeNotes = [];
   final List<NotesSection> _deletedNotes = [];
@@ -103,12 +113,12 @@ class NoteRepository {
     _sortAndRebuildCache();
   }
 
-  void runPostStartupMaintenance() async {
+  Future<void> runPostStartupMaintenance() async {
     await Future.wait([
       NotesInitializationService.runMaintenanceTasks(),
-      FuzzySearchService.rebuildIndex(_activeNotes),
+      _searchIndexer.rebuildIndex(_activeNotes),
     ]);
-    await NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
+    await _searchIndexer.runMaintenanceSweep(_activeNotes);
   }
 
   /// Programmatically injects new seed notes at runtime for Semantic Ai model testing.
@@ -121,19 +131,21 @@ class NoteRepository {
     for (final note in seedNotes) {
       note.updatedAt = now;
       notesToSave[note.id] = note;
-      _cacheMap[note.id] = note;
-      NoteSortService.insertSorted(_activeNotes, note);
     }
 
-    _sortAndRebuildCache();
-    activeRevision.value++;
+    try {
+      await _storageService.saveNotesBulk(notesToSave);
 
-    // Persist to encrypted storage and search indices
-    unawaited(() async {
-      _storageService.saveNotesBulk(notesToSave);
-      _sqliteFtsService.insertOrUpdateBulk(seedNotes);
-      FuzzySearchService.indexNotesBulk(seedNotes);
-    }());
+      _cacheMap.addAll(notesToSave);
+      _activeNotes.addAll(seedNotes);
+      _sortAndRebuildCache();
+
+      await _sqliteFtsService.insertOrUpdateBulk(seedNotes);
+      await _searchIndexer.indexNotesBulk(seedNotes);
+    } catch (e) {
+      debugPrint('Bulk inject error: $e');
+      showErrorSnackBar('Failed to save seed notes to storage.');
+    }
   }
 
   NotesSection? findById(String id) =>
@@ -164,12 +176,12 @@ class NoteRepository {
     );
 
     _sortAndRebuildCache();
-    activeRevision.value++;
 
     try {
       await _storageService.saveNotesBulk(bulkUpdates);
     } catch (e) {
       debugPrint('Reorder Save Error: $e');
+      showErrorSnackBar('Failed to save reordered note position.');
     }
   }
 
@@ -183,6 +195,8 @@ class NoteRepository {
     _cachedUnpinnedNotes = List.unmodifiable(
       _activeNotes.skipWhile((n) => n.isPinned),
     );
+
+    activeRevision.value++;
   }
 
   void _rebuildSubListPointersOnly() {
@@ -198,7 +212,7 @@ class NoteRepository {
   //Triggered when user presses back from the editor page
   Future<void> triggerDeferredEmbedding(String? noteId) async {
     if (findById(noteId ?? '') case final note?) {
-      SemanticSearchService.embedNoteInBackground(note);
+      _searchIndexer.triggerDeferredEmbedding(note);
     }
   }
 
@@ -214,6 +228,12 @@ class NoteRepository {
     final now = DateTime.now();
 
     if (existingNote != null) {
+      final oldTitle = existingNote.title;
+      final oldContent = existingNote.content;
+      final oldRichContent = existingNote.richContent;
+      final oldUpdatedAt = existingNote.updatedAt;
+      final oldScrollOffset = existingNote.scrollOffset;
+
       existingNote
         ..title = title
         ..content = content
@@ -221,18 +241,27 @@ class NoteRepository {
         ..updatedAt = now
         ..scrollOffset = scrollOffset;
 
+      try {
+        await _storageService.saveNote(existingNote);
+      } catch (e) {
+        // Rollback memory state on storage failure
+        existingNote
+          ..title = oldTitle
+          ..content = oldContent
+          ..richContent = oldRichContent
+          ..updatedAt = oldUpdatedAt
+          ..scrollOffset = oldScrollOffset;
+        debugPrint('Disk Write Error (saveNote): $e');
+        showErrorSnackBar('Failed to save note. Device storage error.');
+        return null;
+      }
+
+      await _sqliteFtsService.insertOrUpdate(existingNote);
+      _searchIndexer.indexNote(existingNote);
+
       if (notify) {
         activeRevision.value++;
       }
-
-      unawaited(
-        _storageService
-            .saveNote(existingNote)
-            .catchError((e) => debugPrint('Disk Write Error: $e')),
-      );
-
-      await _sqliteFtsService.insertOrUpdate(existingNote);
-      FuzzySearchService.indexNote(existingNote);
       return existingNote;
     }
 
@@ -249,12 +278,18 @@ class NoteRepository {
       positionIndex: topUnpinnedIndex,
     )..scrollOffset = scrollOffset;
 
+    try {
+      await _storageService.saveNote(newNote);
+    } catch (e) {
+      debugPrint('Disk Write Error (saveNote newNote): $e');
+      showErrorSnackBar('Failed to create note. Device storage error.');
+      return null;
+    }
+
     _cacheMap[newNote.id] = newNote;
     await _sqliteFtsService.insertOrUpdate(newNote);
-    FuzzySearchService.indexNote(newNote);
+    _searchIndexer.indexNote(newNote);
 
-    // Optimization: New notes always start at the beginning of the "Others" section.
-    // By passing the pinned count as the index, we skip the linear search.
     NoteSortService.insertSorted(
       _activeNotes,
       newNote,
@@ -266,11 +301,6 @@ class NoteRepository {
       activeRevision.value++;
     }
 
-    unawaited(
-      _storageService
-          .saveNote(newNote)
-          .catchError((e) => debugPrint('Disk Write Error: $e')),
-    );
     return newNote;
   }
 
@@ -279,28 +309,41 @@ class NoteRepository {
     if (note == null) return false;
 
     final now = DateTime.now();
+    final previousIsDeleted = note.isDeleted;
+    final previousUpdatedAt = note.updatedAt;
+
     note
       ..isDeleted = isDeleted
       ..updatedAt = now;
+
+    try {
+      await _storageService.saveNote(note);
+    } catch (e) {
+      note
+        ..isDeleted = previousIsDeleted
+        ..updatedAt = previousUpdatedAt;
+      debugPrint('Disk Write Error (toggleDeletedStatus): $e');
+      showErrorSnackBar('Failed to update note status.');
+      return false;
+    }
 
     if (isDeleted) {
       _activeNotes.remove(note);
       _deletedNotes.insert(0, note);
       await _sqliteFtsService.remove(noteId);
-      FuzzySearchService.removeNote(noteId);
+      _searchIndexer.removeNote(noteId);
     } else {
       _deletedNotes.remove(note);
       NoteSortService.insertSorted(_activeNotes, note);
       await _sqliteFtsService.insertOrUpdate(note);
-      FuzzySearchService.indexNote(note);
+      _searchIndexer.indexNote(note);
     }
 
     _rebuildSubListPointersOnly();
     activeRevision.value++;
     deletedRevision.value++;
 
-    unawaited(_storageService.saveNote(note));
-    SemanticSearchService.invalidateTopicCache();
+    _searchIndexer.invalidateTopicCache();
 
     return true;
   }
@@ -318,22 +361,27 @@ class NoteRepository {
       toDelete: isDeleted,
     );
 
+    try {
+      await _storageService.saveNotesBulk(result.dbUpdates);
+    } catch (e) {
+      debugPrint('Disk Write Error (toggleDeletedStatusBulk): $e');
+      showErrorSnackBar('Failed to save selected notes.');
+      return;
+    }
+
     _sortAndRebuildCache();
     NoteSortService.sortDeletedNotes(_deletedNotes);
-    activeRevision.value++;
-
-    await _storageService.saveNotesBulk(result.dbUpdates);
-    SemanticSearchService.invalidateTopicCache();
+    _searchIndexer.invalidateTopicCache();
 
     // SQL Index Sync (Batch)
     if (isDeleted) {
       await _sqliteFtsService.removeBulk(noteIds);
-      FuzzySearchService.removeNotesBulk(noteIds);
+      _searchIndexer.removeNotesBulk(noteIds);
     } else {
       await _sqliteFtsService.insertOrUpdateBulk(
         result.dbUpdates.values.toList(),
       );
-      FuzzySearchService.indexNotesBulk(result.dbUpdates.values.toList());
+      _searchIndexer.indexNotesBulk(result.dbUpdates.values.toList());
     }
   }
 
@@ -341,21 +389,36 @@ class NoteRepository {
     final note = findById(noteId);
     if (note == null) return;
 
+    try {
+      await _storageService.deleteNote(noteId);
+    } catch (e) {
+      debugPrint('Disk Delete Error (deleteForever): $e');
+      showErrorSnackBar('Failed to delete note from device storage.');
+      return;
+    }
+
     _deletedNotes.remove(note);
+    _cacheMap.remove(noteId);
     deletedRevision.value++;
 
-    await _storageService.deleteNote(noteId);
     await VectorStorageService.to.remove(noteId);
   }
 
   Future<void> deleteForeverBulk(Set<String> noteIds) async {
     if (noteIds.isEmpty) return;
 
+    try {
+      await _storageService.deleteNotesBulk(noteIds);
+    } catch (e) {
+      debugPrint('Disk Delete Error (deleteForeverBulk): $e');
+      showErrorSnackBar('Failed to delete selected notes from storage.');
+      return;
+    }
+
     _deletedNotes.removeWhere((n) => noteIds.contains(n.id));
     noteIds.forEach(_cacheMap.remove);
 
     deletedRevision.value++;
-    await _storageService.deleteNotesBulk(noteIds);
     await VectorStorageService.to.removeBulk(noteIds);
   }
 
@@ -366,7 +429,15 @@ class NoteRepository {
     PinOperationsService.togglePinState(note);
     _sortAndRebuildCache();
 
-    unawaited(_storageService.saveNote(note));
+    try {
+      await _storageService.saveNote(note);
+    } catch (e) {
+      // Rollback memory state on storage failure
+      PinOperationsService.togglePinState(note);
+      _sortAndRebuildCache();
+      debugPrint('Pin Save Error: $e');
+      showErrorSnackBar('Failed to update pin status.');
+    }
   }
 
   Future<void> togglePinBulk(Set<String> noteIds, bool goalState) async {
@@ -380,7 +451,20 @@ class NoteRepository {
     );
 
     _sortAndRebuildCache();
-    await _storageService.saveNotesBulk(dbUpdates);
+    try {
+      await _storageService.saveNotesBulk(dbUpdates);
+    } catch (e) {
+      // Rollback bulk pin changes on storage failure
+      PinOperationsService.processBulkPin(
+        activeNotes: _activeNotes,
+        targetIds: noteIds,
+        goalState: !goalState,
+        currentPinnedCount: pinnedNotes.length,
+      );
+      _sortAndRebuildCache();
+      debugPrint('Pin Bulk Save Error: $e');
+      showErrorSnackBar('Failed to update pin status.');
+    }
   }
 
   void applyColorToSelection(Set<String> selectedIds, Color newColor) {
@@ -395,14 +479,27 @@ class NoteRepository {
     }
   }
 
-  Future<void> saveColorsBulk(Set<String> noteIds) async {
+  Future<void> saveColorsBulk(
+    Set<String> noteIds, [
+    Map<String, Color>? originalColors,
+  ]) async {
     final Map<String, NotesSection> entries = {};
-
     for (final id in noteIds) {
       if (findById(id) case final note?) entries[id] = note;
     }
 
-    if (entries.isNotEmpty) await _storageService.saveNotesBulk(entries);
+    if (entries.isNotEmpty) {
+      try {
+        await _storageService.saveNotesBulk(entries);
+      } catch (e) {
+        if (originalColors != null) {
+          restoreColors(originalColors);
+          _sortAndRebuildCache();
+        }
+        debugPrint('Save Colors Error: $e');
+        showErrorSnackBar('Failed to save color changes.');
+      }
+    }
   }
 
   Future<(int, String)> exportNotesToBackupString() async {
@@ -413,6 +510,7 @@ class NoteRepository {
       return (_activeNotes.length, jsonString);
     } catch (e) {
       debugPrint('Export failed: $e');
+      showErrorSnackBar('Export failed. Storage Service error.');
       return (0, '');
     }
   }
@@ -438,19 +536,23 @@ class NoteRepository {
     );
 
     if (result.updates.isNotEmpty) {
-      _activeNotes.addAll(result.updates.values);
+      try {
+        await _storageService.saveNotesBulk(result.updates);
+      } catch (e) {
+        debugPrint('Import save error: $e');
+        showErrorSnackBar('Failed to import backup. Storage Service error.');
+        return (0, 0);
+      }
 
+      _activeNotes.addAll(result.updates.values);
       for (final note in result.updates.values) {
         _cacheMap[note.id] = note;
       }
 
       _sortAndRebuildCache();
-      activeRevision.value++;
-
-      await _storageService.saveNotesBulk(result.updates);
       await _sqliteFtsService.reindexAllNotes(_activeNotes);
-      NotesInitializationService.runSemanticSearchMaintenance(_activeNotes);
-      FuzzySearchService.rebuildIndex(_activeNotes);
+      _searchIndexer.runMaintenanceSweep(_activeNotes);
+      _searchIndexer.rebuildIndex(_activeNotes);
     }
 
     return (result.updates.length, result.skippedCount);

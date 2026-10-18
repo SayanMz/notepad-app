@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodCall;
@@ -124,7 +123,7 @@ public class MainActivity extends FlutterActivity {
         // Safe background service start to prevent background transition crashes
         try {
             Intent serviceIntent = new Intent(this, DownloadCancelService.class);
-            ContextCompat.startForegroundService(this, serviceIntent);
+            startService(serviceIntent);
         } catch (Exception ignored) {
             // Service startup failure fallback
         }

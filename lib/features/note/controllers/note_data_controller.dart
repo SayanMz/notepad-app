@@ -22,6 +22,7 @@ class NoteDataController {
   Timer? _autosaveDebounce;
   Timer? _detectionDebounce;
   bool _isSaving = false;
+  bool _hasPendingSave = false;
   bool _isDisposed = false;
 
   final ValueNotifier<SaveState> saveState = ValueNotifier<SaveState>(
@@ -104,8 +105,11 @@ class NoteDataController {
 
     if (noteId == null && title.isEmpty && plainText.isEmpty) return;
 
-    // Safety check against recursive loops
-    if (_isSaving) return;
+    // If a save is currently in-flight, flag pending save so latest edits are queued
+    if (_isSaving) {
+      _hasPendingSave = true;
+      return;
+    }
     _isSaving = true;
 
     try {
@@ -125,28 +129,41 @@ class NoteDataController {
 
       if (saved != null) {
         noteId = saved.id;
-      }
+        // Update baselines ONLY when persistence succeeds!
+        _lastEditorSignature = _editorSignature(title, document);
 
-      // Update baselines
-      _lastEditorSignature = _editorSignature(title, document);
-
-      if (!isScrollUpdate) {
-        Future.delayed(AnimationConstants.extraSlow, () {
-          if (_isDisposed) return;
-          saveState.value = SaveState.saved;
-          Future.delayed(AnimationConstants.saveIndicator, () {
+        if (!isScrollUpdate) {
+          Future.delayed(AnimationConstants.extraSlow, () {
             if (_isDisposed) return;
-            if (saveState.value == SaveState.saved) {
-              saveState.value = SaveState.idle;
-            }
+            saveState.value = SaveState.saved;
+            Future.delayed(AnimationConstants.saveIndicator, () {
+              if (_isDisposed) return;
+              if (saveState.value == SaveState.saved) {
+                saveState.value = SaveState.idle;
+              }
+            });
           });
-        });
+        }
+      } else {
+        if (!isScrollUpdate) {
+          saveState.value = SaveState.idle;
+        }
       }
     } catch (e) {
       saveState.value = SaveState.idle;
       debugPrint('Data Controller Save Error: $e');
     } finally {
       _isSaving = false;
+      if (_hasPendingSave && !_isDisposed) {
+        _hasPendingSave = false;
+        saveNote(
+          title: title,
+          document: document,
+          scrollOffset: scrollOffset,
+          isScrollUpdate: isScrollUpdate,
+          notify: notify,
+        );
+      }
     }
   }
 

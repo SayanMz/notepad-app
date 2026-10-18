@@ -74,15 +74,7 @@ void main() {
   });
 
   group('NotesInitializationService', () {
-    test('initializeData seeds welcome notes on version changes', () async {
-      await StorageService.saveNote(
-        buildNote(
-          'legacy-note',
-          title: 'Legacy note',
-          deleted: false,
-          updatedAt: DateTime.utc(2024, 1, 1),
-        ),
-      );
+    test('initializeData seeds welcome notes on first install', () async {
       await appSettingsRepository.setSeedVersion(0);
 
       final result = await NotesInitializationService.initializeData(
@@ -93,7 +85,6 @@ void main() {
       expect(result.activeNotes, hasLength(3));
       expect(result.deletedNotes, isEmpty);
       expect(result.cacheMap, hasLength(3));
-      expect(StorageService.getNoteById('legacy-note'), isNull);
       expect(StorageService.loadAllNotes(), hasLength(3));
       expect(appSettingsRepository.settings.seedVersion, 1);
     });

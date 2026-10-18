@@ -70,6 +70,12 @@ class SemanticMaintenanceService {
       final vectors = await OnnxEmbeddingEngine.generateDocumentEmbeddings(
         text,
       );
+
+      //Edge case: note got deleted while embedding generation
+      if (note.isDeleted) {
+        return;
+      }
+
       if (vectors.isNotEmpty) {
         final blobs = vectors
             .map((v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes))

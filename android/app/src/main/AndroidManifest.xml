@@ -7,7 +7,7 @@
         android:label="Notepad"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
 
         <service
             android:name=".DownloadCancelService"

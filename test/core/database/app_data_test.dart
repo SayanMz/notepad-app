@@ -48,4 +48,19 @@ void main() {
     final cleared = settings.copyWith(clearUser: true);
     expect(cleared.userAvatarBytes, isNull);
   });
+
+  test('NotesSection toJson and fromJson preserve scrollOffset', () {
+    final note = NotesSection(
+      id: 'scroll-note-1',
+      title: 'Scroll Title',
+      content: 'Scroll Content',
+      updatedAt: DateTime(2026, 1, 1),
+    )..scrollOffset = 150.5;
+
+    final json = note.toJson();
+    expect(json['scrollOffset'], equals(150.5));
+
+    final restored = NotesSection.fromJson(json);
+    expect(restored.scrollOffset, equals(150.5));
+  });
 }

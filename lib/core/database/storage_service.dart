@@ -60,6 +60,7 @@ class StorageService {
 }
 
 class _StorageServiceImpl implements StorageServiceApi {
+  static const int _backupSchemaVersion = 1;
   static const String _notesBoxName = 'notes_box';
   static const String _settingsBoxName = 'settings_box';
   static const String _settingsKey = 'current_settings';
@@ -117,8 +118,11 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   static String _serializeNotesTask(List<NotesSection> notes) {
     try {
-      final data = notes.map((n) => n.toJson()).toList();
-      return jsonEncode(data);
+      return jsonEncode({
+        'schemaVersion': _backupSchemaVersion,
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+        'notes': notes.map((n) => n.toJson()).toList(),
+      });
     } catch (e) {
       throw FormatException('Failed to serialize notes: $e');
     }
@@ -126,7 +130,9 @@ class _StorageServiceImpl implements StorageServiceApi {
 
   static List<NotesSection> _parseNotesTask(String jsonString) {
     try {
-      final List<dynamic> jsonList = jsonDecode(jsonString);
+      final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
+      final List<dynamic> jsonList = decoded['notes'] as List<dynamic>;
+
       return jsonList.map((json) => NotesSection.fromJson(json)).toList();
     } catch (e) {
       throw FormatException('Failed to parse backup JSON: $e');
@@ -184,6 +190,7 @@ class _StorageServiceImpl implements StorageServiceApi {
       await _notesBox.put(note.id, note);
     } catch (e) {
       debugPrint('StorageService Error (saveNote): ${note.id}. $e');
+      rethrow;
     }
   }
 
@@ -194,6 +201,7 @@ class _StorageServiceImpl implements StorageServiceApi {
       await _notesBox.putAll(notes);
     } catch (e) {
       debugPrint('StorageService Error (saveNotesBulk): $e');
+      rethrow;
     }
   }
 
@@ -204,6 +212,7 @@ class _StorageServiceImpl implements StorageServiceApi {
       await _notesBox.delete(id);
     } catch (e) {
       debugPrint('StorageService Error (deleteNote): $id. $e');
+      rethrow;
     }
   }
 
@@ -214,6 +223,7 @@ class _StorageServiceImpl implements StorageServiceApi {
       await _notesBox.deleteAll(ids);
     } catch (e) {
       debugPrint('StorageService Error (deleteNotesBulk): $e');
+      rethrow;
     }
   }
 
@@ -225,6 +235,7 @@ class _StorageServiceImpl implements StorageServiceApi {
       await _notesBox.compact();
     } catch (e) {
       debugPrint('StorageService Error (clearAllNotes): $e');
+      rethrow;
     }
   }
 
@@ -246,6 +257,7 @@ class _StorageServiceImpl implements StorageServiceApi {
       await _settingsBox.put(_settingsKey, settings);
     } catch (e) {
       debugPrint('StorageService Error (saveSettings): $e');
+      rethrow;
     }
   }
 }

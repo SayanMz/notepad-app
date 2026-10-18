@@ -34,8 +34,8 @@ class HomeController extends ChangeNotifier {
     // Skip deferred maintenance in widget tests to avoid dangling timers.
     if (!(!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST'))) {
       // Defer maintenance until the home page is completely idle
-      SchedulerBinding.instance.scheduleTask(() {
-        noteRepository.runPostStartupMaintenance();
+      SchedulerBinding.instance.scheduleTask(() async {
+        await noteRepository.runPostStartupMaintenance();
       }, Priority.idle);
     }
   }

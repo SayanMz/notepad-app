@@ -52,6 +52,8 @@ app.*.map.json
 # Security & Credentials
 .env
 android/key.properties
+*.keystore
+*.jks
 ios/Flutter/Release.xcconfig
 /windows/
 

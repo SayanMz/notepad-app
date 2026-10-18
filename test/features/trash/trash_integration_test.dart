@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/core/services/repo_services/notes_initialization.dart';
@@ -11,9 +14,30 @@ class MockStorageService {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUpAll(() {
+  late Directory tempDir;
+  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
+
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('trash_integration_test_');
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(pathProviderChannel, (call) async {
+          switch (call.method) {
+            case 'getApplicationDocumentsDirectory':
+            case 'getTemporaryDirectory':
+              return tempDir.path;
+            default:
+              return null;
+          }
+        });
+  });
+
+  tearDownAll(() async {
+    if (tempDir.existsSync()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   group('Trash Auto-Cleanup Integration', () {

@@ -1,9 +1,10 @@
 // PDF export translates note structure into a printable layout.
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,6 +14,76 @@ import 'package:share_plus/share_plus.dart';
 import 'package:notepad/core/database/app_data.dart';
 import 'package:notepad/features/note/services/document_delta_parser.dart'
     as doc_delta;
+
+// --- Top-Level Isolate Functions ---
+
+Future<Uint8List> _generateSinglePdfBytes(Map<String, dynamic> params) async {
+  // Initialize platform channels on the background isolate to allow font fetching
+  final RootIsolateToken token = params['token'];
+  BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+  final String title = params['title'];
+  final List<dynamic> richContent = params['richContent'];
+
+  final fontReg = await PdfGoogleFonts.robotoRegular();
+  final fontBold = await PdfGoogleFonts.robotoBold();
+  final fontItalic = await PdfGoogleFonts.robotoItalic();
+  final fontBoldItalic = await PdfGoogleFonts.robotoBoldItalic();
+  final emojiFont = await PdfGoogleFonts.notoColorEmoji();
+
+  final pdf = PdfExporter.buildPdfDocument(
+    title: title,
+    richContent: richContent,
+    fontReg: fontReg,
+    fontBold: fontBold,
+    fontItalic: fontItalic,
+    fontBoldItalic: fontBoldItalic,
+    emojiFont: emojiFont,
+  );
+
+  return await pdf.save();
+}
+
+Future<List<String>> _generateBatchPdfFiles(Map<String, dynamic> params) async {
+  final RootIsolateToken token = params['token'];
+  BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+
+  final List<Map<String, dynamic>> notesData = params['notes'];
+  final String tempDirPath = params['tempDirPath'];
+
+  final fontReg = await PdfGoogleFonts.robotoRegular();
+  final fontBold = await PdfGoogleFonts.robotoBold();
+  final fontItalic = await PdfGoogleFonts.robotoItalic();
+  final fontBoldItalic = await PdfGoogleFonts.robotoBoldItalic();
+  final emojiFont = await PdfGoogleFonts.notoColorEmoji();
+
+  final filePaths = <String>[];
+
+  for (final noteData in notesData) {
+    final title = noteData['title'] as String;
+    final richContent = noteData['richContent'] as List<dynamic>;
+    final fileNameBase = noteData['fileNameBase'] as String;
+
+    final pdf = PdfExporter.buildPdfDocument(
+      title: title,
+      richContent: richContent,
+      fontReg: fontReg,
+      fontBold: fontBold,
+      fontItalic: fontItalic,
+      fontBoldItalic: fontBoldItalic,
+      emojiFont: emojiFont,
+    );
+
+    final bytes = await pdf.save();
+    final file = File('$tempDirPath/$fileNameBase.pdf');
+    await file.writeAsBytes(bytes, flush: true);
+    filePaths.add(file.path);
+  }
+
+  return filePaths;
+}
+
+// --- Main Class ---
 
 class PdfExporter {
   static pw.Document buildPdfDocument({
@@ -68,23 +139,12 @@ class PdfExporter {
     required String title,
     required List<dynamic> richContent,
   }) async {
-    final fontReg = await PdfGoogleFonts.robotoRegular();
-    final fontBold = await PdfGoogleFonts.robotoBold();
-    final fontItalic = await PdfGoogleFonts.robotoItalic();
-    final fontBoldItalic = await PdfGoogleFonts.robotoBoldItalic();
-    final emojiFont = await PdfGoogleFonts.notoColorEmoji();
-
-    final bytes = Uint8List.fromList(
-      await buildPdfDocument(
-        title: title,
-        richContent: richContent,
-        fontReg: fontReg,
-        fontBold: fontBold,
-        fontItalic: fontItalic,
-        fontBoldItalic: fontBoldItalic,
-        emojiFont: emojiFont,
-      ).save(),
-    );
+    // Offload CPU-heavy serialization and network font fetching to an isolate
+    final bytes = await compute(_generateSinglePdfBytes, {
+      'token': RootIsolateToken.instance!,
+      'title': title,
+      'richContent': richContent,
+    });
 
     final uri = await FilePicker.saveFile(
       dialogTitle: 'Save note as PDF',
@@ -100,29 +160,26 @@ class PdfExporter {
     required String title,
     required List<dynamic> richContent,
   }) async {
-    final fontReg = await PdfGoogleFonts.robotoRegular();
-    final fontBold = await PdfGoogleFonts.robotoBold();
-    final fontItalic = await PdfGoogleFonts.robotoItalic();
-    final fontBoldItalic = await PdfGoogleFonts.robotoBoldItalic();
-    final emojiFont = await PdfGoogleFonts.notoColorEmoji();
+    final bytes = await compute(_generateSinglePdfBytes, {
+      'token': RootIsolateToken.instance!,
+      'title': title,
+      'richContent': richContent,
+    });
 
-    final file = await _createPdfShareFile(
-      fileNameBase: doc_delta.safeFileTitle(title),
-      title: title,
-      richContent: richContent,
-      fontReg: fontReg,
-      fontBold: fontBold,
-      fontItalic: fontItalic,
-      fontBoldItalic: fontBoldItalic,
-      emojiFont: emojiFont,
+    final baseDir = await _shareDirectory();
+    final uniqueDir = await Directory(
+      '${baseDir.path}/${DateTime.now().microsecondsSinceEpoch}',
+    ).create(recursive: true);
+
+    final file = File(
+      '${uniqueDir.path}/${doc_delta.safeFileTitle(title)}.pdf',
     );
+    await file.writeAsBytes(bytes, flush: true);
 
     return SharePlus.instance.share(
       ShareParams(
         files: [XFile(file.path)],
-        text:
-            'Check out my note: $title'
-            '.pdf',
+        text: 'Check out my note: $title.pdf',
         subject: title.trim().isEmpty ? 'Shared note' : 'Note: $title',
       ),
     );
@@ -132,67 +189,37 @@ class PdfExporter {
     Iterable<NotesSection> notes, {
     String? text,
   }) async {
-    final files = <XFile>[];
-
-    final fontReg = await PdfGoogleFonts.robotoRegular();
-    final fontBold = await PdfGoogleFonts.robotoBold();
-    final fontItalic = await PdfGoogleFonts.robotoItalic();
-    final fontBoldItalic = await PdfGoogleFonts.robotoBoldItalic();
-    final emojiFont = await PdfGoogleFonts.notoColorEmoji();
-
-    for (final note in notes) {
-      final file = await _createPdfShareFile(
-        fileNameBase: doc_delta.safeFileTitle(note.title),
-        title: note.title,
-        richContent: doc_delta.decodeRichContent(
-          note.richContent,
-          note.content,
-        ),
-        fontReg: fontReg,
-        fontBold: fontBold,
-        fontItalic: fontItalic,
-        fontBoldItalic: fontBoldItalic,
-        emojiFont: emojiFont,
-      );
-      files.add(XFile(file.path));
-    }
-
-    return SharePlus.instance.share(
-      ShareParams(files: files, text: text, subject: 'Shared Notes'),
-    );
-  }
-
-  static Future<File> _createPdfShareFile({
-    required String fileNameBase,
-    required String title,
-    required List<dynamic> richContent,
-    required pw.Font fontReg,
-    required pw.Font fontBold,
-    required pw.Font fontItalic,
-    required pw.Font fontBoldItalic,
-    required pw.Font? emojiFont,
-  }) async {
     final baseDir = await _shareDirectory();
-
     final uniqueDir = await Directory(
       '${baseDir.path}/${DateTime.now().microsecondsSinceEpoch}',
     ).create(recursive: true);
 
-    final file = File('${uniqueDir.path}/$fileNameBase.pdf');
+    // Prepare primitive map list to safely send across the isolate port boundary
+    final notesData = notes
+        .map(
+          (note) => {
+            'title': note.title,
+            'richContent': doc_delta.decodeRichContent(
+              note.richContent,
+              note.content,
+            ),
+            'fileNameBase': doc_delta.safeFileTitle(note.title),
+          },
+        )
+        .toList();
 
-    await file.writeAsBytes(
-      await buildPdfDocument(
-        title: title,
-        richContent: richContent,
-        fontReg: fontReg,
-        fontBold: fontBold,
-        fontItalic: fontItalic,
-        fontBoldItalic: fontBoldItalic,
-        emojiFont: emojiFont,
-      ).save(),
-      flush: true,
+    // Offload the batch font fetching, parsing, and saving entirely
+    final filePaths = await compute(_generateBatchPdfFiles, {
+      'token': RootIsolateToken.instance!,
+      'notes': notesData,
+      'tempDirPath': uniqueDir.path,
+    });
+
+    final files = filePaths.map((path) => XFile(path)).toList();
+
+    return SharePlus.instance.share(
+      ShareParams(files: files, text: text, subject: 'Shared Notes'),
     );
-    return file;
   }
 
   static Future<Directory> _shareDirectory() async {
