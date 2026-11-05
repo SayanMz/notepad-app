@@ -82,7 +82,17 @@ Notepad is built on a **Feature-First** architecture with a strict **Controller-
 
 </details>
 
-#### 📐 Key Architectural Trade-offs
+<details>
+<summary><b>🧪 Our Testing Philosophy</b></summary>
+<br/>
+
+The test suite is focused heavily on isolating native and platform-dependent boundaries so the core application logic can be exercised deterministically. Repositories, storage adapters, network clients, platform channels, and external services are replaced with focused mocks or fakes where appropriate, while controllers, services, parsers, sorting, synchronization, and error-handling paths are tested against realistic edge cases.
+
+This keeps the main flow readable without hiding important behavior: tests document the contracts between layers, verify defensive fallback logic, and protect data integrity across note creation, editing, search, backup, restore, and recovery workflows.
+
+</details>
+
+### 📐 Architectural Decisions and Trade-offs
 
 * **Polyglot Storage & Privacy:** Live document states are stored persistently via encrypted Hive boxes. The SQLite FTS5 text index is rebuilt in memory at startup and is not persisted to disk. Semantic embeddings use a separate local SQLite database (`vectors.db`) so semantic search can be reused across launches; these embeddings are derived representations rather than the original note text.
 * **Dual-Tier Hybrid Voice Engine:** Employs a deterministic, offline regex parser (`LocalVoiceParser`) as a first line of defense to resolve structural edits, selections, and formatting with sub-millisecond latency and zero API cost. High-entropy, unstructured, or ambiguous phrasing dynamically falls back to cloud-hosted Groq LLM pipelines.
