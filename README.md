@@ -1,5 +1,7 @@
 # 📝 Notepad
 
+[![XERJ Corpus Hub](https://img.shields.io/badge/XERJ-Corpus_Hub_Contributor-blue?style=flat-square)](https://hub.xerj.org/contributors/SayanMz)
+
 **Notepad** is a sophisticated, local-first workspace engineered to dissolve the friction between thought and digital record. Blending high-performance SQLite FTS power with advanced Groq AI integration, it transforms a minimalist interface into a secure, intelligent thinking partner. Every interaction is tuned for near-instant responsiveness, ensuring your focus remains entirely on your ideas.
 
 <div align="center">
