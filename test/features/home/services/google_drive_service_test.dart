@@ -120,5 +120,12 @@ void main() {
       expect(stats['percent'], equals(0.0));
       expect(stats['text'], equals('Offline'));
     });
+
+    test('concurrent signIn calls return the same in-flight Future', () async {
+      final future1 = service.signIn();
+      final future2 = service.signIn();
+      final results = await Future.wait([future1, future2]);
+      expect(results.every((r) => r == true), isTrue);
+    });
   });
 }

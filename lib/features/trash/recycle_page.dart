@@ -219,6 +219,7 @@ class _RecyclePageState extends State<RecyclePage> {
                             forceCentered: isEmpty,
                             onEmptyBin: _handleEmptyRecycleBin,
                             scrollOffset: constraints.scrollOffset,
+                            isDark: isDark,
                           ),
                         );
                       },

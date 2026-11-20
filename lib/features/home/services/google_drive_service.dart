@@ -40,6 +40,7 @@ class GoogleDriveService {
 
   bool _initialized = false;
   Future<void>? _initializing;
+  Future<bool>? _activeSignIn;
 
   static Future<bool> _hasActiveInternet() async {
     try {
@@ -81,7 +82,18 @@ class GoogleDriveService {
     return future;
   }
 
-  Future<bool> signIn() async {
+  Future<bool> signIn() {
+    if (_activeSignIn != null) return _activeSignIn!;
+
+    final future = _performSignIn().whenComplete(() {
+      _activeSignIn = null;
+    });
+
+    _activeSignIn = future;
+    return future;
+  }
+
+  Future<bool> _performSignIn() async {
     if (_clientId.isEmpty && Platform.isWindows) {
       throw Exception('Missing GOOGLE_CLIENT_ID in .env');
     }

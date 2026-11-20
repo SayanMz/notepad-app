@@ -3,7 +3,7 @@ import 'package:notepad/core/extensions/context_extensions.dart';
 import 'package:notepad/features/trash/recycle_constants.dart';
 
 /// Sliver header delegate that handles a clean, sequential cross-fade transition.
-/// 
+///
 /// Transition stages based on scroll depth:
 /// 1. Anchor: Hero title remains centered for the initial scroll window.
 /// 2. Dissolve: Hero title fades out horizontally in-place.
@@ -13,12 +13,14 @@ class RecycleHeaderDelegate extends SliverPersistentHeaderDelegate {
   final bool forceCentered;
   final VoidCallback onEmptyBin;
   final double scrollOffset;
+  final bool isDark;
 
   RecycleHeaderDelegate({
     required this.title,
     required this.forceCentered,
     required this.onEmptyBin,
     required this.scrollOffset,
+    required this.isDark,
   });
 
   @override
@@ -39,8 +41,10 @@ class RecycleHeaderDelegate extends SliverPersistentHeaderDelegate {
     final double surfaceStart = screenHeight * 0.04;
     final double surfaceEnd = screenHeight * 0.08;
     final double surfaceProgress =
-        ((scrollOffset - surfaceStart) / (surfaceEnd - surfaceStart))
-            .clamp(0.0, 1.0);
+        ((scrollOffset - surfaceStart) / (surfaceEnd - surfaceStart)).clamp(
+          0.0,
+          1.0,
+        );
 
     // --- 2. Title Sequence Math ---
     final double triggerStart = screenHeight * 0.10; // Start at 10%
@@ -58,8 +62,9 @@ class RecycleHeaderDelegate extends SliverPersistentHeaderDelegate {
     );
 
     // Dynamic surface color and elevation for smooth materialization.
-    final Color baseTargetColor =
-        context.isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF3F3F3);
+    final Color baseTargetColor = context.isDark
+        ? const Color(0xFF2C2C2C)
+        : const Color(0xFFF3F3F3);
     final Color surfaceColor = Color.lerp(
       context.colorScheme.surface,
       baseTargetColor,
@@ -70,16 +75,17 @@ class RecycleHeaderDelegate extends SliverPersistentHeaderDelegate {
       key: const ValueKey('smooth_header_material'),
       color: surfaceColor,
       elevation: surfaceProgress * 4.0,
-      shadowColor: (context.isDark
-              ? const Color(0xFF000000).withValues(alpha: 0.65)
-              : const Color(0xFF2C2C2C).withValues(alpha: 0.15))
-          .withValues(alpha: surfaceProgress),
+      shadowColor:
+          (context.isDark
+                  ? const Color(0xFF000000).withValues(alpha: 0.65)
+                  : const Color(0xFF2C2C2C).withValues(alpha: 0.15))
+              .withValues(alpha: surfaceProgress),
       child: SafeArea(
         bottom: false,
         child: Stack(
           children: [
             const Align(alignment: Alignment.centerLeft, child: BackButton()),
-            
+
             // Render hero title if not fully dissolved.
             if (centerOpacity > 0.0)
               Opacity(
@@ -142,7 +148,8 @@ class RecycleHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant RecycleHeaderDelegate oldDelegate) {
     return oldDelegate.scrollOffset != scrollOffset ||
-           oldDelegate.forceCentered != forceCentered ||
-           oldDelegate.title != title;
+        oldDelegate.forceCentered != forceCentered ||
+        oldDelegate.title != title ||
+        oldDelegate.isDark != isDark;
   }
 }

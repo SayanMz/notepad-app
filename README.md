@@ -44,18 +44,24 @@
 ### 🧠 Intelligence & Search
 * **Smart AI Assistant:** Execute hands-free commands and dictate thoughts via high-speed Groq AI integration. Transform documents in real-time with natural commands like *"Make the first line green"* or *"Underline all instances of 'Notepad'"*.
 * **Lightning-Fast Search:** Locate precise keywords instantly with local SQLite FTS and smart fuzzy search. Catches typos effortlessly, with real-time text highlighting and smart date-range filtering.
-* **Intelligent Auto-Save:** Every stroke is captured in real-time with zero latency, backed by visual save-status indicators.
 * **Smart Topic Discovery:** Automatically organizes and tags your notes by topic using an on-device AI model. Finds related ideas instantly without any of your personal notes ever leaving your phone.
 
 ### 🔒 Uncompromising Privacy & Safety
 * **Privacy-First Design:** Your data is your business. Every note is secured on-device using local, high-security hardware-backed encryption (AES-256).
 * **Secure Cloud Backup:** Never lose a moment of inspiration. Authenticate safely to sync your notes directly to your personal, private Google Drive storage on-demand.
-* **Managed Recycle Bin:** A robust safety net to recover accidental deletions or perform permanent data purging from a dedicated bin.
+* **Managed Recycle Bin:** A safety net to recover accidental deletions or perform permanent data purging from a dedicated bin.
 
 ### ✨ Editor & Workspace
+* **Smart Auto-Save:** Every stroke is captured in real-time with zero latency, backed by visual save-status indicators.
 * **Professional Editor:** A highly responsive rich-text engine supporting headers, styles, hyperlinks, interactive bullet lists, and smart link overlays for instant calling, emailing, or adding calendar events.
 * **Smart Organization:** Power-user multi-select tools for batch pinning, sharing, or deleting, plus a bespoke draggable color picker interface for workspace personalization.
 * **Modern Design System:** AMOLED-optimized dark mode, adaptive grid layouts for tablets, and silky-smooth cross-fade transitions powered by a central Design Token engine.
+
+---
+
+### 🎬 Application Walkthroughs
+
+[📝 Note Editor](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Note_Editor_demo.mp4)  |  [🏠 Home Screen](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Home_Page.mp4)  |  [🤖 Groq AI Assistant](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Groq_Ai_demo.mp4)  |  [🧠 Semantic Search AI](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Semantic_Search_AI.mp4)  |  [🔍 Search Filter](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Search_Page.mp4)  |  [🗑️ Recycle Bin](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Recycle_Page.mp4)
 
 ---
 
@@ -67,6 +73,21 @@ Notepad is built on a **Feature-First** architecture with a strict **Controller-
 - **Polyglot Data Layer**: High-speed **Hive (NoSQL)** for live document state, in-memory **SQLite FTS5** for zero-latency text indexing, and dedicated persistent on-device **Vector Storage** for semantic embeddings.
 - **Data Integrity**: Uses **ULID-based identifiers** for consistent lexicographical ordering and reliable local-to-cloud synchronization.
 - **Semantic Theming**: Unified `Tokens` engine and `context_extensions` for instant, type-safe UI consistency across the entire app.
+
+### 📐 Architectural Decisions and Trade-offs
+
+* **Polyglot Storage & Privacy:** Live document states are stored persistently via encrypted Hive boxes. The SQLite FTS5 text index is rebuilt in memory at startup and is not persisted to disk. Semantic embeddings use a separate local SQLite database (`vectors.db`) so semantic search can be reused across launches; these embeddings are derived representations rather than the original note text.
+* **Dual-Tier Hybrid Voice Engine:** Employs a deterministic, offline regex parser (`LocalVoiceParser`) as a first line of defense to resolve structural edits, selections, and formatting with sub-millisecond latency and zero API cost. High-entropy, unstructured, or ambiguous phrasing dynamically falls back to cloud-hosted Groq LLM pipelines.
+* **Resilient Single-User Sync:** Avoids heavy CRDT synchronization overhead by leveraging a rolling 3-snapshot system in the isolated Google Drive `AppDataFolder`, protected by soft-delete validations to prevent data overwrites during restoration.
+
+<details>
+<summary><b>View Detailed Package Breakdown</b></summary>
+
+- **AI & ML**: `onnxruntime`, `bert_tokenizer`, `Groq Cloud API`, `speech_to_text`, `flutter_tts`
+- **Data**: `sqflite` (FTS Engine), `hive_flutter`, `ulid`
+- **Security & Sync**: `flutter_secure_storage`, `googleapis` (Drive Sync), `google_sign_in`
+- **UI & Export**: `flutter_quill`, `pdf`, `printing`, `flutter_colorpicker`, `lottie`, `share_plus`
+</details>
 
 ### 📊 Health & Metrics
 
@@ -94,30 +115,9 @@ This keeps the main flow readable without hiding important behavior: tests docum
 
 </details>
 
-### 📐 Architectural Decisions and Trade-offs
-
-* **Polyglot Storage & Privacy:** Live document states are stored persistently via encrypted Hive boxes. The SQLite FTS5 text index is rebuilt in memory at startup and is not persisted to disk. Semantic embeddings use a separate local SQLite database (`vectors.db`) so semantic search can be reused across launches; these embeddings are derived representations rather than the original note text.
-* **Dual-Tier Hybrid Voice Engine:** Employs a deterministic, offline regex parser (`LocalVoiceParser`) as a first line of defense to resolve structural edits, selections, and formatting with sub-millisecond latency and zero API cost. High-entropy, unstructured, or ambiguous phrasing dynamically falls back to cloud-hosted Groq LLM pipelines.
-* **Resilient Single-User Sync:** Avoids heavy CRDT synchronization overhead by leveraging a rolling 3-snapshot system in the isolated Google Drive `AppDataFolder`, protected by soft-delete validations to prevent data overwrites during restoration.
-
-<details>
-<summary><b>View Detailed Package Breakdown</b></summary>
-
-- **AI & ML**: `onnxruntime`, `bert_tokenizer`, `Groq Cloud API`, `speech_to_text`, `flutter_tts`
-- **Data**: `sqflite` (FTS Engine), `hive_flutter`, `ulid`
-- **Security & Sync**: `flutter_secure_storage`, `googleapis` (Drive Sync), `google_sign_in`
-- **UI & Export**: `flutter_quill`, `pdf`, `printing`, `flutter_colorpicker`, `lottie`, `share_plus`
-</details>
-
 ---
 
-### 🎬 Application Walkthroughs
-
-[📝 Note Editor](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Note_Editor_demo.mp4) &nbsp;|&nbsp; [🏠 Home Screen](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Home_Page.mp4) &nbsp;|&nbsp; [🤖 Groq AI Assistant](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Groq_Ai_demo.mp4) &nbsp;|&nbsp; [🧠 Semantic Search AI](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Semantic_Search_AI.mp4) &nbsp;|&nbsp; [🔍 Search Filter](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Search_Page.mp4) &nbsp;|&nbsp; [🗑️ Recycle Bin](https://github.com/SayanMz/notepad-app/releases/download/2.6.0/Recycle_Page.mp4)
-
----
-
-## 🚀 Local Setup
+## 🛠️ Local Setup
 
 <details>
 <summary><b>Show Installation Commands</b></summary>
